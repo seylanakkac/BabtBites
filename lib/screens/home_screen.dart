@@ -136,10 +136,13 @@ class HomeScreen extends StatelessWidget {
                               : Colors.orange.withOpacity(0.08),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          isFemale ? Icons.girl_outlined : Icons.boy_outlined,
-                          color: isFemale ? Colors.pink[300] : Colors.orange[400],
-                          size: 30,
+                        child: Center(
+                          child: Text(
+                            baby["avatar"] ?? (isFemale ? "👧" : "👦"),
+                            style: const TextStyle(
+                              fontSize: 26,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 16),

@@ -14,8 +14,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   
   String? _selectedGender; // 'Kız' or 'Erkek'
   DateTime? _selectedDate;
+  String _selectedCharacter = "👶"; // Default baby emoji
   bool _genderError = false;
   bool _dateError = false;
+
+  // Characters List for Selector
+  final List<Map<String, dynamic>> _characters = const [
+    {"emoji": "👶", "color": Color(0xFFFFF0F5)},
+    {"emoji": "👧", "color": Color(0xFFF0FFF0)},
+    {"emoji": "👦", "color": Color(0xFFF0F8FF)},
+    {"emoji": "🐥", "color": Color(0xFFFFFFE0)},
+    {"emoji": "🦁", "color": Color(0xFFFFF5EE)},
+    {"emoji": "🐼", "color": Color(0xFFF5F5F7)},
+    {"emoji": "🐨", "color": Color(0xFFF6F0FF)},
+    {"emoji": "🐰", "color": Color(0xFFFFF0F0)},
+  ];
 
   // List to store multiple babies
   final List<Map<String, dynamic>> _addedBabies = [];
@@ -48,12 +61,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         "name": _nameController.text.trim(),
         "gender": _selectedGender!,
         "dob": formattedDate,
+        "avatar": _selectedCharacter,
       });
 
       // Clear current inputs for next baby
       _nameController.clear();
       _selectedGender = null;
       _selectedDate = null;
+      _selectedCharacter = "👶";
       _genderError = false;
       _dateError = false;
     });
@@ -309,10 +324,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              avatar: Icon(
-                                isFemale ? Icons.girl : Icons.boy,
-                                size: 18,
-                                color: isFemale ? Colors.pink[300] : primaryColor,
+                              avatar: Text(
+                                baby["avatar"] ?? "👶",
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                ),
                               ),
                               deleteIcon: const Icon(Icons.close, size: 16),
                               deleteIconColor: Colors.grey[500],
@@ -530,6 +546,69 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           ),
                         ),
                       ],
+
+                      const SizedBox(height: 24),
+
+                      // Bir Karakter Seç Section
+                      const Text(
+                        "Bir Karakter Seç",
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: textColor,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      GridView.count(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 4,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 1.0,
+                        children: _characters.map((char) {
+                          final String emoji = char["emoji"];
+                          final Color bgColor = char["color"];
+                          final bool isSelected = _selectedCharacter == emoji;
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedCharacter = emoji;
+                              });
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                color: bgColor,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? primaryColor : Colors.transparent,
+                                  width: isSelected ? 2.5 : 0,
+                                ),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: primaryColor.withOpacity(0.2),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 2),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  emoji,
+                                  style: const TextStyle(
+                                    fontSize: 32,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
 
                       const SizedBox(height: 24),
 
