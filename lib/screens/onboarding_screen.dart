@@ -369,7 +369,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           color: textColor,
                         ),
                         decoration: InputDecoration(
-                          hintText: "Type here...",
+                          hintText: "Bebiktonun adı",
                           hintStyle: const TextStyle(
                             fontFamily: 'Inter',
                             color: lightTextColor,
