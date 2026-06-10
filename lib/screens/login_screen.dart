@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _openTermsUrl() async {
-    final Uri url = Uri.parse('https://github.com/Lexth3r/BabyBites/blob/main/TERMS_OF_USE.md');
+    final Uri url = Uri.parse('https://github.com/seylanakkac/BabtBites/blob/main/TERMS_OF_USE.md');
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
