@@ -58,6 +58,7 @@ flutter:
   assets:
     - assets/images/logo.png
     - assets/images/google_logo.png
+    - assets/images/rocket.png
 
   fonts:
     - family: Inter

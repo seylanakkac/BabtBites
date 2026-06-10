@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/home_screen.dart';
 import 'widgets/mobile_web_frame.dart';
 
 void main() {
@@ -34,7 +36,7 @@ class BabyBitesApp extends StatelessWidget {
               fontFamily: 'Inter',
               bodyColor: textColor,
               displayColor: textColor,
-            ),
+             ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFFFAF9F6),
           elevation: 0,
@@ -51,6 +53,8 @@ class BabyBitesApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
+        '/onboarding': (context) => const OnboardingScreen(),
+        '/home': (context) => const HomeScreen(),
       },
       builder: (context, child) {
         return MobileWebFrame(child: child!);

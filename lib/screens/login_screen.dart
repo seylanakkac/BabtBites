@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -36,10 +35,12 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
         
-        // Navigate to Dashboard
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardPlaceholderScreen()),
-        );
+        // Navigate based on Login/Register mode
+        if (_isLogin) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/onboarding');
+        }
       }
     });
   }
@@ -54,9 +55,13 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() {
           _isLoading = false;
         });
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const DashboardPlaceholderScreen()),
-        );
+        
+        // Navigate based on Login/Register mode
+        if (_isLogin) {
+          Navigator.of(context).pushReplacementNamed('/home');
+        } else {
+          Navigator.of(context).pushReplacementNamed('/onboarding');
+        }
       }
     });
   }
