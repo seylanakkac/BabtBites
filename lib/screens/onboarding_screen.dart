@@ -238,13 +238,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                             ],
                           ),
-                          child: Center(
-                            child: SizedBox(
-                              width: 65,
-                              height: 65,
-                              child: Image.asset(
-                                'assets/images/rocket.png',
-                                fit: BoxFit.contain,
+                          child: const Center(
+                            child: Text(
+                              "👶",
+                              style: TextStyle(
+                                fontSize: 48,
                               ),
                             ),
                           ),
