@@ -63,7 +63,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _openTermsUrl() async {
     final Uri url = Uri.parse('https://github.com/seylanakkac/BabtBites/blob/main/TERMS_OF_USE.md');
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+    if (!await launchUrl(
+      url,
+      mode: LaunchMode.externalApplication,
+      webOnlyWindowName: '_blank',
+    )) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Bağlantı açılamadı.")),
