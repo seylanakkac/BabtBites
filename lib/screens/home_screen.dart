@@ -4,6 +4,7 @@ import '../data/food_database.dart';
 import '../data/tracking_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
+import 'articles_screen.dart';
 import 'food_detail_screen.dart';
 import 'recipe_detail_screen.dart';
 
@@ -504,6 +505,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 28),
+        // Beslenme Rehberi
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArticlesScreen())),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.25))),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: const BoxDecoration(color: Color(0xFF2BB673), shape: BoxShape.circle),
+                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Beslenme Rehberi", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+                      SizedBox(height: 4),
+                      Text("Ek gıdaya geçiş, alerji, BLW ve uzman yazıları.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF2BB673)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         // Haftalık Menü banner
         GestureDetector(
           onTap: _openWeeklyMenu,
