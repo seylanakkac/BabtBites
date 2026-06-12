@@ -593,13 +593,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           protein: n["Protein"]!,
                           fat: n["Yağ"]!,
                           portionLabel: "1 Porsiyon",
-                          tableRows: [
-                            NutrientRow("Enerji", n["Enerji"]!, "kcal"),
-                            NutrientRow("Karbonhidrat", n["Karbonhidrat"]!, "g"),
-                            NutrientRow("Protein", n["Protein"]!, "g"),
-                            NutrientRow("Yağ", n["Yağ"]!, "g"),
-                            NutrientRow("Demir", n["Demir"]!, "mg"),
-                          ],
+                          tableRows: nutrientRowsFromMap(n),
                         ),
                         const SizedBox(height: 32),
 

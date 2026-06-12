@@ -1,3 +1,4 @@
+import 'nutrition_database.dart';
 
 class Food {
   final String name;
@@ -114,9 +115,15 @@ double atwaterCarb(double energy, double protein, double fat) {
   return c < 0 ? 0 : c;
 }
 
-/// Full per-100g nutrition map for a food, with an estimated Karbonhidrat value
-/// when one is not stored. Keys: Enerji, Karbonhidrat, Protein, Yağ, Demir.
+/// Detailed per-100g nutrition map for a food. Uses the researched
+/// [kDetailedNutrition] table when the food is a built-in; otherwise derives a
+/// partial map from [Food.nutritionValues] with an Atwater carbohydrate
+/// estimate. Always contains at least Enerji/Karbonhidrat/Protein/Yağ.
 Map<String, double> nutritionForFood(Food food) {
+  final detail = kDetailedNutrition[food.name.toLowerCase().trim()];
+  if (detail != null) {
+    return {for (final k in kNutrientKeys) k: detail[k] ?? 0.0};
+  }
   final nv = food.nutritionValues;
   final energy = nv["Enerji"] ?? 0;
   final protein = nv["Protein"] ?? 0;
@@ -132,11 +139,11 @@ Map<String, double> nutritionForFood(Food food) {
   };
 }
 
-/// Aggregated nutrition for a recipe, summed from its ingredient foods.
-/// Energy uses the recipe's stored kcal when available. Carbohydrate is
-/// estimated via [atwaterCarb]. Keys match [nutritionForFood].
+/// Aggregated detailed nutrition for a recipe, summed across its ingredient
+/// foods (each via [nutritionForFood]). Energy uses the recipe's stored kcal
+/// when available; carbohydrate falls back to [atwaterCarb] if it summed to 0.
 Map<String, double> nutritionForRecipe(Recipe recipe) {
-  double protein = 0, fat = 0, iron = 0, energySum = 0;
+  final sum = {for (final k in kNutrientKeys) k: 0.0};
   for (final ing in recipe.ingredients) {
     Food? f;
     for (final cand in globalFoodsDatabase) {
@@ -146,21 +153,16 @@ Map<String, double> nutritionForRecipe(Recipe recipe) {
       }
     }
     if (f == null) continue;
-    final nv = f.nutritionValues;
-    energySum += nv["Enerji"] ?? 0;
-    protein += nv["Protein"] ?? 0;
-    fat += nv["Sağlıklı Yağ"] ?? nv["Yağ"] ?? 0;
-    iron += nv["Demir"] ?? 0;
+    final n = nutritionForFood(f);
+    for (final k in kNutrientKeys) {
+      sum[k] = sum[k]! + (n[k] ?? 0);
+    }
   }
-  final energy = recipe.kcal > 0 ? recipe.kcal : energySum;
-  final carb = atwaterCarb(energy, protein, fat);
-  return {
-    "Enerji": energy,
-    "Karbonhidrat": carb,
-    "Protein": protein,
-    "Yağ": fat,
-    "Demir": iron,
-  };
+  if (recipe.kcal > 0) sum["Enerji"] = recipe.kcal;
+  if ((sum["Karbonhidrat"] ?? 0) == 0) {
+    sum["Karbonhidrat"] = atwaterCarb(sum["Enerji"]!, sum["Protein"]!, sum["Yağ"]!);
+  }
+  return sum;
 }
 
 // 100 Foods Database

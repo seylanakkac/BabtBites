@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../data/nutrition_database.dart';
 
 /// One row in the detailed nutrition table.
 class NutrientRow {
@@ -7,6 +8,16 @@ class NutrientRow {
   final double value;
   final String unit;
   const NutrientRow(this.label, this.value, this.unit);
+}
+
+/// Builds ordered table rows (with units) from a nutrition map, skipping any
+/// nutrient the map doesn't contain.
+List<NutrientRow> nutrientRowsFromMap(Map<String, double> n) {
+  final rows = <NutrientRow>[];
+  for (final d in kNutrientDisplay) {
+    if (n.containsKey(d[0])) rows.add(NutrientRow(d[0], n[d[0]]!, d[1]));
+  }
+  return rows;
 }
 
 /// A detailed nutrition card: a calorie donut (segments coloured by the
