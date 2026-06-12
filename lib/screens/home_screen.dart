@@ -555,13 +555,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SizedBox(
-                    width: 46,
-                    height: 46,
-                    child: isPhotoUrl(food.imageUrl)
-                        ? ClipOval(child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover))
-                        : Center(child: Text(food.emoji, style: const TextStyle(fontSize: 40))),
-                  ),
+                  isPhotoUrl(food.imageUrl)
+                      ? ClipOval(child: SizedBox(width: 48, height: 48, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
+                      : Text(food.emoji, style: const TextStyle(fontSize: 38, height: 1.1)),
                   const SizedBox(height: 10),
                   Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
                   const SizedBox(height: 6),
