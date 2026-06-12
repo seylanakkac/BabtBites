@@ -373,68 +373,108 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _sectionTitle(String t) => Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text));
 
-  // ====================== HOME TAB ======================
+  // ====================== HOME TAB (Keşfet) ======================
+  String _categoryEmoji(String cat) {
+    switch (cat) {
+      case "Sebze":
+        return "🥦";
+      case "Meyve":
+        return "🍎";
+      case "Tahıl":
+        return "🌾";
+      case "Et":
+        return "🍗";
+      case "Balık":
+        return "🐟";
+      case "Süt Ürünleri":
+      case "Süt":
+        return "🥛";
+      case "Baklagil":
+        return "🫘";
+      case "Yumurta":
+        return "🥚";
+      default:
+        return "🍽️";
+    }
+  }
+
   Widget _buildHomeTab() {
-    final weekDays = _getWeeklyDays();
-    final monday = _focusedDate.subtract(Duration(days: _focusedDate.weekday - 1));
-    final sunday = monday.add(const Duration(days: 6));
-    const monthsTr = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-    final rangeText = "${monday.day} – ${sunday.day} ${monthsTr[sunday.month - 1]}";
-    final targets = _calculateBabyTargets();
-    final planned = _calculatePlannedNutrition();
+    final filteredFoods = globalFoodsDatabase.where((food) {
+      final matchesSearch = food.name.toLowerCase().contains(_searchQuery);
+      final matchesCat = _selectedCategory == "Tümü" || food.category == _selectedCategory;
+      return matchesSearch && matchesCat;
+    }).toList();
+    final gridFoods = _searchQuery.isEmpty ? filteredFoods.take(6).toList() : filteredFoods;
+    final todaysRecipes = globalRecipesDatabase.take(6).toList();
+    final babyName = _activeBaby?["name"]?.toString() ?? "Bebeğin";
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
+        // Header: logo + baby chip
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Haftalık Menü", style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: _text)),
-                  SizedBox(height: 4),
-                  Text("Bebeğin için dengeli öğünler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
-                ],
+            Expanded(
+              child: Text(
+                "BabyBites",
+                style: TextStyle(fontFamily: 'Inter', fontSize: 28, fontWeight: FontWeight.bold, color: _primary.withOpacity(0.35)),
               ),
             ),
             _babyChip(),
           ],
         ),
         const SizedBox(height: 20),
-        Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(icon: const Icon(Icons.chevron_left, color: _primary, size: 22), onPressed: () => setState(() => _focusedDate = _focusedDate.subtract(const Duration(days: 7)))),
-                Text(rangeText, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
-                IconButton(icon: const Icon(Icons.chevron_right, color: _primary, size: 22), onPressed: () => setState(() => _focusedDate = _focusedDate.add(const Duration(days: 7)))),
-              ],
+        // Search bar
+        Container(
+          decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(16)),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: _text),
+            decoration: const InputDecoration(
+              hintText: "Gıda veya tarif ara...",
+              hintStyle: TextStyle(color: _light, fontSize: 15),
+              prefixIcon: Icon(Icons.search, color: _light),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 24),
+        // Gıdaları Keşfet header
+        Row(
+          children: [
+            const Expanded(child: Text("Gıdaları Keşfet", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text))),
+            GestureDetector(
+              onTap: () => setState(() => _currentIndex = 1),
+              child: Text("Tümünü Gör", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Category chips
         SizedBox(
-          height: 64,
-          child: Row(
-            children: weekDays.map((d) {
-              final sel = d["key"] == _selectedDay;
-              return Expanded(
+          height: 44,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: ["Tümü", ...foodCategories].map((cat) {
+              final sel = _selectedCategory == cat;
+              return Padding(
+                padding: const EdgeInsets.only(right: 10),
                 child: GestureDetector(
-                  onTap: () => setState(() => _selectedDay = d["key"]!),
+                  onTap: () => setState(() => _selectedCategory = cat),
                   child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.6))),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(d["dayName"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: sel ? Colors.white70 : _light)),
-                        const SizedBox(height: 2),
-                        Text(d["dayNum"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: sel ? Colors.white : _text)),
+                        cat == "Tümü"
+                            ? Icon(Icons.check, size: 16, color: sel ? Colors.white : _light)
+                            : Text(_categoryEmoji(cat), style: const TextStyle(fontSize: 16)),
+                        const SizedBox(width: 6),
+                        Text(cat, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
                       ],
                     ),
                   ),
@@ -443,49 +483,291 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 20),
-        ..._mealSlots.expand((slot) {
-          final items = _weeklyPlan[_selectedDay]?[slot] ?? [];
-          return [
-            if (items.isEmpty) _emptyMealCard(slot) else ...items.map((name) => _mealCard(slot, name)),
-            const SizedBox(height: 12),
-          ];
-        }),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(color: _primary.withOpacity(0.07), borderRadius: BorderRadius.circular(18)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                children: [
-                  Expanded(child: Text("Günlük Besin Özeti", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _danger))),
-                  Icon(Icons.auto_graph, color: _danger, size: 20),
-                ],
+        const SizedBox(height: 16),
+        // Food grid
+        gridFoods.isEmpty
+            ? const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: Text("Bu kategoride gıda yok.", textAlign: TextAlign.center, style: TextStyle(color: _light)))
+            : GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.80, crossAxisSpacing: 14, mainAxisSpacing: 14),
+                itemCount: gridFoods.length,
+                itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
-              const SizedBox(height: 14),
-              _nutrientBar("Protein", planned["Protein"]!, targets["Protein"]!, _danger),
-              const SizedBox(height: 12),
-              _nutrientBar("Demir", planned["Iron"]!, targets["Iron"]!, _primary),
-              const SizedBox(height: 12),
-              _nutrientBar("Kalori", planned["Energy"]!, targets["Energy"]!, _green),
-            ],
-          ),
+        const SizedBox(height: 28),
+        // Günün Tarifleri header
+        Row(
+          children: [
+            const Expanded(child: Text("Günün Tarifleri", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text))),
+            GestureDetector(
+              onTap: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; }),
+              child: Text("Daha Fazla", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: _addWeekIngredientsToCart,
-            icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-            label: const Text("Haftalık Malzemeleri Sepete Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+          height: 270,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: todaysRecipes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            itemBuilder: (context, index) => _homeRecipeCard(todaysRecipes[index]),
+          ),
+        ),
+        const SizedBox(height: 28),
+        // Haftalık Menü banner
+        GestureDetector(
+          onTap: _openWeeklyMenu,
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(color: _primary.withOpacity(0.65), borderRadius: BorderRadius.circular(20)),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), shape: BoxShape.circle),
+                  child: const Icon(Icons.calendar_today, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Haftalık Menü Hazır!", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 4),
+                      Text("$babyName için bu haftanın besleyici planına göz at.", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Colors.white)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Colors.white),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 20),
       ],
     );
+  }
+
+  Widget _homeFoodCard(Food food) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
+      )),
+      child: Container(
+        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(20)),
+        child: Stack(
+          children: [
+            if (food.tried)
+              const Positioned(top: 10, right: 10, child: Icon(Icons.check_circle, color: _green, size: 20)),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: isPhotoUrl(food.imageUrl)
+                        ? ClipOval(child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover))
+                        : Center(child: Text(food.emoji, style: const TextStyle(fontSize: 40))),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                    child: Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _text)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _homeRecipeCard(Recipe recipe) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(recipe: recipe, onStateChanged: _onChildChanged),
+      )),
+      child: Container(
+        width: 230,
+        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: SizedBox(width: double.infinity, height: 150, child: _getRecipeImage(recipe)),
+                  ),
+                ),
+                Positioned(
+                  top: 18,
+                  left: 18,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time, size: 14, color: _primary),
+                        const SizedBox(width: 4),
+                        Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: _primary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                        child: Text("${recipe.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text("• ${recipe.kcal.toInt()} kcal", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ====================== WEEKLY MENU PAGE (banner'dan açılır) ======================
+  void _openWeeklyMenu() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return StatefulBuilder(
+        builder: (ctx, setLocal) {
+          final weekDays = _getWeeklyDays();
+          final monday = _focusedDate.subtract(Duration(days: _focusedDate.weekday - 1));
+          final sunday = monday.add(const Duration(days: 6));
+          const monthsTr = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+          final rangeText = "${monday.day} – ${sunday.day} ${monthsTr[sunday.month - 1]}";
+          final targets = _calculateBabyTargets();
+          final planned = _calculatePlannedNutrition();
+          void refresh() => setLocal(() {});
+          return Scaffold(
+            backgroundColor: _bg,
+            appBar: AppBar(
+              backgroundColor: _bg,
+              elevation: 0,
+              leading: IconButton(icon: const Icon(Icons.arrow_back, color: _text), onPressed: () => Navigator.pop(ctx)),
+              title: const Text("Haftalık Menü", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+              centerTitle: true,
+            ),
+            body: ListView(
+              padding: const EdgeInsets.all(24),
+              children: [
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(icon: const Icon(Icons.chevron_left, color: _primary, size: 22), onPressed: () => setLocal(() => _focusedDate = _focusedDate.subtract(const Duration(days: 7)))),
+                        Text(rangeText, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+                        IconButton(icon: const Icon(Icons.chevron_right, color: _primary, size: 22), onPressed: () => setLocal(() => _focusedDate = _focusedDate.add(const Duration(days: 7)))),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 64,
+                  child: Row(
+                    children: weekDays.map((d) {
+                      final sel = d["key"] == _selectedDay;
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => setLocal(() => _selectedDay = d["key"]!),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.6))),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(d["dayName"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: sel ? Colors.white70 : _light)),
+                                const SizedBox(height: 2),
+                                Text(d["dayNum"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: sel ? Colors.white : _text)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ..._mealSlots.expand((slot) {
+                  final items = _weeklyPlan[_selectedDay]?[slot] ?? [];
+                  return [
+                    if (items.isEmpty) _emptyMealCard(slot, onChanged: refresh) else ...items.map((name) => _mealCard(slot, name, onChanged: refresh)),
+                    const SizedBox(height: 12),
+                  ];
+                }),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(color: _primary.withOpacity(0.07), borderRadius: BorderRadius.circular(18)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Expanded(child: Text("Günlük Besin Özeti", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _danger))),
+                          Icon(Icons.auto_graph, color: _danger, size: 20),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _nutrientBar("Protein", planned["Protein"]!, targets["Protein"]!, _danger),
+                      const SizedBox(height: 12),
+                      _nutrientBar("Demir", planned["Iron"]!, targets["Iron"]!, _primary),
+                      const SizedBox(height: 12),
+                      _nutrientBar("Kalori", planned["Energy"]!, targets["Energy"]!, _green),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _addWeekIngredientsToCart,
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                    label: const Text("Haftalık Malzemeleri Sepete Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
+      );
+    }));
   }
 
   Widget _babyChip() {
@@ -537,9 +819,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _emptyMealCard(String slot) {
+  Widget _emptyMealCard(String slot, {VoidCallback? onChanged}) {
     return GestureDetector(
-      onTap: () => _showAddMealItemDialog(slot),
+      onTap: () => _showAddMealItemDialog(slot, onChanged: onChanged),
       child: Container(
         margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.symmetric(vertical: 18),
@@ -556,7 +838,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _mealCard(String slot, String name) {
+  Widget _mealCard(String slot, String name, {VoidCallback? onChanged}) {
     final recipeMatch = globalRecipesDatabase.where((r) => r.name == name).toList();
     final foodMatch = globalFoodsDatabase.where((f) => f.name == name).toList();
     final isRecipe = recipeMatch.isNotEmpty;
@@ -600,8 +882,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               if (v == "open" && isRecipe) {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipeMatch.first, onStateChanged: _onChildChanged)));
               } else if (v == "remove") {
-                setState(() => _weeklyPlan[_selectedDay]?[slot]?.remove(name));
+                _weeklyPlan[_selectedDay]?[slot]?.remove(name);
                 _persist();
+                setState(() {});
+                onChanged?.call();
               }
             },
             itemBuilder: (_) => [
@@ -1146,7 +1430,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showAddMealItemDialog(String slot) {
+  void _showAddMealItemDialog(String slot, {VoidCallback? onChanged}) {
     final searchCtrl = TextEditingController();
     showModalBottomSheet(
       context: context,
@@ -1197,6 +1481,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             }
                             _persist();
                             setState(() {});
+                            onChanged?.call();
                             Navigator.pop(ctx);
                           },
                         );
