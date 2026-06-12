@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _explorerSubTab = 0;
   bool _onlyTriedRecipes = false;
   final Set<String> _pantry = {};
+  final Set<String> _favoriteRecipes = {};
 
   final _cartInputController = TextEditingController();
 
@@ -267,22 +268,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     }
     return result;
-  }
-
-  Color _getCategoryBgColor(String cat) {
-    switch (cat) {
-      case "Sebze":
-        return const Color(0xFFE8F8F0);
-      case "Meyve":
-        return const Color(0xFFFFF0E6);
-      case "Tahıl":
-        return const Color(0xFFFFFBE6);
-      case "Et":
-      case "Balık":
-        return const Color(0xFFFFF0F2);
-      default:
-        return const Color(0xFFF0F0F5);
-    }
   }
 
   Widget _getRecipeImage(Recipe recipe) {
@@ -941,7 +926,145 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(added > 0 ? "$added malzeme sepete eklendi." : "Eklenecek yeni malzeme yok.")));
   }
 
+  // ---------- food/recipe card styling helpers ----------
+  /// A soft pastel tint based on the food's natural colour (by name / category).
+  Color _foodTint(Food f) {
+    final n = f.name.toLowerCase();
+    bool has(List<String> k) => k.any((s) => n.contains(s));
+    if (has(["brokoli", "ıspanak", "bezelye", "enginar", "kabak", "salatalık", "yeşil", "avokado", "brüksel", "pırasa", "marul", "dereotu", "maydanoz", "fasulye", "semizotu", "lahana"])) return const Color(0xFFE8F5E9);
+    if (has(["havuç", "balkabağı", "tatlı patates", "kayısı", "şeftali", "mango", "portakal", "mandalina", "kavun"])) return const Color(0xFFFFEFE0);
+    if (has(["muz", "mısır", "ananas", "armut", "limon"])) return const Color(0xFFFFF8E1);
+    if (has(["balık", "somon", "levrek", "mezgit", "hamsi", "uskumru", "ton", "yengeç"])) return const Color(0xFFE3F2FD);
+    if (has(["elma", "çilek", "domates", "kiraz", "vişne", "nar", "karpuz", "frenk", "ahududu", "pancar", "böğürtlen"])) return const Color(0xFFFFEBEE);
+    if (has(["tavuk", "köfte", "hindi", "dana", "kuzu", "ciğer", "kırmızı et", "biftek"])) return const Color(0xFFFCE4EC);
+    if (has(["yumurta", "yoğurt", "peynir", "süt", "kaymak", "kefir"])) return const Color(0xFFFFF8E7);
+    if (has(["yulaf", "pirinç", "bulgur", "ekmek", "makarna", "un", "tahıl", "kinoa", "mercimek", "nohut", "fasulyesi", "irmik"])) return const Color(0xFFF3E8FB);
+    switch (f.category) {
+      case "Sebze":
+        return const Color(0xFFE8F5E9);
+      case "Meyve":
+        return const Color(0xFFFFEBEE);
+      case "Tahıl":
+        return const Color(0xFFF3E8FB);
+      case "Et":
+      case "Balık":
+        return const Color(0xFFFCE4EC);
+    }
+    return const Color(0xFFF3F3F5);
+  }
+
+  /// A short serving-style hint derived from the food's presentation styles.
+  String _servingHint(Food f) {
+    final t = f.presentationStyles.values.join(" ").toLowerCase();
+    final tags = <String>[];
+    void add(String label, List<String> keys) {
+      if (tags.length < 2 && !tags.contains(label) && keys.any((k) => t.contains(k))) tags.add(label);
+    }
+
+    add("Püre", ["püre"]);
+    add("Ezilmiş", ["ez"]);
+    add("Haşlanmış", ["haşla"]);
+    add("Parmak", ["parmak"]);
+    add("İnce Kıyılmış", ["kıyı", "kıyma", "doğra"]);
+    add("Rende", ["rende"]);
+    add("Lapa", ["lapa"]);
+    add("Küçük Parça", ["parça", "küp"]);
+    add("Dilim", ["dilim"]);
+    if (tags.isEmpty) return f.category;
+    return tags.take(2).join("/");
+  }
+
+  Widget _agePill(int month) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(color: const Color(0xFF1E9E5C), borderRadius: BorderRadius.circular(10)),
+        child: Text("$month+", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+      );
+
+  Widget _explorerFoodCard(Food food) {
+    final allergen = food.allergyRisk != "Düşük";
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
+      )),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: _foodTint(food), borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: Stack(
+                children: [
+                  if (food.tried) const Positioned(top: 0, right: 0, child: Icon(Icons.check_circle, color: _green, size: 18)),
+                  Center(
+                    child: isPhotoUrl(food.imageUrl)
+                        ? ClipOval(child: SizedBox(width: 52, height: 52, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
+                        : Text(food.emoji, style: const TextStyle(fontSize: 46)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+                      const SizedBox(height: 2),
+                      Text(_servingHint(food), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: Color(0xFF8E8E9F))),
+                      if (allergen) ...[
+                        const SizedBox(height: 3),
+                        const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFFE8A23D)),
+                            SizedBox(width: 3),
+                            Text("Alerjen", style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFE8A23D))),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _agePill(food.startingMonth),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _recipeTint(Recipe r) {
+    for (final ing in r.ingredients) {
+      final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == ing.toLowerCase()).toList();
+      if (m.isNotEmpty) return _foodTint(m.first);
+    }
+    return const Color(0xFFFFF0E6);
+  }
+
+  void _addRecipeToCart(Recipe r) {
+    int added = 0;
+    setState(() {
+      for (final ing in r.ingredients) {
+        if (!globalCartList.contains(ing)) {
+          globalCartList.add(ing);
+          globalCartQuantities[ing] = 1;
+          added++;
+        }
+      }
+    });
+    _persist();
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(added > 0 ? "$added malzeme sepete eklendi." : "Malzemeler zaten sepette."), duration: const Duration(seconds: 1)));
+  }
+
   Widget _recipeListItem(Recipe recipe) {
+    final desc = recipe.steps.isNotEmpty ? recipe.steps.first : recipe.allergyWarning;
+    final fav = _favoriteRecipes.contains(recipe.id);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -950,29 +1073,63 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         )),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6)),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7)),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(width: 70, height: 70, child: _getRecipeImage(recipe))),
+              Container(
+                width: 64,
+                height: 64,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(color: _recipeTint(recipe), borderRadius: BorderRadius.circular(16)),
+                child: _getRecipeImage(recipe),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: _danger.withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
+                          child: Text("${recipe.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _danger)),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: const Color(0xFF7A5CFF).withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
+                          child: Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF7A5CFF))),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
                     const SizedBox(height: 4),
-                    Text("${recipe.startingMonth}+ Ay • ${recipe.prepTime}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
-                    const SizedBox(height: 4),
-                    Text("${recipe.kcal.toInt()} kcal", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _primary)),
+                    Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xFF8E8E9F), height: 1.35)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: _light),
+              const SizedBox(width: 6),
+              Column(
+                children: [
+                  GestureDetector(
+                    onTap: () => _addRecipeToCart(recipe),
+                    child: const Icon(Icons.add_shopping_cart, color: _primary, size: 20),
+                  ),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: () => setState(() => fav ? _favoriteRecipes.remove(recipe.id) : _favoriteRecipes.add(recipe.id)),
+                    child: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? _danger : _light, size: 20),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -1065,44 +1222,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.82, crossAxisSpacing: 12, mainAxisSpacing: 12),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.82, crossAxisSpacing: 14, mainAxisSpacing: 14),
             itemCount: filteredFoods.length,
-            itemBuilder: (context, index) {
-              final food = filteredFoods[index];
-              return GestureDetector(
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
-                )),
-                child: Container(
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
-                  child: Stack(
-                    children: [
-                      if (food.tried) const Positioned(top: 6, right: 6, child: Icon(Icons.check_circle, color: _green, size: 16)),
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(color: _getCategoryBgColor(food.category), shape: BoxShape.circle),
-                            child: isPhotoUrl(food.imageUrl)
-                                ? ClipOval(child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover))
-                                : Center(child: Text(food.emoji, style: const TextStyle(fontSize: 22))),
-                          ),
-                          const SizedBox(height: 6),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
-                          ),
-                          const SizedBox(height: 2),
-                          Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: _primary)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+            itemBuilder: (context, index) => _explorerFoodCard(filteredFoods[index]),
           ),
           const SizedBox(height: 24),
         ],
