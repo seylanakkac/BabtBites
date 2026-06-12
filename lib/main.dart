@@ -100,7 +100,13 @@ class BabyBitesApp extends StatelessWidget {
         '/admin': (context) => const AdminScreen(),
       },
       builder: (context, child) {
-        return MobileWebFrame(child: child!);
+        // Slightly compact the whole app (text ~10% smaller) so dense screens
+        // breathe and dialogs fit the phone frame.
+        final mq = MediaQuery.of(context);
+        return MediaQuery(
+          data: mq.copyWith(textScaler: const TextScaler.linear(0.9)),
+          child: MobileWebFrame(child: child!),
+        );
       },
     );
   }

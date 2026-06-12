@@ -2008,8 +2008,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Widget choiceChip(String text, bool sel, VoidCallback onTap) => GestureDetector(
                 onTap: onTap,
                 child: Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(color: sel ? _primary : _bg, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
                   child: Text(text, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
                 ),
@@ -2017,17 +2016,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
           return AlertDialog(
             backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            contentPadding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Text(existing == null ? "Yeni Takviye Ekle" : "Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 17, color: _text)),
             content: SizedBox(
-              width: 340,
+              width: 260,
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // Type
-                    Row(children: [
+                    Wrap(spacing: 8, runSpacing: 8, children: [
                       choiceChip("Takviye", type == "takviye", () => setD(() => type = "takviye")),
                       choiceChip("İlaç", type == "ilac", () => setD(() => type = "ilac")),
                     ]),
@@ -2069,7 +2070,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     label("Doz Miktarı"),
                     Row(children: [
                       Expanded(
-                        flex: 2,
                         child: TextField(
                           controller: doseC,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -2080,7 +2080,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
@@ -2095,12 +2095,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ]),
                     // Frequency
                     label("Sıklık"),
-                    Row(children: [
+                    Wrap(spacing: 8, runSpacing: 8, children: [
                       for (final f in const ["Günlük", "Haftalık", "Aylık"]) choiceChip(f, frequency == f, () => setD(() => frequency = f)),
                     ]),
                     // Time of day (multi)
                     label("Veriliş Zamanı"),
-                    Row(children: [
+                    Wrap(spacing: 8, runSpacing: 8, children: [
                       for (final t in const ["Sabah", "Öğle", "Akşam"]) choiceChip(t, times.contains(t), () => setD(() => times.contains(t) ? times.remove(t) : times.add(t))),
                     ]),
                     const SizedBox(height: 18),
