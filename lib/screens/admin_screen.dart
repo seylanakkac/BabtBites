@@ -451,10 +451,20 @@ class _AdminScreenState extends State<AdminScreen> {
     final ps = (existing?["presentationStyles"] as Map?);
     final presentation = TextEditingController(text: ps != null && ps.values.isNotEmpty ? ps.values.first.toString() : "");
     final nv = (existing?["nutritionValues"] as Map?) ?? {};
-    final energy = TextEditingController(text: nv["Enerji"]?.toString() ?? "");
-    final protein = TextEditingController(text: nv["Protein"]?.toString() ?? "");
-    final fat = TextEditingController(text: nv["Sağlıklı Yağ"]?.toString() ?? "");
-    final iron = TextEditingController(text: nv["Demir"]?.toString() ?? "");
+    TextEditingController nvc(String key, [String? alt]) => TextEditingController(
+        text: (nv[key] ?? (alt != null ? nv[alt] : null))?.toString() ?? "");
+    final energy = nvc("Enerji");
+    final carb = nvc("Karbonhidrat");
+    final protein = nvc("Protein");
+    final fat = nvc("Yağ", "Sağlıklı Yağ");
+    final fiber = nvc("Lif");
+    final chol = nvc("Kolesterol");
+    final sodium = nvc("Sodyum");
+    final potassium = nvc("Potasyum");
+    final calcium = nvc("Kalsiyum");
+    final vitA = nvc("Vitamin A");
+    final vitC = nvc("Vitamin C");
+    final iron = nvc("Demir");
 
     showDialog(
       context: context,
@@ -476,8 +486,16 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(month, "Başlangıç ayı", hint: "6", keyboard: TextInputType.number),
                   _dropdown("Alerji riski", risk, const ["Düşük", "Orta", "Yüksek"], (v) => setD(() => risk = v)),
                   _field(presentation, "Sunum şekli", maxLines: 3),
-                  Row(children: [Expanded(child: _field(energy, "Enerji", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(protein, "Protein", keyboard: TextInputType.number))]),
-                  Row(children: [Expanded(child: _field(fat, "Sağlıklı Yağ", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(iron, "Demir", keyboard: TextInputType.number))]),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 4),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Besin Değerleri (100g)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  ),
+                  Row(children: [Expanded(child: _field(energy, "Enerji (kcal)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(carb, "Karbonhidrat (g)", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(protein, "Protein (g)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(fat, "Yağ (g)", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(fiber, "Lif (g)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(chol, "Kolesterol (mg)", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(sodium, "Sodyum (mg)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(potassium, "Potasyum (mg)", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(calcium, "Kalsiyum (mg)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(iron, "Demir (mg)", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(vitA, "A Vitamini (IU)", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(vitC, "C Vitamini (mg)", keyboard: TextInputType.number))]),
                 ],
               ),
             ),
@@ -501,7 +519,11 @@ class _AdminScreenState extends State<AdminScreen> {
                   "allergyRisk": risk,
                   "imageUrl": image,
                   "presentationStyles": {m.toString(): presentation.text.trim()},
-                  "nutritionValues": {"Enerji": pn(energy), "Protein": pn(protein), "Sağlıklı Yağ": pn(fat), "Demir": pn(iron)},
+                  "nutritionValues": {
+                    "Enerji": pn(energy), "Karbonhidrat": pn(carb), "Protein": pn(protein), "Yağ": pn(fat),
+                    "Lif": pn(fiber), "Kolesterol": pn(chol), "Sodyum": pn(sodium), "Potasyum": pn(potassium),
+                    "Kalsiyum": pn(calcium), "Vitamin A": pn(vitA), "Vitamin C": pn(vitC), "Demir": pn(iron),
+                  },
                 });
                 _persistAll();
                 Navigator.pop(ctx);
@@ -515,7 +537,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, month, presentation, energy, protein, fat, iron]) {
+      for (final c in [name, month, presentation, energy, carb, protein, fat, fiber, chol, sodium, potassium, calcium, vitA, vitC, iron]) {
         c.dispose();
       }
     });

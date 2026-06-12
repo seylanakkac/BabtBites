@@ -120,23 +120,27 @@ double atwaterCarb(double energy, double protein, double fat) {
 /// partial map from [Food.nutritionValues] with an Atwater carbohydrate
 /// estimate. Always contains at least Enerji/Karbonhidrat/Protein/Yağ.
 Map<String, double> nutritionForFood(Food food) {
-  final detail = kDetailedNutrition[food.name.toLowerCase().trim()];
-  if (detail != null) {
-    return {for (final k in kNutrientKeys) k: detail[k] ?? 0.0};
-  }
   final nv = food.nutritionValues;
-  final energy = nv["Enerji"] ?? 0;
-  final protein = nv["Protein"] ?? 0;
-  final fat = nv["Sağlıklı Yağ"] ?? nv["Yağ"] ?? 0;
-  final iron = nv["Demir"] ?? 0;
-  final carb = nv["Karbonhidrat"] ?? atwaterCarb(energy, protein, fat);
-  return {
-    "Enerji": energy,
-    "Karbonhidrat": carb,
-    "Protein": protein,
-    "Yağ": fat,
-    "Demir": iron,
-  };
+  // If the food itself carries detailed values (admin-entered / custom), those
+  // win; otherwise use the researched USDA table for built-ins.
+  final hasOwnDetail = nv.containsKey("Karbonhidrat") || nv.containsKey("Lif") || nv.containsKey("Sodyum");
+  if (!hasOwnDetail) {
+    final detail = kDetailedNutrition[food.name.toLowerCase().trim()];
+    if (detail != null) {
+      return {for (final k in kNutrientKeys) k: detail[k] ?? 0.0};
+    }
+  }
+  final result = <String, double>{};
+  // Surface every detailed nutrient the food actually stores (admin-entered).
+  for (final k in kNutrientKeys) {
+    if (nv.containsKey(k)) result[k] = nv[k]!;
+  }
+  result["Yağ"] ??= nv["Sağlıklı Yağ"] ?? 0;
+  result["Enerji"] ??= nv["Enerji"] ?? 0;
+  result["Protein"] ??= nv["Protein"] ?? 0;
+  result["Demir"] ??= nv["Demir"] ?? 0;
+  result["Karbonhidrat"] ??= atwaterCarb(result["Enerji"]!, result["Protein"]!, result["Yağ"]!);
+  return result;
 }
 
 /// Aggregated detailed nutrition for a recipe, summed across its ingredient
