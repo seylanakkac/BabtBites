@@ -1981,64 +1981,173 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _showAddEditMedDialog({Map<String, dynamic>? existing, VoidCallback? onDone}) {
     final id = _activeBabyId;
-    final nameC = TextEditingController(text: existing?["name"]?.toString() ?? "");
-    final doseC = TextEditingController(text: existing?["dose"]?.toString() ?? "");
-    final schedC = TextEditingController(text: existing?["schedule"]?.toString() ?? "");
-    String type = existing?["type"]?.toString() ?? "takviye";
+    final names = supplementNameOptions;
+    final units = doseUnitOptions;
 
-    InputDecoration dec(String l) => InputDecoration(labelText: l, labelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light), isDense: true, filled: true, fillColor: _bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none));
+    String type = existing?["type"]?.toString() ?? "takviye";
+    final existingName = existing?["name"]?.toString();
+    bool customName = existingName != null && existingName.isNotEmpty && !names.contains(existingName);
+    String? selectedName = (existingName != null && names.contains(existingName)) ? existingName : null;
+    final nameC = TextEditingController(text: customName ? existingName : "");
+    final doseC = TextEditingController(text: existing?["doseAmount"]?.toString() ?? "");
+    String unit = existing?["doseUnit"]?.toString() ?? (units.isNotEmpty ? units.first : "damla");
+    if (units.isNotEmpty && !units.contains(unit)) unit = units.first;
+    String frequency = existing?["frequency"]?.toString() ?? "Günlük";
+    final times = <String>{...((existing?["times"] as List?)?.map((e) => e.toString()) ?? const ["Sabah"])};
+    bool reminder = (existing?["reminder"] as bool?) ?? true;
 
     showDialog(
       context: context,
       builder: (dctx) => StatefulBuilder(
         builder: (dctx, setD) {
-          Widget typeChip(String v, String label) {
-            final sel = type == v;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => setD(() => type = v),
+          Widget label(String t) => Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Align(alignment: Alignment.centerLeft, child: Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
+              );
+
+          Widget choiceChip(String text, bool sel, VoidCallback onTap) => GestureDetector(
+                onTap: onTap,
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(color: sel ? _primary.withOpacity(0.12) : _bg, borderRadius: BorderRadius.circular(10), border: Border.all(color: sel ? _primary : Colors.transparent, width: 1.5)),
-                  child: Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? _primary : _light)),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  decoration: BoxDecoration(color: sel ? _primary : _bg, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
+                  child: Text(text, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
                 ),
-              ),
-            );
-          }
+              );
 
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(existing == null ? "Yeni Takviye / İlaç" : "Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(children: [typeChip("takviye", "Takviye"), typeChip("ilac", "İlaç")]),
-                  const SizedBox(height: 12),
-                  TextField(controller: nameC, decoration: dec("Ad"), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
-                  const SizedBox(height: 10),
-                  TextField(controller: doseC, decoration: dec("Doz"), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
-                  const SizedBox(height: 10),
-                  TextField(controller: schedC, decoration: dec("Program"), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
-                ],
+            title: Text(existing == null ? "Yeni Takviye Ekle" : "Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 17, color: _text)),
+            content: SizedBox(
+              width: 340,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Type
+                    Row(children: [
+                      choiceChip("Takviye", type == "takviye", () => setD(() => type = "takviye")),
+                      choiceChip("İlaç", type == "ilac", () => setD(() => type = "ilac")),
+                    ]),
+                    // Name
+                    label("Takviye / İlaç Adı"),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          isExpanded: true,
+                          value: customName ? "__new__" : selectedName,
+                          hint: const Text("Seçiniz...", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light)),
+                          items: [
+                            ...names.map((n) => DropdownMenuItem(value: n, child: Text(n, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))),
+                            const DropdownMenuItem(value: "__new__", child: Text("➕ Yeni ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary))),
+                          ],
+                          onChanged: (v) => setD(() {
+                            if (v == "__new__") {
+                              customName = true;
+                              selectedName = null;
+                            } else {
+                              customName = false;
+                              selectedName = v;
+                            }
+                          }),
+                        ),
+                      ),
+                    ),
+                    if (customName) ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: nameC,
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                        decoration: InputDecoration(hintText: "Yeni ad girin", hintStyle: const TextStyle(color: _light, fontSize: 14), isDense: true, filled: true, fillColor: _bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                      ),
+                    ],
+                    // Dose amount + unit
+                    label("Doz Miktarı"),
+                    Row(children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextField(
+                          controller: doseC,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                          decoration: InputDecoration(hintText: "0", hintStyle: const TextStyle(color: _light, fontSize: 14), isDense: true, filled: true, fillColor: _bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              isExpanded: true,
+                              value: units.contains(unit) ? unit : null,
+                              items: units.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
+                              onChanged: (v) => setD(() => unit = v ?? unit),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                    // Frequency
+                    label("Sıklık"),
+                    Row(children: [
+                      for (final f in const ["Günlük", "Haftalık", "Aylık"]) choiceChip(f, frequency == f, () => setD(() => frequency = f)),
+                    ]),
+                    // Time of day (multi)
+                    label("Veriliş Zamanı"),
+                    Row(children: [
+                      for (final t in const ["Sabah", "Öğle", "Akşam"]) choiceChip(t, times.contains(t), () => setD(() => times.contains(t) ? times.remove(t) : times.add(t))),
+                    ]),
+                    const SizedBox(height: 18),
+                    // Reminder
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(14)),
+                      child: Row(children: [
+                        const Icon(Icons.notifications_active_outlined, size: 20, color: _primary),
+                        const SizedBox(width: 10),
+                        const Expanded(child: Text("Hatırlatıcı", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text))),
+                        Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
+                      ]),
+                    ),
+                  ],
+                ),
               ),
             ),
             actions: [
               TextButton(onPressed: () => Navigator.pop(dctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
               ElevatedButton(
                 onPressed: () {
-                  final n = nameC.text.trim();
-                  if (n.isEmpty) return;
+                  final finalName = customName ? nameC.text.trim() : (selectedName ?? "");
+                  if (finalName.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen bir ad seçin veya girin.")));
+                    return;
+                  }
+                  final amount = doseC.text.trim();
+                  final doseStr = amount.isNotEmpty ? "$amount $unit" : "";
+                  final scheduleStr = [frequency, if (times.isNotEmpty) times.join("/")].join(" · ");
+                  final data = <String, dynamic>{
+                    "name": finalName,
+                    "type": type,
+                    "doseAmount": amount,
+                    "doseUnit": unit,
+                    "frequency": frequency,
+                    "times": times.toList(),
+                    "reminder": reminder,
+                    "dose": doseStr,
+                    "schedule": scheduleStr,
+                    "active": true,
+                  };
                   if (existing != null) {
-                    existing["name"] = n;
-                    existing["dose"] = doseC.text.trim();
-                    existing["schedule"] = schedC.text.trim();
-                    existing["type"] = type;
+                    existing.addAll(data);
                   } else {
-                    medsFor(id).add({"id": "m_${DateTime.now().millisecondsSinceEpoch}", "name": n, "dose": doseC.text.trim(), "schedule": schedC.text.trim(), "type": type, "active": true});
+                    data["id"] = "m_${DateTime.now().millisecondsSinceEpoch}";
+                    medsFor(id).add(data);
                   }
                   _persist();
                   Navigator.pop(dctx);
@@ -2052,7 +2161,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
         },
       ),
-    ).then((_) { nameC.dispose(); doseC.dispose(); schedC.dispose(); });
+    ).then((_) { nameC.dispose(); doseC.dispose(); });
   }
 
   // ====================== CART TAB ======================

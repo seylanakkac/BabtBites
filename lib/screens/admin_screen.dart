@@ -31,6 +31,8 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newFoodCat = TextEditingController();
   final _newArticleCat = TextEditingController();
   final _newAvatar = TextEditingController();
+  final _newSuppName = TextEditingController();
+  final _newDoseUnit = TextEditingController();
   final Map<String, TextEditingController> _nt = {};
 
   @override
@@ -49,6 +51,8 @@ class _AdminScreenState extends State<AdminScreen> {
     _newFoodCat.dispose();
     _newArticleCat.dispose();
     _newAvatar.dispose();
+    _newSuppName.dispose();
+    _newDoseUnit.dispose();
     for (final c in _nt.values) {
       c.dispose();
     }
@@ -904,7 +908,83 @@ class _AdminScreenState extends State<AdminScreen> {
           ],
         ),
       ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Takviye / İlaç Adları",
+        subtitle: "Ekleme formunda seçilebilecek hazır adlar",
+        options: supplementNameOptions,
+        controller: _newSuppName,
+        hint: "Örn. K Vitamini",
+        onSave: (next) => globalAdminConfig["supplementNames"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Doz Birimleri",
+        subtitle: "Doz miktarı yanında çıkacak birimler (damla, ml, puf…)",
+        options: doseUnitOptions,
+        controller: _newDoseUnit,
+        hint: "Örn. puf",
+        onSave: (next) => globalAdminConfig["doseUnits"] = next,
+      ),
     ]);
+  }
+
+  /// A reusable card that manages an editable list of string chips backed by a
+  /// globalAdminConfig key.
+  Widget _chipListCard({
+    required String title,
+    required String subtitle,
+    required List<String> options,
+    required TextEditingController controller,
+    required String hint,
+    required void Function(List<String> next) onSave,
+  }) {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 2),
+          Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: options
+                .map((o) => Container(
+                      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
+                      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(20)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(o, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text)),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            final next = List<String>.from(options)..remove(o);
+                            setState(() => onSave(next));
+                            StorageService.instance.saveAdminContent();
+                          },
+                          child: const Icon(Icons.close, size: 14, color: _light),
+                        ),
+                      ]),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+          Row(children: [
+            SizedBox(width: 200, child: TextField(controller: controller, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: _dec(hint))),
+            const SizedBox(width: 10),
+            _primaryBtn("Ekle", Icons.add, () {
+              final v = controller.text.trim();
+              if (v.isNotEmpty && !options.contains(v)) {
+                setState(() => onSave(List<String>.from(options)..add(v)));
+                StorageService.instance.saveAdminContent();
+                controller.clear();
+              }
+            }),
+          ]),
+        ],
+      ),
+    );
   }
 
   void _suppDialog(Map<String, dynamic>? existing) {

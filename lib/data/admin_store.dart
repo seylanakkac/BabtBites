@@ -17,6 +17,11 @@ const List<Map<String, dynamic>> kDefaultSupplements = [
   {"name": "D Vitamini", "dose": "3 damla", "schedule": "Her gün", "type": "takviye", "active": true},
   {"name": "Demir Damlası", "dose": "1 ml", "schedule": "Her gün", "type": "takviye", "active": true},
 ];
+// Selectable supplement/medication names + dose units for the add form.
+const List<String> kDefaultSupplementNames = [
+  "D Vitamini", "Demir Damlası", "K Vitamini", "Multivitamin", "Omega-3", "Probiyotik", "Çinko", "B12 Vitamini"
+];
+const List<String> kDefaultDoseUnits = ["damla", "ml", "puf", "mg", "tablet", "ölçek", "adet"];
 // Flat map (key -> double) so the admin editor can show one field per value.
 const Map<String, double> kDefaultNutritionTargets = {
   "infantEnergyPerKg": 80.0, "infantProteinPerKg": 1.2, "infantFatPerKg": 3.0, "infantIron": 11.0,
@@ -55,6 +60,14 @@ List<Map<String, dynamic>> get defaultSupplements =>
         ?.map((e) => Map<String, dynamic>.from(e as Map))
         .toList() ??
     kDefaultSupplements.map((e) => Map<String, dynamic>.from(e)).toList();
+
+List<String> get supplementNameOptions =>
+    (globalAdminConfig["supplementNames"] as List?)?.map((e) => e.toString()).toList() ??
+    List<String>.from(kDefaultSupplementNames);
+
+List<String> get doseUnitOptions =>
+    (globalAdminConfig["doseUnits"] as List?)?.map((e) => e.toString()).toList() ??
+    List<String>.from(kDefaultDoseUnits);
 
 /// A single nutrition-target constant (config override or built-in default).
 double ntv(String key) {
