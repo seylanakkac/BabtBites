@@ -490,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             : GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.80, crossAxisSpacing: 14, mainAxisSpacing: 14),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 14, mainAxisSpacing: 14),
                 itemCount: gridFoods.length,
                 itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
