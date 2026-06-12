@@ -30,9 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   google_fonts: ^6.2.1
   cupertino_icons: ^1.0.6
   url_launcher: ^6.3.1
+  shared_preferences: ^2.2.3
+  image_picker: ^1.1.2
 
 dev_dependencies:
   flutter_test:
@@ -59,6 +63,10 @@ flutter:
     - assets/images/logo.png
     - assets/images/google_logo.png
     - assets/images/rocket.png
+    - assets/images/puree_plate.png
+    - assets/images/omelet_plate.png
+    - assets/images/salmon_plate.png
+    - assets/images/porridge_plate.png
 
   fonts:
     - family: Inter

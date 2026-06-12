@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../services/storage_service.dart';
 
 class MobileWebFrame extends StatelessWidget {
   final Widget child;
@@ -7,10 +8,19 @@ class MobileWebFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The admin panel is a full-width professional area — never phone-framed.
+    // Listen reactively so logging in/out as admin flips the frame at runtime.
+    return ValueListenableBuilder<bool>(
+      valueListenable: adminModeNotifier,
+      builder: (context, isAdmin, _) => isAdmin ? child : _framed(context),
+    );
+  }
+
+  Widget _framed(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Show simulated phone frame on desktop screen sizes
-        final isWebOrDesktop = kIsWeb || 
+        final isWebOrDesktop = kIsWeb ||
             Theme.of(context).platform == TargetPlatform.windows || 
             Theme.of(context).platform == TargetPlatform.macOS || 
             Theme.of(context).platform == TargetPlatform.linux;

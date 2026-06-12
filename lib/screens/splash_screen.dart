@@ -65,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFFF9F69); // Playful Apricot/Orange
+    const primaryColor = Color(0xFFFF7A45); // Vibrant Apricot/Coral
 
     return Scaffold(
       backgroundColor: primaryColor,

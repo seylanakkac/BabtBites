@@ -11,6 +11,8 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _weightController = TextEditingController();
+  final _heightController = TextEditingController();
   
   String? _selectedGender; // 'Kız' or 'Erkek'
   DateTime? _selectedDate;
@@ -36,6 +38,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _weightController.dispose();
+    _heightController.dispose();
     super.dispose();
   }
 
@@ -51,6 +55,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return false;
     }
 
+    final double weight = double.tryParse(_weightController.text.trim()) ?? 8.0;
+    final double height = double.tryParse(_heightController.text.trim()) ?? 68.0;
+
     // Add current baby to list
     final String formattedDate = _selectedDate != null 
         ? "${_selectedDate!.day.toString().padLeft(2, '0')}.${_selectedDate!.month.toString().padLeft(2, '0')}.${_selectedDate!.year}"
@@ -62,10 +69,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         "gender": _selectedGender!,
         "dob": formattedDate,
         "avatar": _selectedCharacter,
+        "weight": weight,
+        "height": height,
       });
 
       // Clear current inputs for next baby
       _nameController.clear();
+      _weightController.clear();
+      _heightController.clear();
       _selectedGender = null;
       _selectedDate = null;
       _selectedCharacter = "👶";
@@ -85,7 +96,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   // Handle continuing to the home screen
   void _handleContinue() {
     // If the form has text or selections, try to add the current baby first
-    if (_nameController.text.isNotEmpty || _selectedGender != null || _selectedDate != null) {
+    if (_nameController.text.isNotEmpty || _selectedGender != null || _selectedDate != null || _weightController.text.isNotEmpty || _heightController.text.isNotEmpty) {
       final success = _addCurrentBabyToList();
       if (!success) {
         // Form had partial inputs but was invalid
@@ -111,28 +122,36 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // Date picker handler
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now().subtract(const Duration(days: 180)), // ~6 months old
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
+      locale: const Locale('tr', 'TR'),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFFFFB38A), // header background color
+              primary: Color(0xFFFF7A45), // header background color
               onPrimary: Colors.white, // header text color
-              onSurface: Color(0xFF7A7A8A), // body text color
+              onSurface: Color(0xFF2D2D3A), // body text color
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFFFB38A), // button text color
+                foregroundColor: const Color(0xFFFF7A45), // button text color
               ),
             ),
           ),
-          child: child!,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              size: Size(
+                MediaQuery.of(context).size.shortestSide,
+                MediaQuery.of(context).size.longestSide,
+              ),
+            ),
+            child: child!,
+          ),
         );
       },
     );
@@ -146,8 +165,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryColor = Color(0xFFFFB38A); // Softer Apricot
-    const textColor = Color(0xFF7A7A8A); // Softer dark grey
+    const primaryColor = Color(0xFFFF7A45); // Vibrant Apricot/Coral
+    const textColor = Color(0xFF2D2D3A); // Dark charcoal for contrast
     const lightTextColor = Color(0xFFA8A8B3);
     const borderGreyColor = Color(0xFFE2E2E6);
     const bgGreyColor = Color(0xFFF5F5F7);
@@ -169,19 +188,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: Colors.transparent,
-                      ),
-                      child: const Icon(
-                        Icons.arrow_back_ios_new,
-                        size: 20,
-                        color: textColor,
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                        ),
+                        child: const Icon(
+                          Icons.arrow_back_ios_new,
+                          size: 20,
+                          color: textColor,
+                        ),
                       ),
                     ),
                   ),
@@ -547,6 +569,103 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ],
 
+                      const SizedBox(height: 20),
+
+                      // Boy ve Kilo Girdileri
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Boyu (cm)",
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _heightController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: textColor),
+                                  decoration: InputDecoration(
+                                    hintText: "Örn: 68",
+                                    hintStyle: const TextStyle(fontFamily: 'Inter', color: lightTextColor, fontSize: 14),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: borderGreyColor, width: 1.2),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: primaryColor, width: 1.5),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (_addedBabies.isEmpty && (value == null || value.trim().isEmpty)) {
+                                      return "Boy giriniz.";
+                                    }
+                                    if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                      return "Geçersiz sayı.";
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Kilosu (kg)",
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: textColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _weightController,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: textColor),
+                                  decoration: InputDecoration(
+                                    hintText: "Örn: 8.5",
+                                    hintStyle: const TextStyle(fontFamily: 'Inter', color: lightTextColor, fontSize: 14),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: borderGreyColor, width: 1.2),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                      borderSide: const BorderSide(color: primaryColor, width: 1.5),
+                                    ),
+                                  ),
+                                  validator: (value) {
+                                    if (_addedBabies.isEmpty && (value == null || value.trim().isEmpty)) {
+                                      return "Kilo giriniz.";
+                                    }
+                                    if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                      return "Geçersiz sayı.";
+                                    }
+                                    return null;
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
                       const SizedBox(height: 24),
 
                       // Bir Karakter Seç Section
@@ -572,36 +691,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           final Color bgColor = char["color"];
                           final bool isSelected = _selectedCharacter == emoji;
 
-                          return GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedCharacter = emoji;
-                              });
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              decoration: BoxDecoration(
-                                color: bgColor,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected ? primaryColor : Colors.transparent,
-                                  width: isSelected ? 2.5 : 0,
+                          return MouseRegion(
+                            cursor: SystemMouseCursors.click,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _selectedCharacter = emoji;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                decoration: BoxDecoration(
+                                  color: bgColor,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected ? primaryColor : Colors.transparent,
+                                    width: isSelected ? 2.5 : 0,
+                                  ),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                            color: primaryColor.withOpacity(0.2),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          )
+                                        ]
+                                      : null,
                                 ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: primaryColor.withOpacity(0.2),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 2),
-                                        )
-                                      ]
-                                    : null,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  emoji,
-                                  style: const TextStyle(
-                                    fontSize: 32,
+                                child: Center(
+                                  child: Text(
+                                    emoji,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -740,7 +862,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
-    const primaryColor = Color(0xFFFFB38A);
+    const primaryColor = Color(0xFFFF7A45); // Vibrant Apricot/Coral
     const bgGreyColor = Color(0xFFF5F5F7);
     const borderGreyColor = Color(0xFFE2E2E6);
 
