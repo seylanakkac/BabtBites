@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/food_database.dart';
 import '../data/tracking_store.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/nutrition_card.dart';
 import 'recipe_detail_screen.dart';
 
 class FoodDetailScreen extends StatefulWidget {
@@ -645,28 +646,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
 
   Widget _buildNutritionTab(Food food) {
     const textColor = Color(0xFF2D2D3A);
-
-    // High mock/estimated max values for percentage calculations
-    final maxValues = {
-      "Enerji": 900.0,
-      "Protein": 30.0,
-      "Sağlıklı Yağ": 100.0,
-      "Demir": 15.0,
-    };
-
-    final barColors = {
-      "Enerji": const Color(0xFFFF7A45), // Vibrant Apricot
-      "Protein": const Color(0xFFFF4D6A), // Pink/Red
-      "Sağlıklı Yağ": const Color(0xFF10B981), // Emerald Green
-      "Demir": const Color(0xFFFF4D6A), // Red
-    };
-
-    final units = {
-      "Enerji": "kcal",
-      "Protein": "g",
-      "Sağlıklı Yağ": "g",
-      "Demir": "mg",
-    };
+    final n = nutritionForFood(food);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -675,7 +655,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "Besin Değerleri (100g)",
+            "Besin Değerleri",
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 16,
@@ -683,60 +663,21 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
               color: textColor,
             ),
           ),
-          const SizedBox(height: 24),
-          
-          ...food.nutritionValues.entries.map((entry) {
-            final String nutrient = entry.key;
-            final double value = entry.value;
-            
-            final maxVal = maxValues[nutrient] ?? 100.0;
-            final color = barColors[nutrient] ?? const Color(0xFFFFB38A);
-            final unit = units[nutrient] ?? "";
-            
-            final double ratio = (value / maxVal).clamp(0.0, 1.0);
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        nutrient,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: textColor,
-                        ),
-                      ),
-                      Text(
-                        "$value $unit",
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: ratio,
-                      backgroundColor: Colors.grey[200],
-                      valueColor: AlwaysStoppedAnimation<Color>(color),
-                      minHeight: 8,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
+          const SizedBox(height: 16),
+          NutritionDetailCard(
+            energyKcal: n["Enerji"]!,
+            carb: n["Karbonhidrat"]!,
+            protein: n["Protein"]!,
+            fat: n["Yağ"]!,
+            portionLabel: "100 g",
+            tableRows: [
+              NutrientRow("Enerji", n["Enerji"]!, "kcal"),
+              NutrientRow("Karbonhidrat", n["Karbonhidrat"]!, "g"),
+              NutrientRow("Protein", n["Protein"]!, "g"),
+              NutrientRow("Yağ", n["Yağ"]!, "g"),
+              NutrientRow("Demir", n["Demir"]!, "mg"),
+            ],
+          ),
         ],
       ),
     );

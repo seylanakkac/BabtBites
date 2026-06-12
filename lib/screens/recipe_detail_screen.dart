@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/food_database.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/nutrition_card.dart';
 import 'home_screen.dart';
 
 // Global shopping cart list
@@ -101,6 +102,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     final recipe = widget.recipe;
+    final n = nutritionForRecipe(recipe);
     const primaryColor = Color(0xFFFF7A45); // Vibrant Apricot/Coral
     const textColor = Color(0xFF2D2D3A); // Vibrant dark grey
     const lightTextColor = Color(0xFFA8A8B3);
@@ -269,10 +271,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildStatBadge(value: "${recipe.kcal.toInt()} kcal", label: "Kalori", color: textColor),
-                            _buildStatBadge(value: "1.2g", label: "Protein", color: textColor),
-                            _buildStatBadge(value: "0.8mg", label: "Demir", color: textColor),
-                            _buildStatBadge(value: "18g", label: "Karbon", color: textColor),
+                            _buildStatBadge(value: "${n["Enerji"]!.toInt()} kcal", label: "Kalori", color: textColor),
+                            _buildStatBadge(value: "${n["Protein"]!.toStringAsFixed(1)}g", label: "Protein", color: textColor),
+                            _buildStatBadge(value: "${n["Demir"]!.toStringAsFixed(1)}mg", label: "Demir", color: textColor),
+                            _buildStatBadge(value: "${n["Karbonhidrat"]!.toStringAsFixed(0)}g", label: "Karbon", color: textColor),
                           ],
                         ),
                         const SizedBox(height: 32),
@@ -585,26 +587,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.5)),
-                          ),
-                          child: Column(
-                            children: [
-                              _buildNutritionRow("Enerji (Kalori)", "${recipe.kcal.toInt()} kcal", textColor),
-                              const Divider(),
-                              _buildNutritionRow("Protein", "1.2 g", textColor),
-                              const Divider(),
-                              _buildNutritionRow("Sağlıklı Yağ", "4.5 g", textColor),
-                              const Divider(),
-                              _buildNutritionRow("Demir", "0.8 mg", textColor),
-                              const Divider(),
-                              _buildNutritionRow("Karbonhidrat", "18.0 g", textColor),
-                            ],
-                          ),
+                        NutritionDetailCard(
+                          energyKcal: n["Enerji"]!,
+                          carb: n["Karbonhidrat"]!,
+                          protein: n["Protein"]!,
+                          fat: n["Yağ"]!,
+                          portionLabel: "1 Porsiyon",
+                          tableRows: [
+                            NutrientRow("Enerji", n["Enerji"]!, "kcal"),
+                            NutrientRow("Karbonhidrat", n["Karbonhidrat"]!, "g"),
+                            NutrientRow("Protein", n["Protein"]!, "g"),
+                            NutrientRow("Yağ", n["Yağ"]!, "g"),
+                            NutrientRow("Demir", n["Demir"]!, "mg"),
+                          ],
                         ),
                         const SizedBox(height: 32),
 
@@ -1041,32 +1036,4 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
 
 
 
-  Widget _buildNutritionRow(String label, String value, Color textColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF7A7A8A),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

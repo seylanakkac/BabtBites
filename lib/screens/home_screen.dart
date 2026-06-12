@@ -223,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Map<String, double> _calculateBabyTargets() {
     if (_activeBaby == null) {
-      return {"Energy": 640.0, "Protein": 9.6, "Fat": 24.0, "Iron": 11.0};
+      return {"Energy": 640.0, "Protein": 9.6, "Fat": 24.0, "Iron": 11.0, "Carb": 95.0};
     }
     final weight = (_activeBaby!["weight"] is num)
         ? (_activeBaby!["weight"] as num).toDouble()
@@ -239,27 +239,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       "Protein": protein.clamp(ntv("proteinMin"), ntv("proteinMax")),
       "Fat": fat.clamp(ntv("fatMin"), ntv("fatMax")),
       "Iron": iron,
+      "Carb": months < 12 ? 95.0 : 130.0,
     };
   }
 
   Map<String, double> _calculatePlannedNutrition() {
-    final result = {"Energy": 0.0, "Protein": 0.0, "Fat": 0.0, "Iron": 0.0};
+    final result = {"Energy": 0.0, "Protein": 0.0, "Fat": 0.0, "Iron": 0.0, "Carb": 0.0};
     final day = _weeklyPlan[_selectedDay];
     if (day == null) return result;
+    void add(Map<String, double> n) {
+      result["Energy"] = result["Energy"]! + (n["Enerji"] ?? 0);
+      result["Protein"] = result["Protein"]! + (n["Protein"] ?? 0);
+      result["Fat"] = result["Fat"]! + (n["Yağ"] ?? 0);
+      result["Iron"] = result["Iron"]! + (n["Demir"] ?? 0);
+      result["Carb"] = result["Carb"]! + (n["Karbonhidrat"] ?? 0);
+    }
+
     for (final items in day.values) {
       for (final name in items) {
         final food = globalFoodsDatabase.where((f) => f.name == name).toList();
         if (food.isNotEmpty) {
-          final nv = food.first.nutritionValues;
-          result["Energy"] = result["Energy"]! + (nv["Enerji"] ?? 0);
-          result["Protein"] = result["Protein"]! + (nv["Protein"] ?? 0);
-          result["Fat"] = result["Fat"]! + (nv["Sağlıklı Yağ"] ?? 0);
-          result["Iron"] = result["Iron"]! + (nv["Demir"] ?? 0);
+          add(nutritionForFood(food.first));
         } else {
           final recipe = globalRecipesDatabase.where((r) => r.name == name).toList();
-          if (recipe.isNotEmpty) {
-            result["Energy"] = result["Energy"]! + recipe.first.kcal;
-          }
+          if (recipe.isNotEmpty) add(nutritionForRecipe(recipe.first));
         }
       }
     }
@@ -1439,7 +1442,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               _nutrientRing("Enerji", planned["Energy"]!, targets["Energy"]!, _primary),
               _nutrientRing("Protein", planned["Protein"]!, targets["Protein"]!, _danger),
               _nutrientRing("Yağ", planned["Fat"]!, targets["Fat"]!, _green),
-              _nutrientRing("Demir", planned["Iron"]!, targets["Iron"]!, const Color(0xFF7A5CFF)),
+              _nutrientRing("Karbonhidrat", planned["Carb"]!, targets["Carb"]!, const Color(0xFF3B9EDB)),
             ],
           ),
         ),
@@ -1498,7 +1501,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+          FittedBox(fit: BoxFit.scaleDown, child: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
         ],
       ),
     );

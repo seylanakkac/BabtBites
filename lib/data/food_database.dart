@@ -107,6 +107,62 @@ class Recipe {
 final List<Map<String, dynamic>> globalCustomFoods = [];
 final List<Map<String, dynamic>> globalCustomRecipes = [];
 
+/// Carbohydrate estimate (g) via the Atwater relation from energy/protein/fat:
+/// energy(kcal) ≈ 4·protein + 9·fat + 4·carb  →  carb ≈ (energy − 4·protein − 9·fat)/4.
+double atwaterCarb(double energy, double protein, double fat) {
+  final c = (energy - protein * 4 - fat * 9) / 4;
+  return c < 0 ? 0 : c;
+}
+
+/// Full per-100g nutrition map for a food, with an estimated Karbonhidrat value
+/// when one is not stored. Keys: Enerji, Karbonhidrat, Protein, Yağ, Demir.
+Map<String, double> nutritionForFood(Food food) {
+  final nv = food.nutritionValues;
+  final energy = nv["Enerji"] ?? 0;
+  final protein = nv["Protein"] ?? 0;
+  final fat = nv["Sağlıklı Yağ"] ?? nv["Yağ"] ?? 0;
+  final iron = nv["Demir"] ?? 0;
+  final carb = nv["Karbonhidrat"] ?? atwaterCarb(energy, protein, fat);
+  return {
+    "Enerji": energy,
+    "Karbonhidrat": carb,
+    "Protein": protein,
+    "Yağ": fat,
+    "Demir": iron,
+  };
+}
+
+/// Aggregated nutrition for a recipe, summed from its ingredient foods.
+/// Energy uses the recipe's stored kcal when available. Carbohydrate is
+/// estimated via [atwaterCarb]. Keys match [nutritionForFood].
+Map<String, double> nutritionForRecipe(Recipe recipe) {
+  double protein = 0, fat = 0, iron = 0, energySum = 0;
+  for (final ing in recipe.ingredients) {
+    Food? f;
+    for (final cand in globalFoodsDatabase) {
+      if (cand.name.toLowerCase() == ing.toLowerCase()) {
+        f = cand;
+        break;
+      }
+    }
+    if (f == null) continue;
+    final nv = f.nutritionValues;
+    energySum += nv["Enerji"] ?? 0;
+    protein += nv["Protein"] ?? 0;
+    fat += nv["Sağlıklı Yağ"] ?? nv["Yağ"] ?? 0;
+    iron += nv["Demir"] ?? 0;
+  }
+  final energy = recipe.kcal > 0 ? recipe.kcal : energySum;
+  final carb = atwaterCarb(energy, protein, fat);
+  return {
+    "Enerji": energy,
+    "Karbonhidrat": carb,
+    "Protein": protein,
+    "Yağ": fat,
+    "Demir": iron,
+  };
+}
+
 // 100 Foods Database
 final List<Food> globalFoodsDatabase = [
   // --- SEBZELER (25 adet) ---
