@@ -408,20 +408,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
-        // Header: logo + baby chip
+        // Header: logo + favourites + baby chip
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: Text(
                 "BabyBites",
-                style: TextStyle(fontFamily: 'Inter', fontSize: 28, fontWeight: FontWeight.bold, color: _primary.withOpacity(0.35)),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.bold, color: _primary.withOpacity(0.35)),
+              ),
+            ),
+            GestureDetector(
+              onTap: _openFavorites,
+              child: Container(
+                width: 38,
+                height: 38,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE2E2E6))),
+                child: const Icon(Icons.favorite, color: _danger, size: 18),
               ),
             ),
             _babyChip(),
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         // Search bar
         Container(
           decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(16)),
@@ -431,49 +441,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: _text),
             decoration: const InputDecoration(
               hintText: "Gıda veya tarif ara...",
-              hintStyle: TextStyle(color: _light, fontSize: 15),
+              hintStyle: TextStyle(color: _light, fontSize: 14),
               prefixIcon: Icon(Icons.search, color: _light),
               border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        // Favorilerim (only when there are favourites)
-        _buildFavoritesStrip(),
+        const SizedBox(height: 18),
         // Gıdaları Keşfet header
         Row(
           children: [
-            const Expanded(child: Text("Gıdaları Keşfet", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text))),
+            const Expanded(child: Text("Gıdaları Keşfet", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text))),
             GestureDetector(
               onTap: () => setState(() => _currentIndex = 1),
               child: Text("Tümünü Gör", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         // Category chips
         SizedBox(
-          height: 44,
+          height: 36,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: ["Tümü", ...foodCategories].map((cat) {
               final sel = _selectedCategory == cat;
               return Padding(
-                padding: const EdgeInsets.only(right: 10),
+                padding: const EdgeInsets.only(right: 8),
                 child: GestureDetector(
                   onTap: () => setState(() => _selectedCategory = cat),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         cat == "Tümü"
-                            ? Icon(Icons.check, size: 16, color: sel ? Colors.white : _light)
-                            : Text(_categoryEmoji(cat), style: const TextStyle(fontSize: 16)),
-                        const SizedBox(width: 6),
-                        Text(cat, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+                            ? Icon(Icons.check, size: 14, color: sel ? Colors.white : _light)
+                            : Text(_categoryEmoji(cat), style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 5),
+                        Text(cat, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
                       ],
                     ),
                   ),
@@ -482,61 +490,61 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }).toList(),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         // Food grid
         gridFoods.isEmpty
-            ? const Padding(padding: EdgeInsets.symmetric(vertical: 30), child: Text("Bu kategoride gıda yok.", textAlign: TextAlign.center, style: TextStyle(color: _light)))
+            ? const Padding(padding: EdgeInsets.symmetric(vertical: 24), child: Text("Bu kategoride gıda yok.", textAlign: TextAlign.center, style: TextStyle(color: _light)))
             : GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.68, crossAxisSpacing: 14, mainAxisSpacing: 14),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.76, crossAxisSpacing: 12, mainAxisSpacing: 12),
                 itemCount: gridFoods.length,
                 itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
         // Günün Tarifleri header
         Row(
           children: [
-            const Expanded(child: Text("Günün Tarifleri", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text))),
+            const Expanded(child: Text("Günün Tarifleri", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text))),
             GestureDetector(
               onTap: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; }),
-              child: Text("Daha Fazla", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
+              child: Text("Daha Fazla", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 270,
+          height: 205,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: todaysRecipes.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 16),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) => _homeRecipeCard(todaysRecipes[index]),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 18),
         // Beslenme Rehberi
         GestureDetector(
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArticlesScreen())),
           child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.12), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.25))),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.12), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.25))),
             child: Row(
               children: [
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 44,
+                  height: 44,
                   decoration: const BoxDecoration(color: Color(0xFF2BB673), shape: BoxShape.circle),
-                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 24),
+                  child: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text("Beslenme Rehberi", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
-                      SizedBox(height: 4),
-                      Text("Ek gıdaya geçiş, alerji, BLW ve uzman yazıları.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                      Text("Beslenme Rehberi", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+                      SizedBox(height: 3),
+                      Text("Ek gıdaya geçiş, alerji, BLW ve uzman yazıları.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
                     ],
                   ),
                 ),
@@ -545,29 +553,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         // Haftalık Menü banner
         GestureDetector(
           onTap: _openWeeklyMenu,
           child: Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(color: _primary.withOpacity(0.65), borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: _primary.withOpacity(0.65), borderRadius: BorderRadius.circular(18)),
             child: Row(
               children: [
                 Container(
-                  width: 52,
-                  height: 52,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(color: Colors.white.withOpacity(0.25), shape: BoxShape.circle),
-                  child: const Icon(Icons.calendar_today, color: Colors.white, size: 24),
+                  child: const Icon(Icons.calendar_today, color: Colors.white, size: 22),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Haftalık Menü Hazır!", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(height: 4),
-                      Text("$babyName için bu haftanın besleyici planına göz at.", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Colors.white)),
+                      const Text("Haftalık Menü Hazır!", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 3),
+                      Text("$babyName için bu haftanın besleyici planına göz at.", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.white)),
                     ],
                   ),
                 ),
@@ -593,20 +601,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             if (food.tried)
               const Positioned(top: 10, right: 10, child: Icon(Icons.check_circle, color: _green, size: 20)),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   isPhotoUrl(food.imageUrl)
-                      ? ClipOval(child: SizedBox(width: 48, height: 48, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
-                      : Text(food.emoji, style: const TextStyle(fontSize: 38, height: 1.1)),
-                  const SizedBox(height: 10),
-                  Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
-                  const SizedBox(height: 6),
+                      ? ClipOval(child: SizedBox(width: 40, height: 40, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
+                      : Text(food.emoji, style: const TextStyle(fontSize: 30, height: 1.1)),
+                  const SizedBox(height: 8),
+                  Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 5),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-                    child: Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _text)),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                    child: Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _text)),
                   ),
                 ],
               ),
@@ -623,32 +631,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         builder: (_) => RecipeDetailScreen(recipe: recipe, onStateChanged: _onChildChanged),
       )),
       child: Container(
-        width: 230,
-        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(20)),
+        width: 190,
+        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(18)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
               children: [
                 Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(7),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: SizedBox(width: double.infinity, height: 150, child: _getRecipeImage(recipe)),
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox(width: double.infinity, height: 110, child: _getRecipeImage(recipe)),
                   ),
                 ),
                 Positioned(
-                  top: 18,
-                  left: 18,
+                  top: 15,
+                  left: 15,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time, size: 14, color: _primary),
-                        const SizedBox(width: 4),
-                        Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
+                        const Icon(Icons.access_time, size: 12, color: _primary),
+                        const SizedBox(width: 3),
+                        Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: _text)),
                       ],
                     ),
                   ),
@@ -656,21 +664,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ],
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 6, 14, 16),
+              padding: const EdgeInsets.fromLTRB(11, 4, 11, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
-                  const SizedBox(height: 8),
+                  Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(color: _primary.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
-                        child: Text("${recipe.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: _primary.withOpacity(0.12), borderRadius: BorderRadius.circular(9)),
+                        child: Text("${recipe.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
                       ),
-                      const SizedBox(width: 8),
-                      Text("• ${recipe.kcal.toInt()} kcal", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                      const SizedBox(width: 6),
+                      Flexible(child: Text("• ${recipe.kcal.toInt()} kcal", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
                     ],
                   ),
                 ],
@@ -682,103 +690,60 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  // ---------- Favourites strip (home) ----------
-  Widget _buildFavoritesStrip() {
-    final favFoods = globalFoodsDatabase.where((f) => f.isFavorite).toList();
-    final favRecipes = globalRecipesDatabase.where((r) => globalFavoriteRecipes.contains(r.id)).toList();
-    if (favFoods.isEmpty && favRecipes.isEmpty) return const SizedBox.shrink();
-    final cards = <Widget>[
-      ...favFoods.map(_favFoodCard),
-      ...favRecipes.map(_favRecipeCard),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Text("Favorilerim", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text)),
-            SizedBox(width: 6),
-            Icon(Icons.favorite, color: _danger, size: 18),
-          ],
-        ),
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 166,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: cards.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (context, i) => cards[i],
+  // ---------- Favourites page (opened from the home header heart) ----------
+  void _openFavorites() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
+      return StatefulBuilder(builder: (ctx, setLocal) {
+        final favFoods = globalFoodsDatabase.where((f) => f.isFavorite).toList();
+        final favRecipes = globalRecipesDatabase.where((r) => globalFavoriteRecipes.contains(r.id)).toList();
+        return Scaffold(
+          backgroundColor: _bg,
+          appBar: AppBar(
+            backgroundColor: _bg,
+            elevation: 0,
+            leading: IconButton(icon: const Icon(Icons.arrow_back, color: _text), onPressed: () => Navigator.pop(ctx)),
+            title: const Text("Favorilerim ❤️", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+            centerTitle: true,
           ),
-        ),
-        const SizedBox(height: 28),
-      ],
-    );
-  }
-
-  Widget _favFoodCard(Food food) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
-      )),
-      child: Container(
-        width: 120,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: _foodTint(food), borderRadius: BorderRadius.circular(18)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Align(alignment: Alignment.topRight, child: Icon(Icons.favorite, color: _danger, size: 14)),
-            isPhotoUrl(food.imageUrl)
-                ? ClipOval(child: SizedBox(width: 40, height: 40, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
-                : Text(food.emoji, style: const TextStyle(fontSize: 34)),
-            const SizedBox(height: 8),
-            Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-              child: Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _text)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _favRecipeCard(Recipe recipe) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => RecipeDetailScreen(recipe: recipe, onStateChanged: _onChildChanged),
-      )),
-      child: Container(
-        width: 150,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(18)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                SizedBox(height: 92, width: double.infinity, child: _getRecipeImage(recipe)),
-                const Positioned(top: 8, right: 8, child: CircleAvatar(radius: 11, backgroundColor: Colors.white, child: Icon(Icons.favorite, color: _danger, size: 13))),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
-                  const SizedBox(height: 3),
-                  Text("${recipe.startingMonth}+ Ay • ${recipe.prepTime}", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+          body: (favFoods.isEmpty && favRecipes.isEmpty)
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.favorite_border, size: 48, color: _light),
+                        SizedBox(height: 12),
+                        Text("Henüz favorin yok.\nGıda veya tariflerde ❤️ simgesine dokun.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    if (favFoods.isNotEmpty) ...[
+                      _sectionTitle("Favori Gıdalar 🥦"),
+                      const SizedBox(height: 12),
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.82, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                        itemCount: favFoods.length,
+                        itemBuilder: (context, i) => _explorerFoodCard(favFoods[i]),
+                      ),
+                      const SizedBox(height: 22),
+                    ],
+                    if (favRecipes.isNotEmpty) ...[
+                      _sectionTitle("Favori Tarifler 🍲"),
+                      const SizedBox(height: 12),
+                      ...favRecipes.map(_recipeListItem),
+                    ],
+                  ],
+                ),
+        );
+      });
+    }));
   }
 
   // ====================== WEEKLY MENU PAGE (banner'dan açılır) ======================
