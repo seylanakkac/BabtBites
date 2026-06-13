@@ -2403,7 +2403,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
-            onPressed: () => setState(() => _currentIndex = 1),
+            onPressed: () => setState(() { _currentIndex = 1; _explorerSubTab = 0; }),
             icon: const Icon(Icons.restaurant_menu, size: 18),
             label: const Text("Gıda Dene", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
