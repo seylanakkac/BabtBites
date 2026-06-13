@@ -68,6 +68,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime _focusedDate = DateTime.now();
   late String _selectedDay;
   late String _selectedSeason;
+  final _seasonPageController = PageController();
+  int _seasonPage = 0;
   late Map<String, Map<String, List<String>>> _weeklyPlan;
 
   @override
@@ -126,6 +128,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _recipeSearchController.dispose();
     _cartInputController.dispose();
     _cartFocus.dispose();
+    _seasonPageController.dispose();
     super.dispose();
   }
 
@@ -786,15 +789,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final data = kSeasonalFoods[_selectedSeason] ?? const {};
     final currentSeason = seasonForMonth(DateTime.now().month);
     final cats = _seasonOrder.where((c) => (data[c] ?? const []).isNotEmpty).toList();
+    if (cats.isEmpty) return const SizedBox.shrink();
+    final page = _seasonPage.clamp(0, cats.length - 1);
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
       decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.06), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.18))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Mevsiminde Beslenme 🌿", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
           const SizedBox(height: 3),
-          const Text("Türkiye'de bu mevsim taze tüketilenler ve başlangıç ayları (kaydır →)", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+          const Text("Türkiye'de bu mevsim taze tüketilenler ve başlangıç ayları", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
           const SizedBox(height: 12),
           // Season filter
           SizedBox(
@@ -807,7 +812,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: GestureDetector(
-                    onTap: () => setState(() => _selectedSeason = s),
+                    onTap: () {
+                      setState(() { _selectedSeason = s; _seasonPage = 0; });
+                      if (_seasonPageController.hasClients) _seasonPageController.jumpToPage(0);
+                    },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       alignment: Alignment.center,
@@ -819,55 +827,86 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }).toList(),
             ),
           ),
-          const SizedBox(height: 16),
-          // One swipeable carousel per category, in order Sebze→Meyve→Otlar→Balık
-          ...cats.map((c) {
-            final items = data[c]!;
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_seasonCatLabel[c] ?? c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 132,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: items.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (context, i) => _seasonalCard(items[i], c),
+          const SizedBox(height: 12),
+          // Category selector (also moves the carousel page)
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: cats.asMap().entries.map((e) {
+                final sel = e.key == page;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() => _seasonPage = e.key);
+                      _seasonPageController.animateToPage(e.key, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: sel ? _seasonCatAccent(e.value) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
+                      child: Text(_seasonCatLabel[e.value] ?? e.value, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: sel ? Colors.white : _text)),
                     ),
                   ),
-                ],
-              ),
-            );
-          }),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          // One grid page per category, swipe to change (Instagram-carousel style)
+          SizedBox(
+            height: 315,
+            child: PageView(
+              controller: _seasonPageController,
+              onPageChanged: (i) => setState(() => _seasonPage = i),
+              children: cats.map((c) => _seasonGridPage(data[c]!, c)).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Page dots
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(cats.length, (i) {
+              final sel = i == page;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                width: sel ? 18 : 7,
+                height: 7,
+                decoration: BoxDecoration(color: sel ? const Color(0xFF2BB673) : const Color(0xFFCDE7D8), borderRadius: BorderRadius.circular(4)),
+              );
+            }),
+          ),
         ],
       ),
     );
   }
 
-  Widget _seasonalCard(SeasonalItem it, String cat) {
-    return SizedBox(
-      width: 90,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 90,
-            height: 84,
-            decoration: BoxDecoration(color: _seasonCatTint(cat), borderRadius: BorderRadius.circular(18)),
-            child: Center(child: Text(it.emoji, style: const TextStyle(fontSize: 40))),
+  Widget _seasonGridPage(List<SeasonalItem> items, String cat) {
+    return GridView.builder(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.95, crossAxisSpacing: 10, mainAxisSpacing: 10),
+      itemCount: items.length,
+      itemBuilder: (context, i) => _seasonalGridCard(items[i], cat),
+    );
+  }
+
+  Widget _seasonalGridCard(SeasonalItem it, String cat) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(color: _seasonCatTint(cat), borderRadius: BorderRadius.circular(14)),
+            child: Center(child: Text(it.emoji, style: const TextStyle(fontSize: 30))),
           ),
-          const SizedBox(height: 6),
-          Text(it.name.toUpperCase(), maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _text, height: 1.1)),
-          const SizedBox(height: 2),
-          Text("+${it.startMonth} ay", style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _seasonCatAccent(cat))),
-        ],
-      ),
+        ),
+        const SizedBox(height: 4),
+        Text(it.name.toUpperCase(), maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.bold, color: _text, height: 1.05)),
+        Text("+${it.startMonth} ay", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _seasonCatAccent(cat))),
+      ],
     );
   }
 
