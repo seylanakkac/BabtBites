@@ -1296,9 +1296,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return matchesSearch && recipe.startingMonth <= maxAge;
     }).toList();
 
-    return SingleChildScrollView(
+    return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      child: Column(
+      slivers: [
+        SliverToBoxAdapter(
+          child: Column(
         children: [
           const SizedBox(height: 4),
           _buildPantryCard(filteredRecipes.length),
@@ -1361,18 +1363,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
-          filteredRecipes.isEmpty
-              ? const Padding(padding: EdgeInsets.fromLTRB(32, 40, 32, 40), child: Text("Aradığınız kriterlere uygun tarif bulunamadı.", textAlign: TextAlign.center, style: TextStyle(color: _light)))
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  itemCount: filteredRecipes.length,
-                  itemBuilder: (context, index) => _recipeListItem(filteredRecipes[index]),
-                ),
-          const SizedBox(height: 24),
         ],
-      ),
+          ),
+        ),
+        if (filteredRecipes.isEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(padding: EdgeInsets.fromLTRB(32, 40, 32, 40), child: Text("Aradığınız kriterlere uygun tarif bulunamadı.", textAlign: TextAlign.center, style: TextStyle(color: _light))),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) => _recipeListItem(filteredRecipes[index]),
+                childCount: filteredRecipes.length,
+              ),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+      ],
     );
   }
 
