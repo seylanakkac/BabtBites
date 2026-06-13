@@ -823,11 +823,9 @@ class _AdminScreenState extends State<AdminScreen> {
   // ---------- articles manager ----------
   Widget _articlesManager() {
     final q = _articleSearch.text.trim().toLowerCase();
-    final base = <Article>[...globalCustomArticles];
-    // Built-in articles aren't exposed as a list here; manage custom + overrides.
-    final all = base.where((a) => a.title.toLowerCase().contains(q)).toList();
+    final all = getAllArticles().where((a) => a.title.toLowerCase().contains(q) || a.summary.toLowerCase().contains(q)).toList();
     return _pane([
-      _sectionHeader("Yazılar", "Özel yazıları yönet • yeni ekle",
+      _sectionHeader("Yazılar", "${getAllArticles().length} yazı • düzenle, sil veya yeni ekle",
           action: _primaryBtn("Yeni Yazı", Icons.add, () => _articleDialog(null))),
       _searchBar(_articleSearch, "Yazı ara...", (_) => setState(() {})),
       ...all.map((a) => _itemCard(
@@ -836,7 +834,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 : Container(color: const Color(0xFF2980B9).withOpacity(0.1), child: Center(child: Text(a.emoji, style: const TextStyle(fontSize: 20)))),
             title: a.title,
             subtitle: "${a.category} • ${a.readTime}",
-            isCustom: true,
+            isCustom: isCustomArticle(a.id),
             onEdit: () => _articleDialog(a),
             onDelete: () => _confirmDelete("'${a.title}' yazısı", () {
               deleteArticle(a.id);
@@ -846,7 +844,7 @@ class _AdminScreenState extends State<AdminScreen> {
             }),
           )),
       if (all.isEmpty)
-        const Padding(padding: EdgeInsets.all(20), child: Text("Henüz özel yazı yok. 'Yeni Yazı' ile ekleyin.", style: TextStyle(fontFamily: 'Inter', color: _light))),
+        const Padding(padding: EdgeInsets.all(20), child: Text("Sonuç yok.", style: TextStyle(fontFamily: 'Inter', color: _light))),
     ]);
   }
 

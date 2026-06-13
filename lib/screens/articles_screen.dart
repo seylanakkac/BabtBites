@@ -50,6 +50,16 @@ class Article {
 /// Admin-added articles, merged into the list shown by ArticlesScreen.
 final List<Article> globalCustomArticles = [];
 
+/// Built-in + admin-added articles, with admin overrides applied and deleted
+/// ones hidden. Shared by ArticlesScreen and the admin panel.
+List<Article> getAllArticles() {
+  final all = <Article>[..._ArticlesScreenState._builtInArticles(), ...globalCustomArticles];
+  return all
+      .where((a) => !globalDeletedArticles.contains(a.id))
+      .map((a) => globalArticleOverrides.containsKey(a.id) ? Article.fromJson(globalArticleOverrides[a.id]!) : a)
+      .toList();
+}
+
 class ArticlesScreen extends StatefulWidget {
   const ArticlesScreen({super.key});
 
@@ -67,7 +77,7 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
   List<String> get _categories => ["Tümü", ...articleCategories];
 
   // 50 ek gıda / baby feeding articles database
-  final List<Article> _articles = const [
+  static const List<Article> _articles = [
     Article(
       id: "a1",
       title: "3 Gün Kuralı Nedir ve Nasıl Uygulanır?",
@@ -358,10 +368,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     ),
   ];
 
-  List<Article> _getFullArticlesList() {
+  // Built-in articles (fixed + generated). Static so the admin panel can list
+  // and edit them too via the top-level getAllArticles().
+  static List<Article> _builtInArticles() {
     final List<Article> allArticles = List.from(_articles);
-    
-    // We will generate the remaining 39 articles dynamically to guarantee exactly 50 high-quality articles.
     final List<Map<String, String>> dynamicArticlesData = [
       {"title": "Bebeklerde Gaz Yapan Sebzeler ve Çözümleri", "cat": "Besinler", "time": "3 dk", "emoji": "🥦", "summary": "Brokoli ve karnabahar gibi gaz yapıcı sebzeleri pişirme tüyoları.", "content": "Brokoli, karnabahar, lahana ve kuru baklagiller (mercimek, nohut) lif ve belirli şekerler içerdiği için bağırsakta gaza yol açabilir.\n\nÇözümler:\n- Bu sebzeleri iyice pişirin; buharda yumuşatmak sindirimi kolaylaştırır.\n- Az miktarla başlayın, bebeğin tepkisine göre artırın.\n- Baklagilleri ıslatıp kabuğunu ayıklayarak ve iyi pişirerek verin.\n- Yoğurtla birlikte sunmak bağırsak florasına yardımcı olur.\n\nGaz şiddetliyse o besini bir süre ara verip daha ileride tekrar deneyin."},
       {"title": "Ek Gıdada Kaşık Seçimi Nasıl Olmalıdır?", "cat": "Başlangıç", "time": "3 dk", "emoji": "🥄", "summary": "Bebeğin hassas diş etlerine uygun kaşık seçimi ve besleme teknikleri.", "content": "İlk kaşık, bebeğin hassas diş etlerini incitmeyecek kadar yumuşak olmalıdır.\n\nNelere dikkat edilmeli:\n- Yumuşak silikon uçlu, küçük ve sığ kaşıklar tercih edin.\n- BPA içermeyen, ısıya dayanıklı malzeme olsun.\n- Kaşığı ağzına zorla sokmayın; dudaklarına dokundurup kendisinin almasını bekleyin.\n\nİleride bebeğin kendi tutması için sap kısmı kalın, kavraması kolay kaşıklar idealdir."},
@@ -418,17 +428,7 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
         ),
       );
     }
-
-    allArticles.addAll(globalCustomArticles);
-
-    // Apply admin overrides (replace by id) and hide deleted built-in articles.
-    final result = allArticles
-        .where((a) => !globalDeletedArticles.contains(a.id))
-        .map((a) => globalArticleOverrides.containsKey(a.id)
-            ? Article.fromJson(globalArticleOverrides[a.id]!)
-            : a)
-        .toList();
-    return result;
+    return allArticles;
   }
 
   @override
@@ -438,7 +438,7 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     const lightTextColor = Color(0xFFA8A8B3);
     const borderGreyColor = Color(0xFFE2E2E6);
 
-    final fullArticles = _getFullArticlesList();
+    final fullArticles = getAllArticles();
 
     // Filter articles based on search and category
     final filteredArticles = fullArticles.where((art) {
