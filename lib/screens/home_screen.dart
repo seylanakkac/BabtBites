@@ -534,7 +534,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 16),
         // Beslenme Rehberi
         GestureDetector(
-          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArticlesScreen())),
+          onTap: () async {
+            final idx = await Navigator.of(context).push<int>(MaterialPageRoute(builder: (_) => const ArticlesScreen()));
+            if (idx != null && mounted) setState(() => _currentIndex = idx);
+          },
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.12), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.25))),
