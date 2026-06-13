@@ -2378,7 +2378,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final id = _activeBabyId;
     final tried = triedCount(id);
     final reactions = reactionCount(id);
-    final months = _ageMonths(_activeBaby?["dob"]?.toString());
+    final activeMeds = medsFor(id).where((m) => m["active"] == true).length;
     final states = globalBabyFoodStates[id] ?? {};
     final recent = states.entries.where((e) => (e.value as Map)["triedDate"] != null).toList()
       ..sort((a, b) => ((b.value as Map)["triedDate"] as String).compareTo((a.value as Map)["triedDate"] as String));
@@ -2398,7 +2398,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         const Text("Gelişim Yolculuğu 🚀", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 12),
-        Row(children: [stat("$tried", "Denenen Gıda", _green), stat("$reactions", "Reaksiyon", _danger), stat("$months", "Aylık", _primary)]),
+        Row(children: [stat("$tried", "Denenen Gıda", _green), stat("$reactions", "Reaksiyon", _danger), stat("$activeMeds", "Aktif Takviye", _primary)]),
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
