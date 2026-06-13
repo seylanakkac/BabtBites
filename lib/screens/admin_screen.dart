@@ -33,6 +33,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newAvatar = TextEditingController();
   final _newSuppName = TextEditingController();
   final _newDoseUnit = TextEditingController();
+  final _newCartUnit = TextEditingController();
   final Map<String, TextEditingController> _nt = {};
 
   @override
@@ -53,6 +54,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _newAvatar.dispose();
     _newSuppName.dispose();
     _newDoseUnit.dispose();
+    _newCartUnit.dispose();
     for (final c in _nt.values) {
       c.dispose();
     }
@@ -455,6 +457,8 @@ class _AdminScreenState extends State<AdminScreen> {
     String cat = existing?["category"]?.toString() ?? foodCategories.first;
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     String risk = existing?["allergyRisk"]?.toString() ?? "Düşük";
+    String cartUnit = existing?["cartUnit"]?.toString() ?? "adet";
+    if (!cartUnitOptions.contains(cartUnit)) cartUnit = cartUnitOptions.isNotEmpty ? cartUnitOptions.first : "adet";
     final ps = (existing?["presentationStyles"] as Map?);
     final presentation = TextEditingController(text: ps != null && ps.values.isNotEmpty ? ps.values.first.toString() : "");
     final nv = (existing?["nutritionValues"] as Map?) ?? {};
@@ -492,6 +496,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _dropdown("Kategori", cat, foodCategories, (v) => setD(() => cat = v)),
                   _field(month, "Başlangıç ayı", hint: "6", keyboard: TextInputType.number),
                   _dropdown("Alerji riski", risk, const ["Düşük", "Orta", "Yüksek"], (v) => setD(() => risk = v)),
+                  _dropdown("Sepet birimi", cartUnit, cartUnitOptions, (v) => setD(() => cartUnit = v)),
                   _field(presentation, "Sunum şekli", maxLines: 3),
                   const Padding(
                     padding: EdgeInsets.only(top: 8, bottom: 4),
@@ -525,6 +530,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "startingMonth": m,
                   "allergyRisk": risk,
                   "imageUrl": image,
+                  "cartUnit": cartUnit,
                   "presentationStyles": {m.toString(): presentation.text.trim()},
                   "nutritionValues": {
                     "Enerji": pn(energy), "Karbonhidrat": pn(carb), "Protein": pn(protein), "Yağ": pn(fat),
@@ -583,10 +589,23 @@ class _AdminScreenState extends State<AdminScreen> {
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     final kcal = TextEditingController(text: existing?["kcal"]?.toString() ?? "");
-    final ing = TextEditingController(text: ((existing?["ingredients"] as List?) ?? []).join(", "));
-    final amt = TextEditingController(text: ((existing?["ingredientAmounts"] as List?) ?? []).join(", "));
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
+
+    // Structured ingredient list: name (from foods or custom) + amount.
+    final ingredients = <String>[];
+    final amtCtrls = <TextEditingController>[];
+    final ingList = ((existing?["ingredients"] as List?) ?? const []).map((e) => e.toString()).toList();
+    final amtList = ((existing?["ingredientAmounts"] as List?) ?? const []).map((e) => e.toString()).toList();
+    for (var i = 0; i < ingList.length; i++) {
+      ingredients.add(ingList[i]);
+      amtCtrls.add(TextEditingController(text: i < amtList.length ? amtList[i] : ""));
+    }
+
+    String emojiFor(String n) {
+      final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == n.toLowerCase()).toList();
+      return m.isNotEmpty ? m.first.emoji : "🧺";
+    }
 
     showDialog(
       context: context,
@@ -600,14 +619,64 @@ class _AdminScreenState extends State<AdminScreen> {
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   PhotoPickerField(value: image, label: "Tarif fotoğrafı", height: 130, onChanged: (v) => setD(() => image = v ?? "")),
                   const SizedBox(height: 14),
                   _field(name, "Tarif adı"),
                   Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number))]),
                   _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number),
-                  _field(ing, "Malzemeler (virgülle)", maxLines: 2),
-                  _field(amt, "Miktarlar (virgülle)", maxLines: 2),
+                  const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  if (ingredients.isEmpty)
+                    const Padding(padding: EdgeInsets.only(bottom: 6), child: Text("Henüz malzeme yok. Aşağıdan gıdalardan ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
+                  ...List.generate(ingredients.length, (i) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                                child: Row(children: [
+                                  Text(emojiFor(ingredients[i]), style: const TextStyle(fontSize: 16)),
+                                  const SizedBox(width: 8),
+                                  Expanded(child: Text(ingredients[i], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                                ]),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 3,
+                              child: TextField(controller: amtCtrls[i], style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text), decoration: _dec("Miktar")),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18, color: _red),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                              onPressed: () => setD(() {
+                                ingredients.removeAt(i);
+                                amtCtrls.removeAt(i).dispose();
+                              }),
+                            ),
+                          ],
+                        ),
+                      )),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickFood((picked) {
+                        setD(() {
+                          ingredients.add(picked);
+                          amtCtrls.add(TextEditingController());
+                        });
+                      }),
+                      icon: const Icon(Icons.add, size: 18, color: _primary),
+                      label: const Text("Gıdalardan Malzeme Ekle", style: TextStyle(fontFamily: 'Inter', color: _primary, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(side: BorderSide(color: _primary.withOpacity(0.5)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   _field(steps, "Adımlar (her satır)", maxLines: 5),
                   _field(warn, "Alerji uyarısı"),
                 ],
@@ -623,7 +692,6 @@ class _AdminScreenState extends State<AdminScreen> {
                   _toast("Lütfen ad girin");
                   return;
                 }
-                List<String> sl(String s) => s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
                 saveRecipeEdit({
                   "id": existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}",
                   "name": n,
@@ -631,8 +699,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   "startingMonth": int.tryParse(month.text.trim()) ?? 6,
                   "kcal": double.tryParse(kcal.text.trim().replaceAll(',', '.')) ?? 0,
                   "imageUrl": image,
-                  "ingredients": sl(ing.text),
-                  "ingredientAmounts": sl(amt.text),
+                  "ingredients": List<String>.from(ingredients),
+                  "ingredientAmounts": amtCtrls.map((c) => c.text.trim()).toList(),
                   "steps": steps.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   "allergyWarning": warn.text.trim(),
                 });
@@ -648,10 +716,72 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, prep, month, kcal, ing, amt, steps, warn]) {
+      for (final c in [name, prep, month, kcal, steps, warn, ...amtCtrls]) {
         c.dispose();
       }
     });
+  }
+
+  /// Bottom-sheet picker to choose an ingredient from the foods database
+  /// (or add a custom one by typing). Calls [onPick] with the chosen name.
+  void _pickFood(void Function(String name) onPick) {
+    final searchCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final q = searchCtrl.text.trim().toLowerCase();
+          final foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
+          final exact = globalFoodsDatabase.any((f) => f.name.toLowerCase() == q);
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: SizedBox(
+              height: 480,
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(height: 12),
+                  const Text("Malzeme Seç", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 12),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setSheet(() {}),
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                      decoration: InputDecoration(hintText: "Gıda ara veya yeni yaz...", prefixIcon: const Icon(Icons.search, color: _light), filled: true, fillColor: _bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(vertical: 12)),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        if (q.isNotEmpty && !exact)
+                          ListTile(
+                            leading: const Icon(Icons.add_circle_outline, color: _primary),
+                            title: Text("“${searchCtrl.text.trim()}” ekle (özel malzeme)", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _primary)),
+                            onTap: () { onPick(searchCtrl.text.trim()); Navigator.pop(ctx); },
+                          ),
+                        ...foods.map((f) => ListTile(
+                              leading: Text(f.emoji, style: const TextStyle(fontSize: 22)),
+                              title: Text(f.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
+                              subtitle: Text("${f.category} • ${f.startingMonth}+ ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                              onTap: () { onPick(f.name); Navigator.pop(ctx); },
+                            )),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    ).then((_) => searchCtrl.dispose());
   }
 
   // ---------- articles manager ----------
@@ -928,6 +1058,15 @@ class _AdminScreenState extends State<AdminScreen> {
         controller: _newDoseUnit,
         hint: "Örn. puf",
         onSave: (next) => globalAdminConfig["doseUnits"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Sepet Birimleri",
+        subtitle: "Gıda formundaki 'Sepet birimi' seçeneğinde çıkacak birimler (adet, kg, demet…)",
+        options: cartUnitOptions,
+        controller: _newCartUnit,
+        hint: "Örn. demet",
+        onSave: (next) => globalAdminConfig["cartUnits"] = next,
       ),
     ]);
   }

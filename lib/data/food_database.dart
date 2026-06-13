@@ -9,6 +9,7 @@ class Food {
   final Map<int, String> presentationStyles; // e.g. {6: "Püre...", 9: "...", 12: "..."}
   final Map<String, double> nutritionValues; // Energy(kcal), Protein(g), Fat(g), Iron(mg)
   final String imageUrl; // optional photo (base64 data URI / URL); empty = use emoji
+  final String cartUnit; // shopping-list unit: "adet", "kg", "gr", "demet"...
   bool tried;
   bool isFavorite;
 
@@ -21,6 +22,7 @@ class Food {
     required this.presentationStyles,
     required this.nutritionValues,
     this.imageUrl = "",
+    this.cartUnit = "adet",
     this.tried = false,
     this.isFavorite = false,
   });
@@ -34,6 +36,7 @@ class Food {
         "presentationStyles": presentationStyles.map((k, v) => MapEntry(k.toString(), v)),
         "nutritionValues": nutritionValues,
         "imageUrl": imageUrl,
+        "cartUnit": cartUnit,
       };
 
   factory Food.fromJson(Map<String, dynamic> j) => Food(
@@ -49,7 +52,14 @@ class Food {
                 ?.map((k, v) => MapEntry(k.toString(), (v as num).toDouble())) ??
             {},
         imageUrl: j["imageUrl"]?.toString() ?? "",
+        cartUnit: j["cartUnit"]?.toString() ?? "adet",
       );
+
+  /// Resolves the cart/shopping unit for a food name (built-in or custom).
+  static String unitFor(String name) {
+    final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == name.toLowerCase()).toList();
+    return m.isNotEmpty ? m.first.cartUnit : "adet";
+  }
 }
 
 class Recipe {

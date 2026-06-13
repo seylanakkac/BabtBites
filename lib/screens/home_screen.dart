@@ -2385,7 +2385,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 Text(item, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: checked ? _light : _text, decoration: checked ? TextDecoration.lineThrough : null)),
                 const SizedBox(height: 2),
-                Text("$qty adet", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                Text("$qty ${Food.unitFor(item)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
               ],
             ),
           ),
