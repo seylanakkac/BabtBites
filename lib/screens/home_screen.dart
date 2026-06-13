@@ -604,6 +604,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _homeFoodCard(Food food) {
+    final reacted = readFoodState(_activeBabyId, food.name)?["status"] == "reaksiyon";
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
@@ -613,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: Stack(
           children: [
             if (food.tried)
-              const Positioned(top: 10, right: 10, child: Icon(Icons.check_circle, color: _green, size: 20)),
+              Positioned(top: 10, right: 10, child: Icon(reacted ? Icons.warning_amber_rounded : Icons.check_circle, color: reacted ? _danger : _green, size: 20)),
             Padding(
               padding: const EdgeInsets.all(10),
               child: Column(
@@ -1047,6 +1048,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _explorerFoodCard(Food food) {
     final allergen = food.allergyRisk != "Düşük";
+    final reacted = readFoodState(_activeBabyId, food.name)?["status"] == "reaksiyon";
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
@@ -1060,7 +1062,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             Expanded(
               child: Stack(
                 children: [
-                  if (food.tried) const Positioned(top: 0, right: 0, child: Icon(Icons.check_circle, color: _green, size: 18)),
+                  if (food.tried) Positioned(top: 0, right: 0, child: Icon(reacted ? Icons.warning_amber_rounded : Icons.check_circle, color: reacted ? _danger : _green, size: 18)),
                   Center(
                     child: isPhotoUrl(food.imageUrl)
                         ? ClipOval(child: SizedBox(width: 52, height: 52, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
