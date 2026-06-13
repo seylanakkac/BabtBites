@@ -752,21 +752,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }));
   }
 
-  // ---------- Seasonal eating (home) ----------
+  // ---------- Seasonal eating (home) — Instagram-carousel style ----------
+  static const List<String> _seasonOrder = ["Sebze", "Meyve", "Otlar", "Balık"];
+  static const Map<String, String> _seasonCatLabel = {"Sebze": "Sebzeler 🥦", "Meyve": "Meyveler 🍓", "Otlar": "Otlar 🌿", "Balık": "Balıklar 🐟"};
+
+  Color _seasonCatTint(String cat) {
+    switch (cat) {
+      case "Meyve":
+        return const Color(0xFFFFEBEE);
+      case "Otlar":
+        return const Color(0xFFE9F7EF);
+      case "Balık":
+        return const Color(0xFFE3F2FD);
+      default:
+        return const Color(0xFFE8F5E9);
+    }
+  }
+
+  Color _seasonCatAccent(String cat) {
+    switch (cat) {
+      case "Meyve":
+        return const Color(0xFFFF4D6A);
+      case "Otlar":
+        return const Color(0xFF2BB673);
+      case "Balık":
+        return const Color(0xFF2980B9);
+      default:
+        return const Color(0xFF1E9E5C);
+    }
+  }
+
   Widget _buildSeasonalSection() {
     final data = kSeasonalFoods[_selectedSeason] ?? const {};
-    const catLabels = {"Sebze": "🥦 Sebzeler", "Meyve": "🍎 Meyveler", "Balık": "🐟 Balıklar", "Otlar": "🌿 Otlar"};
     final currentSeason = seasonForMonth(DateTime.now().month);
+    final cats = _seasonOrder.where((c) => (data[c] ?? const []).isNotEmpty).toList();
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 8),
       decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.06), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.18))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text("Mevsiminde Beslenme 🌿", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
           const SizedBox(height: 3),
-          const Text("Türkiye'de bu mevsim taze tüketilen besinler ve başlangıç ayları", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+          const Text("Türkiye'de bu mevsim taze tüketilenler ve başlangıç ayları (kaydır →)", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
           const SizedBox(height: 12),
+          // Season filter
           SizedBox(
             height: 32,
             child: ListView(
@@ -789,39 +819,53 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               }).toList(),
             ),
           ),
-          const SizedBox(height: 14),
-          ...data.entries.where((e) => e.value.isNotEmpty).map((e) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(catLabels[e.key] ?? e.key, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
-                    const SizedBox(height: 8),
-                    Wrap(spacing: 8, runSpacing: 8, children: e.value.map(_seasonalChip).toList()),
-                  ],
-                ),
-              )),
+          const SizedBox(height: 16),
+          // One swipeable carousel per category, in order Sebze→Meyve→Otlar→Balık
+          ...cats.map((c) {
+            final items = data[c]!;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_seasonCatLabel[c] ?? c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 132,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, i) => _seasonalCard(items[i], c),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );
   }
 
-  Widget _seasonalChip(SeasonalItem it) {
-    return Container(
-      padding: const EdgeInsets.only(left: 10, right: 5, top: 4, bottom: 4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E2E6))),
-      child: Row(
+  Widget _seasonalCard(SeasonalItem it, String cat) {
+    return SizedBox(
+      width: 90,
+      child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(it.emoji, style: const TextStyle(fontSize: 15)),
-          const SizedBox(width: 6),
-          Text(it.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
-          const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(color: const Color(0xFF1E9E5C), borderRadius: BorderRadius.circular(10)),
-            child: Text("${it.startMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+            width: 90,
+            height: 84,
+            decoration: BoxDecoration(color: _seasonCatTint(cat), borderRadius: BorderRadius.circular(18)),
+            child: Center(child: Text(it.emoji, style: const TextStyle(fontSize: 40))),
           ),
+          const SizedBox(height: 6),
+          Text(it.name.toUpperCase(), maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _text, height: 1.1)),
+          const SizedBox(height: 2),
+          Text("+${it.startMonth} ay", style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _seasonCatAccent(cat))),
         ],
       ),
     );
