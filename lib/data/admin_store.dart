@@ -24,6 +24,8 @@ const List<String> kDefaultSupplementNames = [
 const List<String> kDefaultDoseUnits = ["damla", "ml", "puf", "mg", "tablet", "ölçek", "adet"];
 // Shopping-list (cart) units selectable per food in the admin food form.
 const List<String> kDefaultCartUnits = ["adet", "kg", "gr", "lt", "ml", "demet", "paket", "diş", "avuç", "yemek kaşığı", "çay kaşığı"];
+// Recipe ingredient amount units (selectable in the admin recipe form).
+const List<String> kDefaultRecipeUnits = ["adet", "gr", "kg", "ml", "lt", "su bardağı", "çay bardağı", "yemek kaşığı", "tatlı kaşığı", "çay kaşığı", "tutam", "demet", "diş", "avuç"];
 // "Marketten Sipariş Ver" promo/ad cards on the cart screen.
 const List<Map<String, dynamic>> kDefaultMarketLinks = [
   {"name": "Trendyol Go", "url": "https://www.trendyolgo.com", "imageUrl": ""},
@@ -80,6 +82,10 @@ List<String> get doseUnitOptions =>
 List<String> get cartUnitOptions =>
     (globalAdminConfig["cartUnits"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultCartUnits);
+
+List<String> get recipeUnitOptions =>
+    (globalAdminConfig["recipeUnits"] as List?)?.map((e) => e.toString()).toList() ??
+    List<String>.from(kDefaultRecipeUnits);
 
 List<Map<String, dynamic>> get marketLinks =>
     (globalAdminConfig["marketLinks"] as List?)

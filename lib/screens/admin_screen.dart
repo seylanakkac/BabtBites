@@ -34,6 +34,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newSuppName = TextEditingController();
   final _newDoseUnit = TextEditingController();
   final _newCartUnit = TextEditingController();
+  final _newRecipeUnit = TextEditingController();
   final Map<String, TextEditingController> _nt = {};
 
   @override
@@ -55,6 +56,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _newSuppName.dispose();
     _newDoseUnit.dispose();
     _newCartUnit.dispose();
+    _newRecipeUnit.dispose();
     for (final c in _nt.values) {
       c.dispose();
     }
@@ -592,14 +594,30 @@ class _AdminScreenState extends State<AdminScreen> {
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
 
-    // Structured ingredient list: name (from foods or custom) + amount.
+    // Structured ingredient list: name (from foods or custom) + quantity + unit.
     final ingredients = <String>[];
-    final amtCtrls = <TextEditingController>[];
+    final qtyCtrls = <TextEditingController>[];
+    final ingUnits = <String>[];
+    final defaultUnit = recipeUnitOptions.isNotEmpty ? recipeUnitOptions.first : "adet";
+    // Parse a stored "100 gr" / "1 yemek kaşığı" into (quantity, unit).
+    List<String> parseAmount(String s) {
+      final m = RegExp(r'^\s*([\d.,]+)\s*(.*)$').firstMatch(s.trim());
+      if (m != null) return [m.group(1)!.trim(), m.group(2)!.trim()];
+      return ["", s.trim()];
+    }
+
     final ingList = ((existing?["ingredients"] as List?) ?? const []).map((e) => e.toString()).toList();
     final amtList = ((existing?["ingredientAmounts"] as List?) ?? const []).map((e) => e.toString()).toList();
     for (var i = 0; i < ingList.length; i++) {
       ingredients.add(ingList[i]);
-      amtCtrls.add(TextEditingController(text: i < amtList.length ? amtList[i] : ""));
+      final parts = parseAmount(i < amtList.length ? amtList[i] : "");
+      qtyCtrls.add(TextEditingController(text: parts[0]));
+      ingUnits.add(parts[1].isEmpty ? defaultUnit : parts[1]);
+    }
+    // Dropdown options = managed units ∪ any legacy units already stored.
+    final unitsAll = <String>[...recipeUnitOptions];
+    for (final u in ingUnits) {
+      if (u.isNotEmpty && !unitsAll.contains(u)) unitsAll.add(u);
     }
 
     String emojiFor(String n) {
@@ -629,36 +647,49 @@ class _AdminScreenState extends State<AdminScreen> {
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   if (ingredients.isEmpty)
                     const Padding(padding: EdgeInsets.only(bottom: 6), child: Text("Henüz malzeme yok. Aşağıdan gıdalardan ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
-                  ...List.generate(ingredients.length, (i) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
+                  ...List.generate(ingredients.length, (i) => Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+                        child: Column(
                           children: [
-                            Expanded(
-                              flex: 5,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-                                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
-                                child: Row(children: [
-                                  Text(emojiFor(ingredients[i]), style: const TextStyle(fontSize: 16)),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(ingredients[i], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
-                                ]),
+                            Row(children: [
+                              Text(emojiFor(ingredients[i]), style: const TextStyle(fontSize: 16)),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(ingredients[i], maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 18, color: _red),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                onPressed: () => setD(() {
+                                  ingredients.removeAt(i);
+                                  qtyCtrls.removeAt(i).dispose();
+                                  ingUnits.removeAt(i);
+                                }),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 3,
-                              child: TextField(controller: amtCtrls[i], style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text), decoration: _dec("Miktar")),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, size: 18, color: _red),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                              onPressed: () => setD(() {
-                                ingredients.removeAt(i);
-                                amtCtrls.removeAt(i).dispose();
-                              }),
-                            ),
+                            ]),
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              SizedBox(
+                                width: 78,
+                                child: TextField(controller: qtyCtrls[i], keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text), decoration: _dec("Miktar")),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                                  decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      isExpanded: true,
+                                      value: unitsAll.contains(ingUnits[i]) ? ingUnits[i] : (unitsAll.isNotEmpty ? unitsAll.first : null),
+                                      items: unitsAll.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text)))).toList(),
+                                      onChanged: (v) => setD(() => ingUnits[i] = v ?? ingUnits[i]),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ]),
                           ],
                         ),
                       )),
@@ -668,7 +699,8 @@ class _AdminScreenState extends State<AdminScreen> {
                       onPressed: () => _pickFood((picked) {
                         setD(() {
                           ingredients.add(picked);
-                          amtCtrls.add(TextEditingController());
+                          qtyCtrls.add(TextEditingController());
+                          ingUnits.add(defaultUnit);
                         });
                       }),
                       icon: const Icon(Icons.add, size: 18, color: _primary),
@@ -700,7 +732,11 @@ class _AdminScreenState extends State<AdminScreen> {
                   "kcal": double.tryParse(kcal.text.trim().replaceAll(',', '.')) ?? 0,
                   "imageUrl": image,
                   "ingredients": List<String>.from(ingredients),
-                  "ingredientAmounts": amtCtrls.map((c) => c.text.trim()).toList(),
+                  "ingredientAmounts": List.generate(ingredients.length, (i) {
+                    final q = qtyCtrls[i].text.trim();
+                    final u = ingUnits[i].trim();
+                    return q.isEmpty ? u : (u.isEmpty ? q : "$q $u");
+                  }),
                   "steps": steps.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   "allergyWarning": warn.text.trim(),
                 });
@@ -716,7 +752,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, prep, month, kcal, steps, warn, ...amtCtrls]) {
+      for (final c in [name, prep, month, kcal, steps, warn, ...qtyCtrls]) {
         c.dispose();
       }
     });
@@ -1067,6 +1103,15 @@ class _AdminScreenState extends State<AdminScreen> {
         controller: _newCartUnit,
         hint: "Örn. demet",
         onSave: (next) => globalAdminConfig["cartUnits"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Tarif Birimleri",
+        subtitle: "Tarif malzemesi miktarındaki birim seçeneği (gr, ml, yemek kaşığı…)",
+        options: recipeUnitOptions,
+        controller: _newRecipeUnit,
+        hint: "Örn. su bardağı",
+        onSave: (next) => globalAdminConfig["recipeUnits"] = next,
       ),
     ]);
   }
