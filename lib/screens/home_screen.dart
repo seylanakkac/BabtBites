@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
+import '../data/seasonal_database.dart';
 import '../data/tracking_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
@@ -66,6 +67,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   DateTime _focusedDate = DateTime.now();
   late String _selectedDay;
+  late String _selectedSeason;
   late Map<String, Map<String, List<String>>> _weeklyPlan;
 
   @override
@@ -73,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _selectedDay = _formatDateKey(DateTime.now());
+    _selectedSeason = seasonForMonth(DateTime.now().month);
 
     Map<String, dynamic> defaultBaby() => {
           "name": "Asya",
@@ -523,6 +526,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 18),
+        // Mevsiminde Beslenme
+        _buildSeasonalSection(),
+        const SizedBox(height: 16),
         // Beslenme Rehberi
         GestureDetector(
           onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ArticlesScreen())),
@@ -744,6 +750,81 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
       });
     }));
+  }
+
+  // ---------- Seasonal eating (home) ----------
+  Widget _buildSeasonalSection() {
+    final data = kSeasonalFoods[_selectedSeason] ?? const {};
+    const catLabels = {"Sebze": "🥦 Sebzeler", "Meyve": "🍎 Meyveler", "Balık": "🐟 Balıklar", "Otlar": "🌿 Otlar"};
+    final currentSeason = seasonForMonth(DateTime.now().month);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.06), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF2BB673).withOpacity(0.18))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Mevsiminde Beslenme 🌿", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 3),
+          const Text("Türkiye'de bu mevsim taze tüketilen besinler ve başlangıç ayları", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: kSeasons.map((s) {
+                final sel = _selectedSeason == s;
+                final isNow = s == currentSeason;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedSeason = s),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: sel ? const Color(0xFF2BB673) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6))),
+                      child: Text(isNow ? "$s •" : s, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          ...data.entries.where((e) => e.value.isNotEmpty).map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(catLabels[e.key] ?? e.key, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 8, runSpacing: 8, children: e.value.map(_seasonalChip).toList()),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
+  Widget _seasonalChip(SeasonalItem it) {
+    return Container(
+      padding: const EdgeInsets.only(left: 10, right: 5, top: 4, bottom: 4),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E2E6))),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(it.emoji, style: const TextStyle(fontSize: 15)),
+          const SizedBox(width: 6),
+          Text(it.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(color: const Color(0xFF1E9E5C), borderRadius: BorderRadius.circular(10)),
+            child: Text("${it.startMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   // ====================== WEEKLY MENU PAGE (banner'dan açılır) ======================
