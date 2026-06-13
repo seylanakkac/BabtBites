@@ -2664,12 +2664,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..sort((a, b) => ((b.value as Map)["triedDate"] as String).compareTo((a.value as Map)["triedDate"] as String));
     final recentTop = recent.take(4).toList();
 
-    Widget stat(String value, String label, Color color) => Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
-            child: Column(children: [Text(value, style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 2), Text(label, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, fontWeight: FontWeight.w500))]),
+    Widget stat(String value, String label, Color color, VoidCallback onTap) => Expanded(
+          child: GestureDetector(
+            onTap: onTap,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+              child: Column(children: [Text(value, style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: color)), const SizedBox(height: 2), Text(label, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, fontWeight: FontWeight.w500))]),
+            ),
           ),
         );
 
@@ -2678,7 +2681,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         const Text("Gelişim Yolculuğu 🚀", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 12),
-        Row(children: [stat("$tried", "Denenen Gıda", _green), stat("$reactions", "Reaksiyon", _danger), stat("$activeMeds", "Aktif Takviye", _primary)]),
+        Row(children: [stat("$tried", "Denenen Gıda", _green, () => _showJourneyList("tried")), stat("$reactions", "Reaksiyon", _danger, () => _showJourneyList("reaction")), stat("$activeMeds", "Aktif Takviye", _primary, () => _showJourneyList("meds"))]),
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
@@ -2729,6 +2732,119 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }),
         ],
       ],
+    );
+  }
+
+  void _showJourneyList(String kind) {
+    final id = _activeBabyId;
+    final states = globalBabyFoodStates[id] ?? {};
+    String title;
+    final rows = <Widget>[];
+
+    Widget shell({required Widget leading, required String name, String? subtitle, Widget? trailing}) => Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leading,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                    if (subtitle != null && subtitle.isNotEmpty) ...[const SizedBox(height: 3), Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.35))],
+                  ],
+                ),
+              ),
+              if (trailing != null) trailing,
+            ],
+          ),
+        );
+
+    Widget badge(bool isReaction) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: (isReaction ? _danger : _green).withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+          child: Text(isReaction ? "Reaksiyon" : "Sorunsuz", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: isReaction ? _danger : _green)),
+        );
+
+    String emojiFor(String name) {
+      final m = globalFoodsDatabase.where((f) => f.name == name).toList();
+      return m.isNotEmpty ? m.first.emoji : "🍽️";
+    }
+
+    if (kind == "tried") {
+      title = "Denenen Gıdalar";
+      final tried = states.entries.where((e) => (e.value as Map)["tried"] == true).toList()
+        ..sort((a, b) => ((b.value as Map)["triedDate"] ?? "").toString().compareTo(((a.value as Map)["triedDate"] ?? "").toString()));
+      for (final e in tried) {
+        final m = e.value as Map;
+        rows.add(shell(
+          leading: Text(emojiFor(e.key), style: const TextStyle(fontSize: 22)),
+          name: e.key,
+          subtitle: m["triedDate"] != null ? _formatIsoTr(m["triedDate"] as String) : null,
+          trailing: badge(m["status"] == "reaksiyon"),
+        ));
+      }
+    } else if (kind == "reaction") {
+      title = "Reaksiyon Görülen Gıdalar";
+      final reacts = states.entries.where((e) => (e.value as Map)["status"] == "reaksiyon").toList()
+        ..sort((a, b) => ((b.value as Map)["triedDate"] ?? "").toString().compareTo(((a.value as Map)["triedDate"] ?? "").toString()));
+      for (final e in reacts) {
+        final m = e.value as Map;
+        final syms = (m["reactionSymptoms"] as List?)?.map((x) => x.toString()).toList() ?? const [];
+        final note = m["reactionNote"]?.toString() ?? "";
+        final parts = <String>[
+          if (m["triedDate"] != null) _formatIsoTr(m["triedDate"] as String),
+          if (syms.isNotEmpty) syms.join(", "),
+          if (note.isNotEmpty) "Not: $note",
+        ];
+        rows.add(shell(
+          leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: _danger.withOpacity(0.12), shape: BoxShape.circle), child: const Icon(Icons.warning_amber_rounded, color: _danger, size: 20)),
+          name: e.key,
+          subtitle: parts.join("\n"),
+        ));
+      }
+    } else {
+      title = "Aktif Takviye / İlaçlar";
+      final meds = medsFor(id).where((m) => m["active"] == true).toList();
+      for (final m in meds) {
+        final isMed = m["type"] == "ilac";
+        final sub = [m["dose"], m["schedule"]].where((x) => x != null && x.toString().isNotEmpty).join(" • ");
+        rows.add(shell(
+          leading: Container(width: 36, height: 36, decoration: BoxDecoration(color: (isMed ? _danger : _primary).withOpacity(0.12), shape: BoxShape.circle), child: Icon(isMed ? Icons.medication_outlined : Icons.wb_sunny_outlined, color: isMed ? _danger : _primary, size: 20)),
+          name: m["name"]?.toString() ?? "",
+          subtitle: sub,
+          trailing: Text(isMed ? "İlaç" : "Takviye", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _light)),
+        ));
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14), decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+              Text("$title (${rows.length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 14),
+              if (rows.isEmpty)
+                const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text("Henüz kayıt yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)))
+              else
+                Flexible(child: SingleChildScrollView(child: Column(children: rows))),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

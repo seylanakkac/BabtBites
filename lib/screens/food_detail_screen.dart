@@ -137,6 +137,16 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
       food.tried = true;
     });
 
+    // Ask which reaction(s) occurred + optional custom symptom + note.
+    final details = await _askReactionDetails(food);
+    if (!mounted) return;
+    if (details != null) {
+      setState(() {
+        st["reactionSymptoms"] = details["symptoms"];
+        st["reactionNote"] = details["note"];
+      });
+    }
+
     final retry = await _askRetry();
     if (!mounted) return;
     if (retry != null) {
@@ -202,6 +212,146 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
         ),
       ),
     );
+  }
+
+  /// Lets the parent pick which reaction(s) occurred (common symptoms + custom)
+  /// and add a free-text note. Returns {"symptoms": List<String>, "note": String}.
+  Future<Map<String, dynamic>?> _askReactionDetails(Food food) async {
+    const primaryColor = Color(0xFFFF7A45);
+    const textColor = Color(0xFF2D2D3A);
+    const lightColor = Color(0xFFA8A8B3);
+    const danger = Color(0xFFFF4D6A);
+    const bg = Color(0xFFFAF9F6);
+
+    const common = [
+      "Ciltte kızarıklık/döküntü",
+      "Kurdeşen (ürtiker)",
+      "Ağız çevresinde kızarıklık/şişlik",
+      "Kusma",
+      "İshal",
+      "Karın ağrısı/gaz/huzursuzluk",
+      "Kabızlık",
+      "Egzama alevlenmesi",
+      "Burun akıntısı/hapşırma",
+      "Gözlerde kızarıklık/sulanma",
+      "Hırıltı/nefes darlığı",
+    ];
+
+    final existing = readFoodState(widget.babyId, food.name);
+    final selected = <String>{...((existing?["reactionSymptoms"] as List?)?.map((e) => e.toString()) ?? const [])};
+    final custom = <String>{};
+    for (final s in [...selected]) {
+      if (!common.contains(s)) custom.add(s);
+    }
+    final noteC = TextEditingController(text: existing?["reactionNote"]?.toString() ?? "");
+    final customC = TextEditingController();
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          Widget chip(String label) {
+            final sel = selected.contains(label);
+            return GestureDetector(
+              onTap: () => setSheet(() => sel ? selected.remove(label) : selected.add(label)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: sel ? danger.withOpacity(0.12) : bg, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? danger : Colors.transparent, width: 1.4)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (sel) const Padding(padding: EdgeInsets.only(right: 5), child: Icon(Icons.check, size: 14, color: danger)),
+                    Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: sel ? danger : textColor)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14), decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+                    Text("${food.name} — Ne tür reaksiyon görüldü?", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                    const SizedBox(height: 4),
+                    const Text("Görülen belirtileri seçin (birden fazla olabilir).", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: lightColor)),
+                    const SizedBox(height: 14),
+                    Wrap(spacing: 8, runSpacing: 8, children: [...common.map(chip), ...custom.map(chip)]),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: customC,
+                            style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: textColor),
+                            decoration: InputDecoration(hintText: "Başka bir belirti ekle...", hintStyle: const TextStyle(color: lightColor, fontSize: 13), isDense: true, filled: true, fillColor: bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                            onSubmitted: (_) {
+                              final v = customC.text.trim();
+                              if (v.isNotEmpty) setSheet(() { custom.add(v); selected.add(v); customC.clear(); });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            final v = customC.text.trim();
+                            if (v.isNotEmpty) setSheet(() { custom.add(v); selected.add(v); customC.clear(); });
+                          },
+                          child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: primaryColor, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 20)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Text("Not (isteğe bağlı)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightColor)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: noteC,
+                      maxLines: 3,
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: textColor),
+                      decoration: InputDecoration(hintText: "Belirtilerin başlama zamanı, süresi, şiddeti vb.", hintStyle: const TextStyle(color: lightColor, fontSize: 13), filled: true, fillColor: bg, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: danger.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: danger.withOpacity(0.2))),
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.warning_amber_rounded, size: 16, color: danger),
+                          SizedBox(width: 8),
+                          Expanded(child: Text("Nefes darlığı, yüz/dudak şişmesi, sürekli kusma veya yaygın morarma gibi ciddi belirtilerde vakit kaybetmeden 112'yi arayın.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: danger, height: 1.3))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(ctx, {"symptoms": selected.toList(), "note": noteC.text.trim()}),
+                        style: ElevatedButton.styleFrom(backgroundColor: primaryColor, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                        child: const Text("Devam", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    noteC.dispose();
+    customC.dispose();
+    return result;
   }
 
   // Map Recipe to claymation visual plate assets
@@ -517,12 +667,21 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
                                   : (reactionStatus == "reaksiyon" ? const Color(0xFFFF4D6A) : const Color(0xFF10B981)),
                             ),
                           ),
-                          if (tried && reactionStatus == "reaksiyon" && retryDate != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              "Tekrar deneme: ${_formatTr(retryDate)}",
-                              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: lightTextColor),
-                            ),
+                          if (tried && reactionStatus == "reaksiyon") ...[
+                            if (((st?["reactionSymptoms"] as List?)?.isNotEmpty ?? false)) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                "Belirtiler: ${(st!["reactionSymptoms"] as List).join(", ")}",
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: lightTextColor),
+                              ),
+                            ],
+                            if (retryDate != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                "Tekrar deneme: ${_formatTr(retryDate)}",
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: lightTextColor),
+                              ),
+                            ],
                           ],
                         ],
                       ),
