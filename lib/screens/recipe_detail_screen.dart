@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:url_launcher/url_launcher.dart';
 import '../data/food_database.dart';
+import '../data/recipe_social_store.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
@@ -29,16 +32,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   final GlobalKey _stepsKey = GlobalKey();
   final GlobalKey _nutritionKey = GlobalKey();
 
+  final _commentController = TextEditingController();
+  String _commentPhoto = "";
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Count a view for this recipe (persisted).
+    addRecipeView(widget.recipe.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onStateChanged?.call());
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _scrollController.dispose();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -260,15 +270,83 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         const SizedBox(height: 6),
                         
                         // Author
-                        const Text(
-                          "Hazırlayan: Uzman Dyt. Selin • 6+ Ay",
-                          style: TextStyle(
+                        Text(
+                          "Hazırlayan: ${recipe.author} • ${recipe.startingMonth}+ Ay",
+                          style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13,
                             color: lightTextColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        // Views + likes + share
+                        Row(
+                          children: [
+                            const Icon(Icons.remove_red_eye_outlined, size: 16, color: lightTextColor),
+                            const SizedBox(width: 4),
+                            Text("${recipeViewCount(recipe.id)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+                            const SizedBox(width: 14),
+                            Icon(Icons.favorite, size: 16, color: const Color(0xFFFF4D6A).withOpacity(0.9)),
+                            const SizedBox(width: 4),
+                            Text("${recipeLikeBase(recipe.id) + (globalFavoriteRecipes.contains(recipe.id) ? 1 : 0)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+                            const Spacer(),
+                            _shareBtn(Icons.camera_alt, const Color(0xFFE1306C), () => _shareRecipe("instagram")),
+                            const SizedBox(width: 8),
+                            _shareBtn(Icons.facebook, const Color(0xFF1877F2), () => _shareRecipe("facebook")),
+                            const SizedBox(width: 8),
+                            _shareBtn(Icons.chat, const Color(0xFF25D366), () => _shareRecipe("whatsapp")),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        // Like + I-tried buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    if (globalFavoriteRecipes.contains(recipe.id)) {
+                                      globalFavoriteRecipes.remove(recipe.id);
+                                    } else {
+                                      globalFavoriteRecipes.add(recipe.id);
+                                    }
+                                  });
+                                  widget.onStateChanged?.call();
+                                },
+                                icon: Icon(globalFavoriteRecipes.contains(recipe.id) ? Icons.favorite : Icons.favorite_border, size: 18, color: const Color(0xFFFF4D6A)),
+                                label: Text(globalFavoriteRecipes.contains(recipe.id) ? "Beğenildi" : "Beğen", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Color(0xFFFF4D6A))),
+                                style: OutlinedButton.styleFrom(side: const BorderSide(color: Color(0xFFFF4D6A)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _addTriedPhoto,
+                                icon: const Icon(Icons.add_a_photo_outlined, size: 18, color: primaryColor),
+                                label: const Text("Denedim 📷", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: primaryColor)),
+                                style: OutlinedButton.styleFrom(side: BorderSide(color: primaryColor.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (triedPhotosFor(recipe.id).isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          const Text("Kullanıcı Denemeleri 📸", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 80,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: triedPhotosFor(recipe.id).length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 8),
+                              itemBuilder: (context, i) => ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: SizedBox(width: 80, height: 80, child: photoOrFallback(triedPhotosFor(recipe.id)[i], fallback: const SizedBox(), fit: BoxFit.cover)),
+                              ),
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 24),
 
                         // Stats Row (kcal, protein, iron, carbs)
@@ -645,6 +723,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             ],
                           ),
                         ),
+                        const SizedBox(height: 28),
+                        _buildCommentsSection(recipe),
                         const SizedBox(height: 100),
                       ],
                     ),
@@ -986,6 +1066,143 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           },
         );
       },
+    );
+  }
+
+  Widget _shareBtn(IconData icon, Color color, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+          child: Icon(icon, size: 18, color: color),
+        ),
+      );
+
+  Future<void> _shareRecipe(String platform) async {
+    final r = widget.recipe;
+    final text = "BabyBites'ta \"${r.name}\" tarifi 🍲 (${r.startingMonth}+ ay). Hazırlayan: ${r.author}";
+    final enc = Uri.encodeComponent(text);
+    Uri? uri;
+    if (platform == "whatsapp") {
+      uri = Uri.parse("https://wa.me/?text=$enc");
+    } else if (platform == "facebook") {
+      uri = Uri.parse("https://www.facebook.com/sharer/sharer.php?u=https://babybites.app&quote=$enc");
+    } else {
+      // Instagram has no web share intent — copy text and open Instagram.
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tarif metni kopyalandı — Instagram'da paylaşabilirsiniz."), duration: Duration(seconds: 2)));
+      uri = Uri.parse("https://www.instagram.com");
+    }
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
+  Future<void> _addTriedPhoto() async {
+    final uri = await pickPhotoDataUri();
+    if (uri == null) return;
+    setState(() => triedPhotosFor(widget.recipe.id).add(uri));
+    widget.onStateChanged?.call();
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fotoğrafınız eklendi, teşekkürler! 📷"), duration: Duration(seconds: 2)));
+  }
+
+  Widget _buildCommentsSection(Recipe recipe) {
+    const textColor = Color(0xFF2D2D3A);
+    const lightTextColor = Color(0xFFA8A8B3);
+    const primaryColor = Color(0xFFFF7A45);
+    final comments = commentsFor(recipe.id);
+
+    String fmtDate(String iso) {
+      final p = iso.split('-');
+      if (p.length != 3) return iso;
+      const months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+      final m = int.tryParse(p[1]) ?? 1;
+      return "${int.parse(p[2])} ${months[(m - 1).clamp(0, 11)]}";
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Yorumlar (${comments.length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
+        const SizedBox(height: 12),
+        // Add comment row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: () async {
+                final uri = await pickPhotoDataUri();
+                if (uri != null) setState(() => _commentPhoto = uri);
+              },
+              child: Container(
+                width: 44,
+                height: 44,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+                child: isPhotoUrl(_commentPhoto) ? photoOrFallback(_commentPhoto, fallback: const SizedBox(), fit: BoxFit.cover) : const Icon(Icons.add_a_photo_outlined, color: lightTextColor, size: 20),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _commentController,
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: textColor),
+                decoration: InputDecoration(hintText: "Yorum yaz...", hintStyle: const TextStyle(color: lightTextColor, fontSize: 13), filled: true, fillColor: const Color(0xFFF3F3F5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none), contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: () {
+                final t = _commentController.text.trim();
+                if (t.isEmpty && !isPhotoUrl(_commentPhoto)) return;
+                final now = DateTime.now();
+                comments.insert(0, {
+                  "name": "Siz",
+                  "text": t,
+                  "photo": _commentPhoto,
+                  "date": "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+                });
+                _commentController.clear();
+                setState(() => _commentPhoto = "");
+                widget.onStateChanged?.call();
+              },
+              child: Container(padding: const EdgeInsets.all(11), decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle), child: const Icon(Icons.send, color: Colors.white, size: 18)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (comments.isEmpty)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Henüz yorum yok. İlk yorumu sen yaz!", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor)))
+        else
+          ...comments.map((c) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const CircleAvatar(radius: 14, backgroundColor: Color(0xFFFFE3D6), child: Icon(Icons.person, size: 16, color: primaryColor)),
+                        const SizedBox(width: 8),
+                        Text(c["name"]?.toString() ?? "Kullanıcı", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                        const Spacer(),
+                        Text(fmtDate(c["date"]?.toString() ?? ""), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: lightTextColor)),
+                      ],
+                    ),
+                    if ((c["text"]?.toString() ?? "").isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(c["text"].toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: textColor, height: 1.4)),
+                    ],
+                    if (isPhotoUrl(c["photo"])) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 140, width: double.infinity, child: photoOrFallback(c["photo"], fallback: const SizedBox(), fit: BoxFit.cover))),
+                    ],
+                  ],
+                ),
+              )),
+      ],
     );
   }
 

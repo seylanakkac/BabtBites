@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
+import '../data/recipe_social_store.dart';
 import '../data/tracking_store.dart';
 import '../screens/articles_screen.dart';
 import '../screens/home_screen.dart';
@@ -40,6 +41,9 @@ class StorageService {
   static const String _kCartQty = 'cart_quantities';
   static const String _kCartChecked = 'cart_checked';
   static const String _kFavoriteRecipes = 'favorite_recipes';
+  static const String _kRecipeViews = 'recipe_views';
+  static const String _kRecipeComments = 'recipe_comments';
+  static const String _kRecipeTriedPhotos = 'recipe_tried_photos';
   static const String _kTried = 'tried_foods';
   static const String _kFavorites = 'favorite_foods';
   static const String _kSupplements = 'supplements_plan';
@@ -140,6 +144,26 @@ class StorageService {
         globalFavoriteRecipes
           ..clear()
           ..addAll(favRecipesRaw);
+      }
+
+      final viewsRaw = prefs.getString(_kRecipeViews);
+      if (viewsRaw != null) {
+        globalRecipeViews.clear();
+        (jsonDecode(viewsRaw) as Map<String, dynamic>).forEach((k, v) => globalRecipeViews[k] = (v as num).toInt());
+      }
+      final commentsRaw = prefs.getString(_kRecipeComments);
+      if (commentsRaw != null) {
+        globalRecipeComments.clear();
+        (jsonDecode(commentsRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalRecipeComments[k] = (v as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        });
+      }
+      final triedPhotosRaw = prefs.getString(_kRecipeTriedPhotos);
+      if (triedPhotosRaw != null) {
+        globalRecipeTriedPhotos.clear();
+        (jsonDecode(triedPhotosRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalRecipeTriedPhotos[k] = (v as List).map((e) => e.toString()).toList();
+        });
       }
 
       final tried = prefs.getStringList(_kTried)?.toSet();
@@ -433,6 +457,9 @@ class StorageService {
       await prefs.setString(_kCartQty, jsonEncode(globalCartQuantities));
       await prefs.setStringList(_kCartChecked, globalCartChecked.toList());
       await prefs.setStringList(_kFavoriteRecipes, globalFavoriteRecipes.toList());
+      await prefs.setString(_kRecipeViews, jsonEncode(globalRecipeViews));
+      await prefs.setString(_kRecipeComments, jsonEncode(globalRecipeComments));
+      await prefs.setString(_kRecipeTriedPhotos, jsonEncode(globalRecipeTriedPhotos));
       await prefs.setStringList(
         _kTried,
         globalFoodsDatabase.where((f) => f.tried).map((f) => f.name).toList(),

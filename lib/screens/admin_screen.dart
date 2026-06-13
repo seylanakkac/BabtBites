@@ -591,6 +591,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     final kcal = TextEditingController(text: existing?["kcal"]?.toString() ?? "");
+    final author = TextEditingController(text: existing?["author"]?.toString() ?? "babykitchenwithege");
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
 
@@ -644,6 +645,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(name, "Tarif adı"),
                   Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number))]),
                   _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number),
+                  _field(author, "Hazırlayan", hint: "babykitchenwithege"),
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   if (ingredients.isEmpty)
                     const Padding(padding: EdgeInsets.only(bottom: 6), child: Text("Henüz malzeme yok. Aşağıdan gıdalardan ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
@@ -739,6 +741,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   }),
                   "steps": steps.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   "allergyWarning": warn.text.trim(),
+                  "author": author.text.trim().isEmpty ? "babykitchenwithege" : author.text.trim(),
                 });
                 _persistAll();
                 Navigator.pop(ctx);
@@ -752,7 +755,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, prep, month, kcal, steps, warn, ...qtyCtrls]) {
+      for (final c in [name, prep, month, kcal, author, steps, warn, ...qtyCtrls]) {
         c.dispose();
       }
     });

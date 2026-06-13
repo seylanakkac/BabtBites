@@ -73,6 +73,7 @@ class Recipe {
   final List<String> ingredientAmounts; // e.g. "100 gr", "1 adet"
   final List<String> steps;
   final String allergyWarning;
+  final String author; // recipe creator shown as "Hazırlayan: ..."
 
   Recipe({
     required this.id,
@@ -85,6 +86,7 @@ class Recipe {
     required this.ingredientAmounts,
     required this.steps,
     required this.allergyWarning,
+    this.author = "babykitchenwithege",
   });
 
   Map<String, dynamic> toJson() => {
@@ -98,6 +100,7 @@ class Recipe {
         "ingredientAmounts": ingredientAmounts,
         "steps": steps,
         "allergyWarning": allergyWarning,
+        "author": author,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -111,6 +114,7 @@ class Recipe {
         ingredientAmounts: (j["ingredientAmounts"] as List?)?.map((e) => e.toString()).toList() ?? [],
         steps: (j["steps"] as List?)?.map((e) => e.toString()).toList() ?? [],
         allergyWarning: j["allergyWarning"]?.toString() ?? "",
+        author: j["author"]?.toString() ?? "babykitchenwithege",
       );
 }
 

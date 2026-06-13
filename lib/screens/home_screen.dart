@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
+import '../data/recipe_social_store.dart';
 import '../data/seasonal_database.dart';
 import '../data/tracking_store.dart';
 import '../services/storage_service.dart';
@@ -1180,6 +1181,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
                     const SizedBox(height: 4),
                     Text(desc, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xFF8E8E9F), height: 1.35)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.remove_red_eye_outlined, size: 13, color: _light),
+                        const SizedBox(width: 3),
+                        Text("${recipeViewCount(recipe.id)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                        const SizedBox(width: 10),
+                        Icon(Icons.favorite, size: 12, color: _danger.withOpacity(0.85)),
+                        const SizedBox(width: 3),
+                        Text("${recipeLikeBase(recipe.id) + (globalFavoriteRecipes.contains(recipe.id) ? 1 : 0)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                      ],
+                    ),
                   ],
                 ),
               ),
