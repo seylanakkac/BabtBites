@@ -2582,7 +2582,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
         ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _logout,
+            icon: const Icon(Icons.logout, size: 18),
+            label: const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(foregroundColor: _danger, side: const BorderSide(color: _danger), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
+    );
+  }
+
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: const Text("Hesabınızdan çıkış yapmak istediğinize emin misiniz?", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: Color(0xFF5A5A6A), height: 1.4)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+          ElevatedButton(
+            onPressed: () {
+              _persist();
+              setAdminMode(false);
+              StorageService.instance.saveIsAdmin(false);
+              Navigator.pop(dctx);
+              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
