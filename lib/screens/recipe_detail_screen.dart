@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/food_database.dart';
+import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
 import 'home_screen.dart';
@@ -598,7 +599,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           portionLabel: "1 Porsiyon",
                           tableRows: nutrientRowsFromMap(n),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 14),
+                        const MedicalDisclaimer(),
+                        const SizedBox(height: 24),
 
                         // Alerji Uyarısı Panel
                         Container(

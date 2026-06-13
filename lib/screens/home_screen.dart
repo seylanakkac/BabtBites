@@ -5,6 +5,7 @@ import '../data/food_database.dart';
 import '../data/seasonal_database.dart';
 import '../data/tracking_store.dart';
 import '../services/storage_service.dart';
+import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
 import 'food_detail_screen.dart';
@@ -568,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 14),
         // Haftalık Menü banner
         GestureDetector(
-          onTap: _openWeeklyMenu,
+          onTap: () => setState(() => _currentIndex = 2),
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: _primary.withOpacity(0.65), borderRadius: BorderRadius.circular(18)),
@@ -881,6 +882,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               );
             }),
           ),
+          const SizedBox(height: 12),
+          const MedicalDisclaimer(text: "Başlangıç ayları geneldir; her bebek farklıdır. Yeni besin ve geçiş zamanları için çocuk doktorunuza danışın."),
         ],
       ),
     );
@@ -911,120 +914,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Text("+${it.startMonth} ay", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _seasonCatAccent(cat))),
       ],
     );
-  }
-
-  // ====================== WEEKLY MENU PAGE (banner'dan açılır) ======================
-  void _openWeeklyMenu() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (_) {
-      return StatefulBuilder(
-        builder: (ctx, setLocal) {
-          final weekDays = _getWeeklyDays();
-          final monday = _focusedDate.subtract(Duration(days: _focusedDate.weekday - 1));
-          final sunday = monday.add(const Duration(days: 6));
-          const monthsTr = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-          final rangeText = "${monday.day} – ${sunday.day} ${monthsTr[sunday.month - 1]}";
-          final targets = _calculateBabyTargets();
-          final planned = _calculatePlannedNutrition();
-          void refresh() => setLocal(() {});
-          return Scaffold(
-            backgroundColor: _bg,
-            appBar: AppBar(
-              backgroundColor: _bg,
-              elevation: 0,
-              leading: IconButton(icon: const Icon(Icons.arrow_back, color: _text), onPressed: () => Navigator.pop(ctx)),
-              title: const Text("Haftalık Menü", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
-              centerTitle: true,
-            ),
-            body: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(icon: const Icon(Icons.chevron_left, color: _primary, size: 22), onPressed: () => setLocal(() => _focusedDate = _focusedDate.subtract(const Duration(days: 7)))),
-                        Text(rangeText, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
-                        IconButton(icon: const Icon(Icons.chevron_right, color: _primary, size: 22), onPressed: () => setLocal(() => _focusedDate = _focusedDate.add(const Duration(days: 7)))),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 64,
-                  child: Row(
-                    children: weekDays.map((d) {
-                      final sel = d["key"] == _selectedDay;
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => setLocal(() => _selectedDay = d["key"]!),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 3),
-                            decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.6))),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(d["dayName"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: sel ? Colors.white70 : _light)),
-                                const SizedBox(height: 2),
-                                Text(d["dayNum"]!, style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: sel ? Colors.white : _text)),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ..._mealSlots.expand((slot) {
-                  final items = _weeklyPlan[_selectedDay]?[slot] ?? [];
-                  return [
-                    if (items.isEmpty) _emptyMealCard(slot, onChanged: refresh) else ...items.map((name) => _mealCard(slot, name, onChanged: refresh)),
-                    const SizedBox(height: 12),
-                  ];
-                }),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(color: _primary.withOpacity(0.07), borderRadius: BorderRadius.circular(18)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Expanded(child: Text("Günlük Besin Özeti", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _danger))),
-                          Icon(Icons.auto_graph, color: _danger, size: 20),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _nutrientBar("Protein", planned["Protein"]!, targets["Protein"]!, _danger),
-                      const SizedBox(height: 12),
-                      _nutrientBar("Demir", planned["Iron"]!, targets["Iron"]!, _primary),
-                      const SizedBox(height: 12),
-                      _nutrientBar("Kalori", planned["Energy"]!, targets["Energy"]!, _green),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _addWeekIngredientsToCart,
-                    icon: const Icon(Icons.shopping_cart_outlined, size: 18),
-                    label: const Text("Haftalık Malzemeleri Sepete Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
-      );
-    }));
   }
 
   Widget _babyChip() {
@@ -1073,100 +962,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
       ),
-    );
-  }
-
-  Widget _emptyMealCard(String slot, {VoidCallback? onChanged}) {
-    return GestureDetector(
-      onTap: () => _showAddMealItemDialog(slot, onChanged: onChanged),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6), width: 1.4)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add_circle_outline, color: _primary, size: 20),
-            const SizedBox(width: 8),
-            Text("$slot Ekle", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light, fontWeight: FontWeight.w500)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _mealCard(String slot, String name, {VoidCallback? onChanged}) {
-    final recipeMatch = globalRecipesDatabase.where((r) => r.name == name).toList();
-    final foodMatch = globalFoodsDatabase.where((f) => f.name == name).toList();
-    final isRecipe = recipeMatch.isNotEmpty;
-    final prep = isRecipe ? recipeMatch.first.prepTime : "";
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: SizedBox(
-              width: 56,
-              height: 56,
-              child: isRecipe
-                  ? _getRecipeImage(recipeMatch.first)
-                  : (foodMatch.isNotEmpty && isPhotoUrl(foodMatch.first.imageUrl)
-                      ? photoOrFallback(foodMatch.first.imageUrl, fallback: const SizedBox())
-                      : Container(color: _bg, child: Center(child: Text(foodMatch.isNotEmpty ? foodMatch.first.emoji : "🍽️", style: const TextStyle(fontSize: 26))))),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(slot.toUpperCase(), style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
-                const SizedBox(height: 2),
-                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
-                if (prep.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(children: [const Icon(Icons.access_time, size: 13, color: _light), const SizedBox(width: 4), Text(prep, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))]),
-                ],
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: _light),
-            onSelected: (v) {
-              if (v == "open" && isRecipe) {
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipeMatch.first, onStateChanged: _onChildChanged)));
-              } else if (v == "remove") {
-                _weeklyPlan[_selectedDay]?[slot]?.remove(name);
-                _persist();
-                setState(() {});
-                onChanged?.call();
-              }
-            },
-            itemBuilder: (_) => [
-              if (isRecipe) const PopupMenuItem(value: "open", child: Text("Tarifi Aç")),
-              const PopupMenuItem(value: "remove", child: Text("Kaldır")),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _nutrientBar(String label, double current, double target, Color color) {
-    final pct = target <= 0 ? 0.0 : (current / target).clamp(0.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(value: pct, minHeight: 8, backgroundColor: Colors.white, valueColor: AlwaysStoppedAnimation(color)),
-        ),
-      ],
     );
   }
 
@@ -1873,7 +1668,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _sectionTitle("Öğün Planı 🍽️"),
         const SizedBox(height: 12),
         ..._mealSlots.map(_planMealCard),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _addWeekIngredientsToCart,
+            icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+            label: const Text("Haftalık Malzemeleri Sepete Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          ),
+        ),
+        const SizedBox(height: 18),
         _buildDailyTrackingSection(),
         const SizedBox(height: 30),
       ],
@@ -2365,6 +2170,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
                       ]),
                     ),
+                    const SizedBox(height: 12),
+                    const MedicalDisclaimer(text: "Takviye ve ilaçlar yalnızca çocuk doktorunuzun önerisi ve dozuyla kullanılmalıdır. Bu uygulama tıbbi tavsiye vermez."),
                   ],
                 ),
               ),
@@ -2736,6 +2543,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               _targetRow("Sağlıklı Yağ", "${targets["Fat"]!.toStringAsFixed(1)} g", _green),
               const Divider(height: 16),
               _targetRow("Demir", "${targets["Iron"]!.toStringAsFixed(1)} mg", const Color(0xFF7A5CFF)),
+              const SizedBox(height: 12),
+              const MedicalDisclaimer(text: "Bu hedefler tahmini değerlerdir, tıbbi tavsiye değildir. Bebeğinizin ihtiyaçları için çocuk doktorunuza danışın."),
             ],
           ),
         ),
@@ -3034,7 +2843,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   GestureDetector(
                     onTap: () async {
-                      final picked = await showDatePicker(context: dctx, initialDate: dob ?? DateTime.now().subtract(const Duration(days: 180)), firstDate: DateTime(2020), lastDate: DateTime.now(), locale: const Locale('tr', 'TR'));
+                      final picked = await showDatePicker(
+                        context: dctx,
+                        initialDate: dob ?? DateTime.now().subtract(const Duration(days: 180)),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        locale: const Locale('tr', 'TR'),
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.light(primary: Color(0xFFFF7A45), onPrimary: Colors.white, onSurface: Color(0xFF2D2D3A)),
+                          ),
+                          child: MediaQuery(
+                            data: MediaQuery.of(context).copyWith(size: Size(MediaQuery.of(context).size.shortestSide, MediaQuery.of(context).size.longestSide)),
+                            child: child!,
+                          ),
+                        ),
+                      );
                       if (picked != null) setD(() => dob = picked);
                     },
                     child: Container(

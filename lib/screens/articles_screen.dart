@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/admin_store.dart';
+import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 
 class Article {
@@ -590,7 +591,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
             ),
           ),
 
-          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
+            child: MedicalDisclaimer(),
+          ),
 
           // Articles List View
           Expanded(
@@ -826,6 +830,8 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                     height: 1.5,
                   ),
                 ),
+                const SizedBox(height: 16),
+                const MedicalDisclaimer(),
               ],
             ),
           ),

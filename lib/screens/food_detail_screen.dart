@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/food_database.dart';
 import '../data/tracking_store.dart';
+import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
 import 'recipe_detail_screen.dart';
@@ -191,6 +192,15 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
       locale: const Locale('tr', 'TR'),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFFFF7A45), onPrimary: Colors.white, onSurface: Color(0xFF2D2D3A)),
+        ),
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(size: Size(MediaQuery.of(context).size.shortestSide, MediaQuery.of(context).size.longestSide)),
+          child: child!,
+        ),
+      ),
     );
   }
 
@@ -672,6 +682,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
             portionLabel: "100 g",
             tableRows: nutrientRowsFromMap(n),
           ),
+          const SizedBox(height: 16),
+          const MedicalDisclaimer(),
         ],
       ),
     );
