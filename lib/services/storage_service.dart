@@ -44,6 +44,7 @@ class StorageService {
   static const String _kRecipeViews = 'recipe_views';
   static const String _kRecipeComments = 'recipe_comments';
   static const String _kRecipeTriedPhotos = 'recipe_tried_photos';
+  static const String _kRecipeTried = 'recipe_tried';
   static const String _kTried = 'tried_foods';
   static const String _kFavorites = 'favorite_foods';
   static const String _kSupplements = 'supplements_plan';
@@ -164,6 +165,12 @@ class StorageService {
         (jsonDecode(triedPhotosRaw) as Map<String, dynamic>).forEach((k, v) {
           globalRecipeTriedPhotos[k] = (v as List).map((e) => e.toString()).toList();
         });
+      }
+      final recipeTriedRaw = prefs.getStringList(_kRecipeTried);
+      if (recipeTriedRaw != null) {
+        globalRecipeTried
+          ..clear()
+          ..addAll(recipeTriedRaw);
       }
 
       final tried = prefs.getStringList(_kTried)?.toSet();
@@ -350,6 +357,21 @@ class StorageService {
     }
   }
 
+  /// Persists recipe social data (views/comments/tried). Call after the admin
+  /// approves/rejects a comment.
+  Future<void> saveRecipeSocial() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      await prefs.setString(_kRecipeViews, jsonEncode(globalRecipeViews));
+      await prefs.setString(_kRecipeComments, jsonEncode(globalRecipeComments));
+      await prefs.setString(_kRecipeTriedPhotos, jsonEncode(globalRecipeTriedPhotos));
+      await prefs.setStringList(_kRecipeTried, globalRecipeTried.toList());
+    } catch (e) {
+      debugPrint('StorageService.saveRecipeSocial failed: $e');
+    }
+  }
+
   /// Persists admin-added custom foods/recipes/articles. Call after the admin
   /// adds content.
   Future<void> saveCustomContent() async {
@@ -460,6 +482,7 @@ class StorageService {
       await prefs.setString(_kRecipeViews, jsonEncode(globalRecipeViews));
       await prefs.setString(_kRecipeComments, jsonEncode(globalRecipeComments));
       await prefs.setString(_kRecipeTriedPhotos, jsonEncode(globalRecipeTriedPhotos));
+      await prefs.setStringList(_kRecipeTried, globalRecipeTried.toList());
       await prefs.setStringList(
         _kTried,
         globalFoodsDatabase.where((f) => f.tried).map((f) => f.name).toList(),

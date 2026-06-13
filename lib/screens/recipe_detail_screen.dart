@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -291,11 +292,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             const SizedBox(width: 4),
                             Text("${recipeLikeBase(recipe.id) + (globalFavoriteRecipes.contains(recipe.id) ? 1 : 0)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
                             const Spacer(),
-                            _shareBtn(Icons.camera_alt, const Color(0xFFE1306C), () => _shareRecipe("instagram")),
+                            _shareBtn(FontAwesomeIcons.instagram, const Color(0xFFE1306C), () => _shareRecipe("instagram")),
                             const SizedBox(width: 8),
-                            _shareBtn(Icons.facebook, const Color(0xFF1877F2), () => _shareRecipe("facebook")),
+                            _shareBtn(FontAwesomeIcons.facebookF, const Color(0xFF1877F2), () => _shareRecipe("facebook")),
                             const SizedBox(width: 8),
-                            _shareBtn(Icons.chat, const Color(0xFF25D366), () => _shareRecipe("whatsapp")),
+                            _shareBtn(FontAwesomeIcons.whatsapp, const Color(0xFF25D366), () => _shareRecipe("whatsapp")),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -322,13 +323,32 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             const SizedBox(width: 10),
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: _addTriedPhoto,
-                                icon: const Icon(Icons.add_a_photo_outlined, size: 18, color: primaryColor),
-                                label: const Text("Denedim 📷", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: primaryColor)),
-                                style: OutlinedButton.styleFrom(side: BorderSide(color: primaryColor.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                onPressed: () {
+                                  setState(() {
+                                    if (globalRecipeTried.contains(recipe.id)) {
+                                      globalRecipeTried.remove(recipe.id);
+                                    } else {
+                                      globalRecipeTried.add(recipe.id);
+                                    }
+                                  });
+                                  widget.onStateChanged?.call();
+                                },
+                                icon: Icon(globalRecipeTried.contains(recipe.id) ? Icons.check_circle : Icons.restaurant_menu, size: 18, color: globalRecipeTried.contains(recipe.id) ? const Color(0xFF10B981) : primaryColor),
+                                label: Text(globalRecipeTried.contains(recipe.id) ? "Denedim ✓" : "Denedim", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: globalRecipeTried.contains(recipe.id) ? const Color(0xFF10B981) : primaryColor)),
+                                style: OutlinedButton.styleFrom(side: BorderSide(color: (globalRecipeTried.contains(recipe.id) ? const Color(0xFF10B981) : primaryColor).withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                               ),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _addTriedPhoto,
+                            icon: const Icon(Icons.add_a_photo_outlined, size: 16, color: lightTextColor),
+                            label: const Text("Deneme fotoğrafı ekle (isteğe bağlı)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+                            style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          ),
                         ),
                         if (triedPhotosFor(recipe.id).isNotEmpty) ...[
                           const SizedBox(height: 14),
@@ -1102,7 +1122,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   Future<void> _addTriedPhoto() async {
     final uri = await pickPhotoDataUri();
     if (uri == null) return;
-    setState(() => triedPhotosFor(widget.recipe.id).add(uri));
+    setState(() {
+      triedPhotosFor(widget.recipe.id).add(uri);
+      globalRecipeTried.add(widget.recipe.id);
+    });
     widget.onStateChanged?.call();
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Fotoğrafınız eklendi, teşekkürler! 📷"), duration: Duration(seconds: 2)));
   }
@@ -1112,6 +1135,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     const lightTextColor = Color(0xFFA8A8B3);
     const primaryColor = Color(0xFFFF7A45);
     final comments = commentsFor(recipe.id);
+    // Public list: approved comments + the user's own pending ones.
+    final visible = comments.where((c) => c["approved"] == true || c["name"] == "Siz").toList();
 
     String fmtDate(String iso) {
       final p = iso.split('-');
@@ -1124,7 +1149,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Yorumlar (${comments.length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
+        Text("Yorumlar (${approvedCommentsFor(recipe.id).length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
         const SizedBox(height: 12),
         // Add comment row
         Row(
@@ -1162,20 +1187,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                   "text": t,
                   "photo": _commentPhoto,
                   "date": "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+                  "approved": false,
                 });
                 _commentController.clear();
                 setState(() => _commentPhoto = "");
                 widget.onStateChanged?.call();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Yorumun alındı. Yönetici onayından sonra yayınlanacak."), duration: Duration(seconds: 2)));
               },
               child: Container(padding: const EdgeInsets.all(11), decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle), child: const Icon(Icons.send, color: Colors.white, size: 18)),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        if (comments.isEmpty)
+        if (visible.isEmpty)
           const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Henüz yorum yok. İlk yorumu sen yaz!", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor)))
         else
-          ...comments.map((c) => Container(
+          ...visible.map((c) => Container(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
@@ -1187,6 +1214,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         const CircleAvatar(radius: 14, backgroundColor: Color(0xFFFFE3D6), child: Icon(Icons.person, size: 16, color: primaryColor)),
                         const SizedBox(width: 8),
                         Text(c["name"]?.toString() ?? "Kullanıcı", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: textColor)),
+                        if (c["approved"] != true) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: const Color(0xFFFFF3E0), borderRadius: BorderRadius.circular(6)),
+                            child: const Text("Onay bekliyor", style: TextStyle(fontFamily: 'Inter', fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFB8860B))),
+                          ),
+                        ],
                         const Spacer(),
                         Text(fmtDate(c["date"]?.toString() ?? ""), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: lightTextColor)),
                       ],

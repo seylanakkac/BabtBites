@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
+import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -193,6 +194,7 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.tune, "Varsayılanlar"),
       (Icons.monitor_heart_outlined, "Beslenme"),
       (Icons.campaign_outlined, "Reklamlar"),
+      (Icons.rate_review_outlined, "Yorumlar"),
     ];
 
     return Scaffold(
@@ -273,6 +275,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _nutritionManager();
       case 7:
         return _marketLinksManager();
+      case 8:
+        return _commentsManager();
       default:
         return _dashboard();
     }
@@ -1173,6 +1177,75 @@ class _AdminScreenState extends State<AdminScreen> {
         ],
       ),
     );
+  }
+
+  // ---------- comment moderation ----------
+  Widget _commentsManager() {
+    final pending = pendingComments();
+    String recipeName(String rid) {
+      final m = globalRecipesDatabase.where((r) => r.id == rid).toList();
+      return m.isNotEmpty ? m.first.name : "Tarif";
+    }
+
+    return _pane([
+      _sectionHeader("Yorum Onayı", "${pending.length} yorum onay bekliyor"),
+      if (pending.isEmpty)
+        _card(child: const Text("Onay bekleyen yorum yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...pending.map((p) {
+        final rid = p["recipeId"] as String;
+        final c = p["comment"] as Map<String, dynamic>;
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.restaurant_menu, size: 16, color: _primary),
+                const SizedBox(width: 6),
+                Expanded(child: Text(recipeName(rid), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
+                Text(c["date"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+              ]),
+              const SizedBox(height: 8),
+              if ((c["text"]?.toString() ?? "").isNotEmpty)
+                Text(c["text"].toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text, height: 1.4)),
+              if (isPhotoUrl(c["photo"])) ...[
+                const SizedBox(height: 8),
+                ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 120, child: photoOrFallback(c["photo"], fallback: const SizedBox(), fit: BoxFit.cover))),
+              ],
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      c["approved"] = true;
+                      StorageService.instance.saveRecipeSocial();
+                      setState(() {});
+                      _toast("Yorum onaylandı");
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      commentsFor(rid).remove(c);
+                      StorageService.instance.saveRecipeSocial();
+                      setState(() {});
+                      _toast("Yorum reddedildi");
+                    },
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text("Reddet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: _red, side: const BorderSide(color: _red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        );
+      }),
+    ]);
   }
 
   // ---------- market links / ads manager ----------
