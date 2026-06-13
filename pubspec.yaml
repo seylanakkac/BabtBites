@@ -67,6 +67,8 @@ flutter:
     - assets/images/omelet_plate.png
     - assets/images/salmon_plate.png
     - assets/images/porridge_plate.png
+    - legal/gizlilik-politikasi.md
+    - legal/kullanim-kosullari.md
 
   fonts:
     - family: Inter

@@ -9,6 +9,7 @@ import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
 import 'food_detail_screen.dart';
+import 'legal_screen.dart';
 import 'recipe_detail_screen.dart';
 
 // Shared globals used across screens.
@@ -2583,6 +2584,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 24),
+        const Text("Yasal", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+          child: Column(
+            children: [
+              _legalTile("Kullanım Koşulları", Icons.description_outlined, "Kullanım Koşulları", "legal/kullanim-kosullari.md"),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _legalTile("Gizlilik Politikası", Icons.privacy_tip_outlined, "Gizlilik Politikası", "legal/gizlilik-politikasi.md"),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
@@ -2620,6 +2634,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _legalTile(String label, IconData icon, String screenTitle, String asset) {
+    return ListTile(
+      leading: Icon(icon, color: _primary, size: 20),
+      title: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+      trailing: const Icon(Icons.chevron_right, color: _light, size: 20),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalScreen(title: screenTitle, assetPath: asset))),
     );
   }
 
