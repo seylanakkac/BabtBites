@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
 import '../data/tracking_store.dart';
@@ -10,6 +11,9 @@ import 'recipe_detail_screen.dart';
 
 // Shared globals used across screens.
 final Map<String, int> globalCartQuantities = {};
+
+// Cart item names that have been marked as purchased ("Alınanlar").
+final Set<String> globalCartChecked = {};
 
 // Weekly meal plan: dateKey(yyyy-MM-dd) -> mealSlot -> list of food/recipe names.
 final Map<String, Map<String, List<String>>> globalWeeklyPlan = {};
@@ -56,6 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Set<String> _favoriteRecipes = {};
 
   final _cartInputController = TextEditingController();
+  final _cartFocus = FocusNode();
 
   DateTime _focusedDate = DateTime.now();
   late String _selectedDay;
@@ -115,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _searchController.dispose();
     _recipeSearchController.dispose();
     _cartInputController.dispose();
+    _cartFocus.dispose();
     super.dispose();
   }
 
@@ -2175,71 +2181,241 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ====================== CART TAB ======================
   Widget _buildCartTab() {
-    return Column(
+    final total = globalCartList.length;
+    final taken = globalCartList.where(globalCartChecked.contains).length;
+    final remaining = total - taken;
+    final pct = total == 0 ? 0.0 : taken / total;
+    final toBuy = globalCartList.where((i) => !globalCartChecked.contains(i)).toList();
+    final bought = globalCartList.where(globalCartChecked.contains).toList();
+    final links = marketLinks;
+
+    Widget bigTitle(String t) => Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text));
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       children: [
-        const Padding(padding: EdgeInsets.fromLTRB(24, 16, 24, 8), child: Align(alignment: Alignment.centerLeft, child: Text("Alışveriş Sepeti 🛒", style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: _text)))),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: TextField(
-            controller: _cartInputController,
-            style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
-            decoration: InputDecoration(hintText: "Yeni ürün ekle...", prefixIcon: const Icon(Icons.add, color: _light), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E2E6)))),
-            onSubmitted: (val) {
-              final t = val.trim();
-              if (t.isNotEmpty && !globalCartList.contains(t)) {
-                globalCartList.add(t);
-                globalCartQuantities[t] = 1;
-                _cartInputController.clear();
-                setState(() {});
-                _persist();
-              }
-            },
+        Row(
+          children: [
+            const Expanded(child: Text("Sepet 🛒", style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: _text))),
+            GestureDetector(onTap: () => FocusScope.of(context).requestFocus(_cartFocus), child: const Icon(Icons.add_circle_outline, color: _primary, size: 26)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        // Summary cards
+        Row(
+          children: [
+            _cartSummaryCard("Toplam", "$total", _text),
+            const SizedBox(width: 10),
+            _cartSummaryCard("Alınan", "$taken", _green),
+            const SizedBox(width: 10),
+            _cartSummaryCard("Kalan", "$remaining", _light),
+          ],
+        ),
+        const SizedBox(height: 18),
+        // Progress
+        Row(
+          children: [
+            const Expanded(child: Text("Alışveriş Tamamlanıyor", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+            Text("${(pct * 100).round()}%", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _light)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(value: pct, minHeight: 8, backgroundColor: const Color(0xFFECECF0), valueColor: const AlwaysStoppedAnimation(Color(0xFF7A5CFF))),
+        ),
+        const SizedBox(height: 22),
+        // Alınacaklar
+        bigTitle("Alınacaklar"),
+        const SizedBox(height: 12),
+        if (toBuy.isEmpty)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Alınacak ürün yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+        ...toBuy.map((i) => _cartItemRow(i, checked: false)),
+        const SizedBox(height: 4),
+        // Add row
+        TextField(
+          controller: _cartInputController,
+          focusNode: _cartFocus,
+          style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+          decoration: InputDecoration(
+            hintText: "Yeni ürün ekle...",
+            hintStyle: const TextStyle(color: _light, fontSize: 14),
+            prefixIcon: const Icon(Icons.add, color: _light),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _primary.withOpacity(0.4))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: _primary.withOpacity(0.4))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _primary)),
           ),
+          onSubmitted: (val) {
+            final t = val.trim();
+            if (t.isNotEmpty && !globalCartList.contains(t)) {
+              globalCartList.add(t);
+              globalCartQuantities[t] = 1;
+              _cartInputController.clear();
+              setState(() {});
+              _persist();
+            }
+          },
         ),
-        Expanded(
-          child: globalCartList.isEmpty
-              ? const Center(child: Text("Sepetiniz boş.", style: TextStyle(fontFamily: 'Inter', color: _light)))
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  itemCount: globalCartList.length,
-                  itemBuilder: (context, index) {
-                    final item = globalCartList[index];
-                    final foodMatch = globalFoodsDatabase.where((f) => f.name == item).toList();
-                    final emoji = foodMatch.isNotEmpty ? foodMatch.first.emoji : "🛒";
-                    final qty = globalCartQuantities[item] ?? 1;
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
-                      child: Row(
-                        children: [
-                          Text(emoji, style: const TextStyle(fontSize: 22)),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(item, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text))),
-                          IconButton(icon: const Icon(Icons.remove_circle_outline, color: _primary, size: 20), onPressed: () { setState(() { if (qty > 1) { globalCartQuantities[item] = qty - 1; } else { globalCartList.remove(item); globalCartQuantities.remove(item); } }); _persist(); }),
-                          Text("$qty", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
-                          IconButton(icon: const Icon(Icons.add_circle_outline, color: _primary, size: 20), onPressed: () { setState(() => globalCartQuantities[item] = qty + 1); _persist(); }),
-                          IconButton(icon: const Icon(Icons.delete_outline, color: _danger, size: 20), onPressed: () { setState(() { globalCartList.remove(item); globalCartQuantities.remove(item); }); _persist(); }),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-        ),
-        if (globalCartList.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () { setState(() { globalCartList.clear(); globalCartQuantities.clear(); }); _persist(); },
-                style: OutlinedButton.styleFrom(foregroundColor: _danger, side: const BorderSide(color: _danger), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                child: const Text("Tümünü Sil", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-              ),
+        if (bought.isNotEmpty) ...[
+          const SizedBox(height: 26),
+          bigTitle("Alınanlar"),
+          const SizedBox(height: 12),
+          ...bought.map((i) => _cartItemRow(i, checked: true)),
+        ],
+        const SizedBox(height: 26),
+        // Marketten Sipariş Ver (admin-managed ad cards)
+        if (links.isNotEmpty) ...[
+          bigTitle("Marketten Sipariş Ver"),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 150,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: links.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (context, i) => _marketCard(links[i]),
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
+        if (total > 0)
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () { setState(() { globalCartList.clear(); globalCartQuantities.clear(); globalCartChecked.clear(); }); _persist(); },
+              style: OutlinedButton.styleFrom(foregroundColor: _danger, side: const BorderSide(color: _danger), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              child: const Text("Sepeti Temizle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             ),
           ),
       ],
     );
+  }
+
+  Widget _cartSummaryCard(String label, String value, Color color) => Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              const SizedBox(height: 4),
+              Text(value, style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _cartItemRow(String item, {required bool checked}) {
+    final foodMatch = globalFoodsDatabase.where((f) => f.name == item).toList();
+    final emoji = foodMatch.isNotEmpty ? foodMatch.first.emoji : "🛒";
+    final photo = foodMatch.isNotEmpty ? foodMatch.first.imageUrl : "";
+    final qty = globalCartQuantities[item] ?? 1;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () { setState(() => checked ? globalCartChecked.remove(item) : globalCartChecked.add(item)); _persist(); },
+            child: checked
+                ? Container(width: 26, height: 26, decoration: const BoxDecoration(color: _green, shape: BoxShape.circle), child: const Icon(Icons.check, color: Colors.white, size: 16))
+                : Container(width: 26, height: 26, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFFD0D0D6), width: 1.6))),
+          ),
+          const SizedBox(width: 12),
+          Container(
+            width: 44,
+            height: 44,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+            child: isPhotoUrl(photo) ? photoOrFallback(photo, fallback: Center(child: Text(emoji, style: const TextStyle(fontSize: 22)))) : Center(child: Text(emoji, style: const TextStyle(fontSize: 24))),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: checked ? _light : _text, decoration: checked ? TextDecoration.lineThrough : null)),
+                const SizedBox(height: 2),
+                Text("$qty adet", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              ],
+            ),
+          ),
+          if (!checked) ...[
+            GestureDetector(onTap: () { setState(() { if (qty > 1) globalCartQuantities[item] = qty - 1; }); _persist(); }, child: const Icon(Icons.remove_circle_outline, color: _light, size: 20)),
+            const SizedBox(width: 6),
+            GestureDetector(onTap: () { setState(() => globalCartQuantities[item] = qty + 1); _persist(); }, child: const Icon(Icons.add_circle_outline, color: _primary, size: 20)),
+            const SizedBox(width: 6),
+          ],
+          IconButton(
+            icon: Icon(Icons.delete_outline, color: checked ? _danger.withOpacity(0.5) : _danger, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+            onPressed: () { setState(() { globalCartList.remove(item); globalCartQuantities.remove(item); globalCartChecked.remove(item); }); _persist(); },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _marketCard(Map<String, dynamic> link) {
+    final name = link["name"]?.toString() ?? "";
+    final url = link["url"]?.toString() ?? "";
+    final img = link["imageUrl"]?.toString() ?? "";
+    return Container(
+      width: 160,
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 70,
+            width: double.infinity,
+            child: isPhotoUrl(img)
+                ? photoOrFallback(img, fallback: const SizedBox())
+                : Container(
+                    decoration: BoxDecoration(gradient: LinearGradient(colors: [_primary.withOpacity(0.18), const Color(0xFF7A5CFF).withOpacity(0.18)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+                    child: const Center(child: Icon(Icons.storefront, color: Colors.white, size: 28)),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 32,
+                  child: OutlinedButton(
+                    onPressed: () => _openMarketUrl(url),
+                    style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    child: const Text("Git", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openMarketUrl(String url) async {
+    if (url.trim().isEmpty) return;
+    final normalized = url.startsWith('http') ? url : 'https://$url';
+    final uri = Uri.tryParse(normalized);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bağlantı açılamadı.")));
+    }
   }
 
   // ====================== PROFILE TAB ======================

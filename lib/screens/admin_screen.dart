@@ -188,6 +188,7 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.category_outlined, "Kategoriler"),
       (Icons.tune, "Varsayılanlar"),
       (Icons.monitor_heart_outlined, "Beslenme"),
+      (Icons.campaign_outlined, "Reklamlar"),
     ];
 
     return Scaffold(
@@ -266,6 +267,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _defaultsManager();
       case 6:
         return _nutritionManager();
+      case 7:
+        return _marketLinksManager();
       default:
         return _dashboard();
     }
@@ -985,6 +988,106 @@ class _AdminScreenState extends State<AdminScreen> {
         ],
       ),
     );
+  }
+
+  // ---------- market links / ads manager ----------
+  Widget _marketLinksManager() {
+    final links = marketLinks;
+    return _pane([
+      _sectionHeader("Reklamlar / Marketler", "Sepet ekranındaki 'Marketten Sipariş Ver' kartları",
+          action: _primaryBtn("Yeni", Icons.add, () => _marketLinkDialog(null))),
+      if (links.isEmpty)
+        _card(child: const Text("Henüz reklam kartı yok. 'Yeni' ile ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...links.asMap().entries.map((e) {
+        final i = e.key;
+        final l = e.value;
+        final img = l["imageUrl"]?.toString() ?? "";
+        return _card(
+          child: Row(children: [
+            Container(
+              width: 54,
+              height: 54,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+              child: isPhotoUrl(img) ? photoOrFallback(img, fallback: const Icon(Icons.storefront, color: _light)) : const Icon(Icons.storefront, color: _light),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                const SizedBox(height: 2),
+                Text(l["url"]?.toString() ?? "", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              ]),
+            ),
+            IconButton(icon: const Icon(Icons.edit_outlined, size: 20, color: _primary), onPressed: () => _marketLinkDialog(i)),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 20, color: _red),
+              onPressed: () {
+                final next = List<Map<String, dynamic>>.from(marketLinks)..removeAt(i);
+                setState(() => globalAdminConfig["marketLinks"] = next);
+                StorageService.instance.saveAdminContent();
+              },
+            ),
+          ]),
+        );
+      }),
+    ]);
+  }
+
+  void _marketLinkDialog(int? index) {
+    final existing = index != null ? marketLinks[index] : null;
+    final name = TextEditingController(text: existing?["name"]?.toString() ?? "");
+    final url = TextEditingController(text: existing?["url"]?.toString() ?? "");
+    String image = existing?["imageUrl"]?.toString() ?? "";
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(index == null ? "Yeni Reklam" : "Reklamı Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                PhotoPickerField(value: image, label: "Görsel (opsiyonel)", height: 120, onChanged: (v) => setD(() => image = v ?? "")),
+                const SizedBox(height: 14),
+                _field(name, "Ad", hint: "Örn. Getir Büyük"),
+                _field(url, "Bağlantı (URL)", hint: "https://..."),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () {
+                final n = name.text.trim();
+                if (n.isEmpty) {
+                  _toast("Ad girin");
+                  return;
+                }
+                final data = {"name": n, "url": url.text.trim(), "imageUrl": image};
+                final next = List<Map<String, dynamic>>.from(marketLinks);
+                if (index != null) {
+                  next[index] = data;
+                } else {
+                  next.add(data);
+                }
+                setState(() => globalAdminConfig["marketLinks"] = next);
+                StorageService.instance.saveAdminContent();
+                Navigator.pop(ctx);
+                _toast(index == null ? "Reklam eklendi" : "Güncellendi");
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      name.dispose();
+      url.dispose();
+    });
   }
 
   void _suppDialog(Map<String, dynamic>? existing) {

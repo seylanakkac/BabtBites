@@ -22,6 +22,12 @@ const List<String> kDefaultSupplementNames = [
   "D Vitamini", "Demir Damlası", "K Vitamini", "Multivitamin", "Omega-3", "Probiyotik", "Çinko", "B12 Vitamini"
 ];
 const List<String> kDefaultDoseUnits = ["damla", "ml", "puf", "mg", "tablet", "ölçek", "adet"];
+// "Marketten Sipariş Ver" promo/ad cards on the cart screen.
+const List<Map<String, dynamic>> kDefaultMarketLinks = [
+  {"name": "Trendyol Go", "url": "https://www.trendyolgo.com", "imageUrl": ""},
+  {"name": "Hepsiexpress", "url": "https://www.hepsiburada.com/hepsiexpress", "imageUrl": ""},
+  {"name": "Getir Büyük", "url": "https://getir.com", "imageUrl": ""},
+];
 // Flat map (key -> double) so the admin editor can show one field per value.
 const Map<String, double> kDefaultNutritionTargets = {
   "infantEnergyPerKg": 80.0, "infantProteinPerKg": 1.2, "infantFatPerKg": 3.0, "infantIron": 11.0,
@@ -68,6 +74,12 @@ List<String> get supplementNameOptions =>
 List<String> get doseUnitOptions =>
     (globalAdminConfig["doseUnits"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultDoseUnits);
+
+List<Map<String, dynamic>> get marketLinks =>
+    (globalAdminConfig["marketLinks"] as List?)
+        ?.map((e) => Map<String, dynamic>.from(e as Map))
+        .toList() ??
+    kDefaultMarketLinks.map((e) => Map<String, dynamic>.from(e)).toList();
 
 /// A single nutrition-target constant (config override or built-in default).
 double ntv(String key) {
