@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/admin_store.dart';
+import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/tracking_store.dart';
@@ -45,6 +46,10 @@ class StorageService {
   static const String _kRecipeComments = 'recipe_comments';
   static const String _kRecipeTriedPhotos = 'recipe_tried_photos';
   static const String _kRecipeTried = 'recipe_tried';
+  static const String _kGrowth = 'growth_records';
+  static const String _kMilestones = 'milestones_done';
+  static const String _kPremium = 'is_premium';
+  static const String _kTrialStart = 'trial_start';
   static const String _kTried = 'tried_foods';
   static const String _kFavorites = 'favorite_foods';
   static const String _kSupplements = 'supplements_plan';
@@ -172,6 +177,23 @@ class StorageService {
           ..clear()
           ..addAll(recipeTriedRaw);
       }
+
+      final growthRaw = prefs.getString(_kGrowth);
+      if (growthRaw != null) {
+        globalGrowthRecords.clear();
+        (jsonDecode(growthRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalGrowthRecords[k] = (v as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        });
+      }
+      final milestonesRaw = prefs.getString(_kMilestones);
+      if (milestonesRaw != null) {
+        globalMilestonesDone.clear();
+        (jsonDecode(milestonesRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalMilestonesDone[k] = (v as List).map((e) => e.toString()).toSet();
+        });
+      }
+      globalIsPremium = prefs.getBool(_kPremium) ?? false;
+      globalTrialStart = prefs.getString(_kTrialStart);
 
       final tried = prefs.getStringList(_kTried)?.toSet();
       final favorites = prefs.getStringList(_kFavorites)?.toSet();
@@ -498,6 +520,10 @@ class StorageService {
       await prefs.setString(_kReminders, jsonEncode(globalReminders));
       await prefs.setString(_kBabyMeds, jsonEncode(globalBabyMeds));
       await prefs.setString(_kDailyLogs, jsonEncode(globalDailyLogs));
+      await prefs.setString(_kGrowth, jsonEncode(globalGrowthRecords));
+      await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
+      await prefs.setBool(_kPremium, globalIsPremium);
+      if (globalTrialStart != null) await prefs.setString(_kTrialStart, globalTrialStart!);
     } catch (e) {
       debugPrint('StorageService.saveAll failed: $e');
     }

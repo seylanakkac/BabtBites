@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
+import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/seasonal_database.dart';
@@ -10,8 +11,12 @@ import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
 import 'food_detail_screen.dart';
+import 'growth_screen.dart';
 import 'legal_screen.dart';
+import 'milestones_screen.dart';
+import 'premium_screen.dart';
 import 'recipe_detail_screen.dart';
+import 'report_screen.dart';
 
 // Shared globals used across screens.
 final Map<String, int> globalCartQuantities = {};
@@ -968,6 +973,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _autoFillWeeklyMenu() {
+    final months = _ageMonths(_activeBaby?["dob"]?.toString());
+    final maxAge = months < 6 ? 6 : months;
+    final eligible = globalRecipesDatabase.where((r) => r.startingMonth <= maxAge).toList();
+    if (eligible.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Uygun tarif bulunamadı.")));
+      return;
+    }
+    const mainSlots = ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği"];
+    final days = _getWeeklyDays().map((d) => d["key"]!).toList();
+    int idx = months; // vary start by age so it isn't identical each baby
+    int filled = 0;
+    for (final day in days) {
+      _weeklyPlan.putIfAbsent(day, () => {for (final s in _mealSlots) s: <String>[]});
+      for (final slot in mainSlots) {
+        _weeklyPlan[day]!.putIfAbsent(slot, () => <String>[]);
+        if ((_weeklyPlan[day]![slot] ?? []).isEmpty) {
+          _weeklyPlan[day]![slot] = [eligible[idx % eligible.length].name];
+          filled++;
+        }
+        idx++;
+      }
+    }
+    _persist();
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(filled > 0 ? "Boş öğünler otomatik dolduruldu ($filled öğün)." : "Tüm öğünler zaten dolu.")));
+  }
+
   void _addWeekIngredientsToCart() {
     final week = _getWeeklyDays().map((d) => d["key"]!).toSet();
     int added = 0;
@@ -1681,7 +1714,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ];
         }()),
         // Öğün Planı
-        _sectionTitle("Öğün Planı 🍽️"),
+        Row(
+          children: [
+            Expanded(child: _sectionTitle("Öğün Planı 🍽️")),
+            TextButton.icon(
+              onPressed: _autoFillWeeklyMenu,
+              icon: const Icon(Icons.auto_awesome, size: 16, color: _primary),
+              label: const Text("Otomatik Doldur", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         ..._mealSlots.map(_planMealCard),
         const SizedBox(height: 6),
@@ -2599,6 +2642,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 24),
+        const Text("Gelişim & Premium", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+          child: Column(
+            children: [
+              _navTile("BabyBites+", Icons.workspace_premium, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged))),
+                  trailing: globalIsPremium
+                      ? Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: const Text("Aktif", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _green)))
+                      : null),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Büyüme Grafiği", Icons.show_chart, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Gelişim Raporu", Icons.description_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? "")))),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Başarımlar", Icons.emoji_events_outlined, _showAchievements),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
         const Text("Yasal", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 10),
         Container(
@@ -2658,6 +2723,87 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       title: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
       trailing: const Icon(Icons.chevron_right, color: _light, size: 20),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LegalScreen(title: screenTitle, assetPath: asset))),
+    );
+  }
+
+  Widget _navTile(String label, IconData icon, VoidCallback onTap, {Widget? trailing}) {
+    return ListTile(
+      leading: Icon(icon, color: _primary, size: 20),
+      title: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [if (trailing != null) ...[trailing, const SizedBox(width: 8)], const Icon(Icons.chevron_right, color: _light, size: 20)]),
+      onTap: onTap,
+    );
+  }
+
+  void _extrasChanged() {
+    setState(() {});
+    _persist();
+  }
+
+  void _showAchievements() {
+    final id = _activeBabyId;
+    final tried = triedCount(id);
+    final triedRecipes = globalRecipeTried.length;
+    final trackedDays = (globalDailyLogs[id]?.length) ?? 0;
+    final growthN = growthFor(id).length;
+    final hasMed = medsFor(id).any((m) => m["active"] == true);
+    final reacts = reactionCount(id);
+    final items = [
+      {"e": "🍽️", "t": "İlk Tadım", "d": "İlk gıdayı dene", "ok": tried >= 1},
+      {"e": "🥦", "t": "Kâşif", "d": "5 gıda dene", "ok": tried >= 5},
+      {"e": "🌈", "t": "Gurme", "d": "10 gıda dene", "ok": tried >= 10},
+      {"e": "🏆", "t": "Gıda Ustası", "d": "20 gıda dene", "ok": tried >= 20},
+      {"e": "📅", "t": "Düzenli", "d": "7 gün takip", "ok": trackedDays >= 7},
+      {"e": "📈", "t": "Büyüme Takibi", "d": "İlk ölçüm", "ok": growthN >= 1},
+      {"e": "🍲", "t": "Tarif Sever", "d": "3 tarif dene", "ok": triedRecipes >= 3},
+      {"e": "💊", "t": "Takviye Düzeni", "d": "Aktif takviye", "ok": hasMed},
+      {"e": "🛡️", "t": "Dikkatli Ebeveyn", "d": "Reaksiyon takibi", "ok": reacts >= 1 || tried >= 10},
+    ];
+    final earned = items.where((i) => i["ok"] == true).length;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 14), decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+              Text("Başarımlar 🏅  ($earned/${items.length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 14),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                childAspectRatio: 0.85,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                children: items.map((i) {
+                  final ok = i["ok"] == true;
+                  return Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: ok ? _primary.withOpacity(0.08) : const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(14), border: Border.all(color: ok ? _primary.withOpacity(0.3) : Colors.transparent)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Opacity(opacity: ok ? 1 : 0.35, child: Text(i["e"] as String, style: const TextStyle(fontSize: 30))),
+                        const SizedBox(height: 4),
+                        Text(i["t"] as String, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: ok ? _text : _light)),
+                        Text(i["d"] as String, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 9, color: _light, height: 1.1)),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
