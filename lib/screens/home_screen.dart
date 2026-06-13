@@ -2318,6 +2318,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 12),
               _targetRow("Enerji", "${targets["Energy"]!.toInt()} kcal", _primary),
               const Divider(height: 16),
+              _targetRow("Karbonhidrat", "${targets["Carb"]!.toStringAsFixed(0)} g", const Color(0xFF3B9EDB)),
+              const Divider(height: 16),
               _targetRow("Protein", "${targets["Protein"]!.toStringAsFixed(1)} g", _danger),
               const Divider(height: 16),
               _targetRow("Sağlıklı Yağ", "${targets["Fat"]!.toStringAsFixed(1)} g", _green),
