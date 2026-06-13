@@ -39,6 +39,7 @@ class StorageService {
   static const String _kCartList = 'cart_list';
   static const String _kCartQty = 'cart_quantities';
   static const String _kCartChecked = 'cart_checked';
+  static const String _kFavoriteRecipes = 'favorite_recipes';
   static const String _kTried = 'tried_foods';
   static const String _kFavorites = 'favorite_foods';
   static const String _kSupplements = 'supplements_plan';
@@ -132,6 +133,13 @@ class StorageService {
         globalCartChecked
           ..clear()
           ..addAll(checkedRaw);
+      }
+
+      final favRecipesRaw = prefs.getStringList(_kFavoriteRecipes);
+      if (favRecipesRaw != null) {
+        globalFavoriteRecipes
+          ..clear()
+          ..addAll(favRecipesRaw);
       }
 
       final tried = prefs.getStringList(_kTried)?.toSet();
@@ -424,6 +432,7 @@ class StorageService {
       await prefs.setString(_kCartList, jsonEncode(globalCartList));
       await prefs.setString(_kCartQty, jsonEncode(globalCartQuantities));
       await prefs.setStringList(_kCartChecked, globalCartChecked.toList());
+      await prefs.setStringList(_kFavoriteRecipes, globalFavoriteRecipes.toList());
       await prefs.setStringList(
         _kTried,
         globalFoodsDatabase.where((f) => f.tried).map((f) => f.name).toList(),

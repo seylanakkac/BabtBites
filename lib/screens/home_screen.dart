@@ -15,6 +15,9 @@ final Map<String, int> globalCartQuantities = {};
 // Cart item names that have been marked as purchased ("Alınanlar").
 final Set<String> globalCartChecked = {};
 
+// Favourited recipe ids (persisted; shown in the home "Favorilerim" strip).
+final Set<String> globalFavoriteRecipes = {};
+
 // Weekly meal plan: dateKey(yyyy-MM-dd) -> mealSlot -> list of food/recipe names.
 final Map<String, Map<String, List<String>>> globalWeeklyPlan = {};
 
@@ -57,7 +60,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _explorerSubTab = 0;
   bool _onlyTriedRecipes = false;
   final Set<String> _pantry = {};
-  final Set<String> _favoriteRecipes = {};
 
   final _cartInputController = TextEditingController();
   final _cartFocus = FocusNode();
@@ -437,6 +439,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 24),
+        // Favorilerim (only when there are favourites)
+        _buildFavoritesStrip(),
         // Gıdaları Keşfet header
         Row(
           children: [
@@ -669,6 +673,105 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       Text("• ${recipe.kcal.toInt()} kcal", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
                     ],
                   ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------- Favourites strip (home) ----------
+  Widget _buildFavoritesStrip() {
+    final favFoods = globalFoodsDatabase.where((f) => f.isFavorite).toList();
+    final favRecipes = globalRecipesDatabase.where((r) => globalFavoriteRecipes.contains(r.id)).toList();
+    if (favFoods.isEmpty && favRecipes.isEmpty) return const SizedBox.shrink();
+    final cards = <Widget>[
+      ...favFoods.map(_favFoodCard),
+      ...favRecipes.map(_favRecipeCard),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Text("Favorilerim", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text)),
+            SizedBox(width: 6),
+            Icon(Icons.favorite, color: _danger, size: 18),
+          ],
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 166,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: cards.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) => cards[i],
+          ),
+        ),
+        const SizedBox(height: 28),
+      ],
+    );
+  }
+
+  Widget _favFoodCard(Food food) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
+      )),
+      child: Container(
+        width: 120,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: _foodTint(food), borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Align(alignment: Alignment.topRight, child: Icon(Icons.favorite, color: _danger, size: 14)),
+            isPhotoUrl(food.imageUrl)
+                ? ClipOval(child: SizedBox(width: 40, height: 40, child: photoOrFallback(food.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))
+                : Text(food.emoji, style: const TextStyle(fontSize: 34)),
+            const SizedBox(height: 8),
+            Text(food.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+              child: Text("${food.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _text)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _favRecipeCard(Recipe recipe) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => RecipeDetailScreen(recipe: recipe, onStateChanged: _onChildChanged),
+      )),
+      child: Container(
+        width: 150,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                SizedBox(height: 92, width: double.infinity, child: _getRecipeImage(recipe)),
+                const Positioned(top: 8, right: 8, child: CircleAvatar(radius: 11, backgroundColor: Colors.white, child: Icon(Icons.favorite, color: _danger, size: 13))),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                  const SizedBox(height: 3),
+                  Text("${recipe.startingMonth}+ Ay • ${recipe.prepTime}", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
                 ],
               ),
             ),
@@ -1098,7 +1201,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _recipeListItem(Recipe recipe) {
     final desc = recipe.steps.isNotEmpty ? recipe.steps.first : recipe.allergyWarning;
-    final fav = _favoriteRecipes.contains(recipe.id);
+    final fav = globalFavoriteRecipes.contains(recipe.id);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -1159,7 +1262,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () => setState(() => fav ? _favoriteRecipes.remove(recipe.id) : _favoriteRecipes.add(recipe.id)),
+                    onTap: () { setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); _persist(); },
                     child: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? _danger : _light, size: 20),
                   ),
                 ],

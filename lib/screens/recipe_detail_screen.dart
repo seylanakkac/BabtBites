@@ -27,7 +27,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   final GlobalKey _ingredientsKey = GlobalKey();
   final GlobalKey _stepsKey = GlobalKey();
   final GlobalKey _nutritionKey = GlobalKey();
-  bool _isFavorite = false;
 
   @override
   void initState() {
@@ -142,14 +141,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                       icon: CircleAvatar(
                         backgroundColor: Colors.white,
                         child: Icon(
-                          _isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _isFavorite ? const Color(0xFFFF4D6A) : textColor,
+                          globalFavoriteRecipes.contains(recipe.id) ? Icons.favorite : Icons.favorite_border,
+                          color: globalFavoriteRecipes.contains(recipe.id) ? const Color(0xFFFF4D6A) : textColor,
                           size: 20,
                         ),
                       ),
                       onPressed: () {
                         setState(() {
-                          _isFavorite = !_isFavorite;
+                          if (globalFavoriteRecipes.contains(recipe.id)) {
+                            globalFavoriteRecipes.remove(recipe.id);
+                          } else {
+                            globalFavoriteRecipes.add(recipe.id);
+                          }
                         });
                         widget.onStateChanged?.call();
                       },
