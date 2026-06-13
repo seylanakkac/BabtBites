@@ -72,7 +72,10 @@ match /catalog/{document=**} {
 ## 6) SENİN YAPMAN GEREKENLER (Firebase Console — hesabın gerekli)
 
 1. **Firebase projesi oluştur:** https://console.firebase.google.com → Add project (ör. `babybites-prod`).
-2. **Authentication** → Get started → **Email/Password** sağlayıcısını **Enable**.
+2. **Authentication** → Get started → şu sağlayıcıları **Enable**:
+   - **Email/Password**
+   - **Google** (proje destek e-postasını seç)
+   - **Apple** (yapılandırma için Bölüm 6A gerekir)
 3. **Firestore Database** → Create database → **Production mode** → konum: **eur3 (europe-west)** (Türkiye'ye yakın).
 4. **Storage** → Get started → Production mode.
 5. **Blaze planına yükselt** (Billing) ve **bütçe alarmı** (10–20 USD) kur.
@@ -85,6 +88,21 @@ match /catalog/{document=**} {
    flutterfire configure   # projeni seç → lib/firebase_options.dart üretir
    ```
 7. Bana **"flutterfire configure bitti"** de — gerisini kodda ben yaparım.
+
+### 6A) Google + Apple giriş için ek adımlar (seçimin: E-posta + Google + Apple)
+
+**Google ile giriş:**
+- Android: Firebase Console → Project Settings → SHA‑1 ve SHA‑256 parmak izlerini ekle (debug + release keystore). `google-services.json`'ı indir → `android/app/`.
+- iOS: `GoogleService-Info.plist` → `ios/Runner/`; `Info.plist`'e ters çevrilmiş istemci kimliği (REVERSED_CLIENT_ID) URL şeması eklenir (kodda yönlendiririm).
+- Web: Auth → Google provider zaten yeterli.
+
+**Apple ile giriş (Mac + Apple Developer hesabı gerekir):**
+- Apple Developer → Identifiers → **Service ID** oluştur, "Sign in with Apple" etkinleştir, dönüş URL'sini Firebase'in verdiği adrese ayarla.
+- Apple Developer → Keys → "Sign in with Apple" **Key** oluştur (.p8), Key ID + Team ID'yi Firebase Auth Apple provider'a gir.
+- Xcode → Runner → Signing & Capabilities → **Sign in with Apple** capability ekle.
+- (Apple ile giriş gerçek cihaz/derleme için iOS şart; web'de de ayrı yapılandırma ister.)
+
+> Bu adımların bir kısmı (özellikle Apple) **Mac + Apple Developer** gerektirir. Android + Web tarafını önce bitirip Apple'ı sonra ekleyebiliriz; kodda her ikisini de hazırlarım.
 
 ---
 
@@ -111,7 +129,9 @@ match /catalog/{document=**} {
 ---
 
 ## 8) Önemli Notlar
-- **Apple kuralı:** Yalnızca Google ile giriş eklersen Apple "Sign in with Apple" da ister. **Sadece e-posta/şifre** kullanırsan bu zorunluluk yok — başlangıç için en sade yol.
+- **Seçilen giriş:** E-posta/Şifre + Google + Apple. (Apple kuralı zaten karşılanıyor.)
+- **Seçilen katalog:** Merkezi (`/catalog/*`) — Faz 3'te kurulacak; admin değişiklikleri tüm kullanıcılara yansır.
+- **Güvenlik kuralları** hazır: `firebase/firestore.rules` ve `firebase/storage.rules` — `flutterfire configure` sonrası deploy edeceğim.
 - **KVKK:** Artık veriyi buluta (yurt dışı sunucu olabilir) aktarıyorsun → Gizlilik Politikası'nın 3. maddesini güncelleyeceğiz (açık rıza + yurt dışı aktarım bilgisi). Bunu Faz 1'de yapacağım.
 - **Yedek/çift yazma:** Geçiş döneminde yerel kalıcılığı bir süre koruyup paralel yazmak güvenlidir.
 

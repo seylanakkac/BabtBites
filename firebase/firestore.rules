@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// BabyBites Firestore güvenlik kuralları
+// - Kullanıcılar yalnızca KENDİ verilerine erişir.
+// - Ortak katalog (gıda/tarif/yazı/config) herkes tarafından okunur,
+//   yalnızca admin (custom claim: admin == true) tarafından yazılır.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Kullanıcıya özel veri: /users/{uid}/...
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Ortak katalog: /catalog/...
+    match /catalog/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+  }
+}
