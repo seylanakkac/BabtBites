@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../widgets/disclaimer.dart';
@@ -35,6 +36,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
 
   final _commentController = TextEditingController();
   String _commentPhoto = "";
+  bool _cookMode = false;
+
+  void _toggleCookMode() {
+    setState(() => _cookMode = !_cookMode);
+    if (_cookMode) {
+      WakelockPlus.enable();
+    } else {
+      WakelockPlus.disable();
+    }
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(_cookMode ? "Pişirme modu açık — ekran kapanmayacak 👨‍🍳" : "Pişirme modu kapatıldı."),
+      duration: const Duration(seconds: 2),
+    ));
+  }
 
   @override
   void initState() {
@@ -50,6 +65,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     _tabController.dispose();
     _scrollController.dispose();
     _commentController.dispose();
+    // Always release the wakelock when leaving the recipe.
+    WakelockPlus.disable();
     super.dispose();
   }
 
@@ -585,14 +602,38 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         // --- YAPILIŞI SECTION ---
                         Row(
                           key: _stepsKey,
-                          children: const [
-                            Text(
-                              "Hazırlanışı",
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: textColor,
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                "Hazırlanışı",
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: textColor,
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: _toggleCookMode,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _cookMode ? primaryColor : primaryColor.withOpacity(0.10),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: _cookMode ? Colors.transparent : primaryColor.withOpacity(0.4)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(_cookMode ? Icons.lightbulb : Icons.lightbulb_outline, size: 16, color: _cookMode ? Colors.white : primaryColor),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      _cookMode ? "Ekran Açık" : "Tarifi Yapıyorum",
+                                      style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _cookMode ? Colors.white : primaryColor),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
