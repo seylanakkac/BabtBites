@@ -167,6 +167,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                   MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: IconButton(
+                      tooltip: _cookMode ? "Pişirme modu açık" : "Tarifi yapıyorum (ekran açık kalsın)",
+                      icon: CircleAvatar(
+                        backgroundColor: _cookMode ? primaryColor : Colors.white,
+                        child: Icon(
+                          _cookMode ? Icons.lightbulb : Icons.lightbulb_outline,
+                          color: _cookMode ? Colors.white : textColor,
+                          size: 20,
+                        ),
+                      ),
+                      onPressed: _toggleCookMode,
+                    ),
+                  ),
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: IconButton(
                       icon: CircleAvatar(
                         backgroundColor: Colors.white,
                         child: Icon(
@@ -602,38 +617,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         // --- YAPILIŞI SECTION ---
                         Row(
                           key: _stepsKey,
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                "Hazırlanışı",
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: textColor,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _toggleCookMode,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _cookMode ? primaryColor : primaryColor.withOpacity(0.10),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: _cookMode ? Colors.transparent : primaryColor.withOpacity(0.4)),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(_cookMode ? Icons.lightbulb : Icons.lightbulb_outline, size: 16, color: _cookMode ? Colors.white : primaryColor),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      _cookMode ? "Ekran Açık" : "Tarifi Yapıyorum",
-                                      style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _cookMode ? Colors.white : primaryColor),
-                                    ),
-                                  ],
-                                ),
+                          children: const [
+                            Text(
+                              "Hazırlanışı",
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: textColor,
                               ),
                             ),
                           ],
