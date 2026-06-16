@@ -474,8 +474,16 @@ class _AdminScreenState extends State<AdminScreen> {
     String risk = existing?["allergyRisk"]?.toString() ?? "Düşük";
     String cartUnit = existing?["cartUnit"]?.toString() ?? "adet";
     if (!cartUnitOptions.contains(cartUnit)) cartUnit = cartUnitOptions.isNotEmpty ? cartUnitOptions.first : "adet";
-    final ps = (existing?["presentationStyles"] as Map?);
-    final presentation = TextEditingController(text: ps != null && ps.values.isNotEmpty ? ps.values.first.toString() : "");
+    // Presentation styles per age (month -> text). Each gets its own editable row.
+    final ps = (existing?["presentationStyles"] as Map?) ?? {};
+    final presEntries = <Map<String, TextEditingController>>[];
+    ps.forEach((k, v) {
+      presEntries.add({"month": TextEditingController(text: k.toString()), "text": TextEditingController(text: v.toString())});
+    });
+    presEntries.sort((a, b) => (int.tryParse(a["month"]!.text) ?? 0).compareTo(int.tryParse(b["month"]!.text) ?? 0));
+    if (presEntries.isEmpty) {
+      presEntries.add({"month": TextEditingController(text: "${existing?["startingMonth"] ?? 6}"), "text": TextEditingController()});
+    }
     final nv = (existing?["nutritionValues"] as Map?) ?? {};
     TextEditingController nvc(String key, [String? alt]) => TextEditingController(
         text: (nv[key] ?? (alt != null ? nv[alt] : null))?.toString() ?? "");
@@ -512,7 +520,45 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(month, "Başlangıç ayı", hint: "6", keyboard: TextInputType.number),
                   _dropdown("Alerji riski", risk, const ["Düşük", "Orta", "Yüksek"], (v) => setD(() => risk = v)),
                   _dropdown("Sepet birimi", cartUnit, cartUnitOptions, (v) => setD(() => cartUnit = v)),
-                  _field(presentation, "Sunum şekli", maxLines: 3),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, bottom: 4),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Sunum şekilleri (aya göre)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  ),
+                  ...presEntries.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final e = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(width: 60, child: _field(e["month"]!, "Ay", keyboard: TextInputType.number)),
+                          const SizedBox(width: 8),
+                          Expanded(child: _field(e["text"]!, "Sunum şekli", maxLines: 2)),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18, color: _red),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            onPressed: presEntries.length > 1
+                                ? () => setD(() {
+                                      final removed = presEntries.removeAt(i);
+                                      removed["month"]!.dispose();
+                                      removed["text"]!.dispose();
+                                    })
+                                : null,
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setD(() => presEntries.add({"month": TextEditingController(), "text": TextEditingController()})),
+                      icon: const Icon(Icons.add, size: 16, color: _primary),
+                      label: const Text("Sunum ekle", style: TextStyle(fontFamily: 'Inter', color: _primary, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                   const Padding(
                     padding: EdgeInsets.only(top: 8, bottom: 4),
                     child: Align(alignment: Alignment.centerLeft, child: Text("Besin Değerleri (100g)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
@@ -546,7 +592,11 @@ class _AdminScreenState extends State<AdminScreen> {
                   "allergyRisk": risk,
                   "imageUrl": image,
                   "cartUnit": cartUnit,
-                  "presentationStyles": {m.toString(): presentation.text.trim()},
+                  "presentationStyles": {
+                    for (final e in presEntries)
+                      if (e["text"]!.text.trim().isNotEmpty)
+                        (int.tryParse(e["month"]!.text.trim()) ?? m).toString(): e["text"]!.text.trim(),
+                  },
                   "nutritionValues": {
                     "Enerji": pn(energy), "Karbonhidrat": pn(carb), "Protein": pn(protein), "Yağ": pn(fat),
                     "Lif": pn(fiber), "Kolesterol": pn(chol), "Sodyum": pn(sodium), "Potasyum": pn(potassium),
@@ -565,8 +615,12 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, month, presentation, energy, carb, protein, fat, fiber, chol, sodium, potassium, calcium, vitA, vitC, iron]) {
+      for (final c in [name, month, energy, carb, protein, fat, fiber, chol, sodium, potassium, calcium, vitA, vitC, iron]) {
         c.dispose();
+      }
+      for (final e in presEntries) {
+        e["month"]!.dispose();
+        e["text"]!.dispose();
       }
     });
   }
