@@ -27,6 +27,13 @@ import 'user_profile_screen.dart';
 // Shared globals used across screens.
 final Map<String, int> globalCartQuantities = {};
 
+// Per-cart-item unit override chosen by the user. Falls back to the food's
+// admin-set unit (Food.unitFor) when an item has no explicit override.
+final Map<String, String> globalCartUnits = {};
+
+/// The unit shown for a cart item: user override, else the food's admin unit.
+String cartUnitFor(String item) => globalCartUnits[item] ?? Food.unitFor(item);
+
 // Cart item names that have been marked as purchased ("Alınanlar").
 final Set<String> globalCartChecked = {};
 
@@ -2528,7 +2535,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
-              onPressed: () { setState(() { globalCartList.clear(); globalCartQuantities.clear(); globalCartChecked.clear(); }); _persist(); },
+              onPressed: () { setState(() { globalCartList.clear(); globalCartQuantities.clear(); globalCartChecked.clear(); globalCartUnits.clear(); }); _persist(); },
               style: OutlinedButton.styleFrom(foregroundColor: _danger, side: const BorderSide(color: _danger), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
               child: const Text("Sepeti Temizle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             ),
@@ -2584,7 +2591,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               children: [
                 Text(item, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.w600, color: checked ? _light : _text, decoration: checked ? TextDecoration.lineThrough : null)),
                 const SizedBox(height: 2),
-                Text("$qty ${Food.unitFor(item)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                GestureDetector(
+                  onTap: checked ? null : () => _pickCartUnit(item),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text("$qty ${cartUnitFor(item)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                      if (!checked) const Icon(Icons.arrow_drop_down, size: 16, color: _light),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -2598,9 +2614,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             icon: Icon(Icons.delete_outline, color: checked ? _danger.withOpacity(0.5) : _danger, size: 20),
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-            onPressed: () { setState(() { globalCartList.remove(item); globalCartQuantities.remove(item); globalCartChecked.remove(item); }); _persist(); },
+            onPressed: () { setState(() { globalCartList.remove(item); globalCartQuantities.remove(item); globalCartChecked.remove(item); globalCartUnits.remove(item); }); _persist(); },
           ),
         ],
+      ),
+    );
+  }
+
+  /// Lets the user pick the unit (adet, kg, gr, demet…) for a cart item.
+  /// Options come from the admin-managed cart-unit list.
+  void _pickCartUnit(String item) {
+    final units = cartUnitOptions;
+    final current = cartUnitFor(item);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 14),
+              Text("Birim seç • $item", style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 6),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: units.map((u) => ListTile(
+                        dense: true,
+                        title: Text(u, style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: u == current ? FontWeight.bold : FontWeight.normal, color: _text)),
+                        trailing: u == current ? const Icon(Icons.check, color: _primary, size: 20) : null,
+                        onTap: () {
+                          setState(() => globalCartUnits[item] = u);
+                          _persist();
+                          Navigator.pop(ctx);
+                        },
+                      )).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

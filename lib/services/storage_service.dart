@@ -52,6 +52,7 @@ class StorageService {
   static const String _kWeeklyPlan = 'weekly_plan';
   static const String _kCartList = 'cart_list';
   static const String _kCartQty = 'cart_quantities';
+  static const String _kCartUnits = 'cart_units';
   static const String _kCartChecked = 'cart_checked';
   static const String _kFavoriteRecipes = 'favorite_recipes';
   static const String _kRecipeViews = 'recipe_views';
@@ -92,7 +93,7 @@ class StorageService {
   // (Catalog/admin/social keys are intentionally excluded — those become the
   // shared /catalog in Faz 3.)
   static const List<String> _userStringKeys = [
-    _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kBabyFoodStates, _kReminders,
+    _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil,
   ];
@@ -174,6 +175,14 @@ class StorageService {
         globalCartQuantities.clear();
         (jsonDecode(qtyRaw) as Map<String, dynamic>).forEach((key, value) {
           globalCartQuantities[key] = (value as num).toInt();
+        });
+      }
+
+      final cartUnitsRaw = prefs.getString(_kCartUnits);
+      if (cartUnitsRaw != null) {
+        globalCartUnits.clear();
+        (jsonDecode(cartUnitsRaw) as Map<String, dynamic>).forEach((key, value) {
+          globalCartUnits[key] = value.toString();
         });
       }
 
@@ -646,6 +655,7 @@ class StorageService {
       await prefs.setString(_kWeeklyPlan, jsonEncode(globalWeeklyPlan));
       await prefs.setString(_kCartList, jsonEncode(globalCartList));
       await prefs.setString(_kCartQty, jsonEncode(globalCartQuantities));
+      await prefs.setString(_kCartUnits, jsonEncode(globalCartUnits));
       await prefs.setStringList(_kCartChecked, globalCartChecked.toList());
       await prefs.setStringList(_kFavoriteRecipes, globalFavoriteRecipes.toList());
       await prefs.setString(_kRecipeViews, jsonEncode(globalRecipeViews));
@@ -737,6 +747,7 @@ class StorageService {
     globalWeeklyPlan.clear();
     globalCartList.clear();
     globalCartQuantities.clear();
+    globalCartUnits.clear();
     globalCartChecked.clear();
     globalFavoriteRecipes.clear();
     globalRecipeTried.clear();
