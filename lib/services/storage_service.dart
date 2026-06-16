@@ -75,6 +75,27 @@ class StorageService {
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
 
+  // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
+  // (Catalog/admin/social keys are intentionally excluded — those become the
+  // shared /catalog in Faz 3.)
+  static const List<String> _userStringKeys = [
+    _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kBabyFoodStates, _kReminders,
+    _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
+    _kSupplements, _kMyProfile, _kRecipeRatings,
+  ];
+  static const List<String> _userStringListKeys = [
+    _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
+  ];
+  static const List<String> _userBoolKeys = [_kPremium];
+
+  /// Set by main() to CloudSync.instance.push — called (fire-and-forget) after
+  /// any user-data save so the cloud copy stays current. Null until wired.
+  static Future<void> Function()? cloudPush;
+  void _triggerCloud() {
+    final push = cloudPush;
+    if (push != null) push();
+  }
+
   SharedPreferences? _prefs;
   bool get isReady => _prefs != null;
 
@@ -445,6 +466,7 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveMyProfile failed: $e');
     }
+    _triggerCloud();
   }
 
   /// Persists admin-added custom foods/recipes/articles. Call after the admin
@@ -493,6 +515,53 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveSupplements failed: $e');
     }
+    _triggerCloud();
+  }
+
+  // ---- Cloud sync (Faz 2) export/import of this user's private data ----
+
+  /// Snapshots the current user's private prefs into a Firestore-safe map
+  /// (strings, string-lists and bools). Excludes catalog/admin/social keys.
+  Map<String, dynamic> exportUserData() {
+    final prefs = _prefs;
+    final out = <String, dynamic>{};
+    if (prefs == null) return out;
+    for (final k in _userStringKeys) {
+      final v = prefs.getString(k);
+      if (v != null) out[k] = v;
+    }
+    for (final k in _userStringListKeys) {
+      final v = prefs.getStringList(k);
+      if (v != null) out[k] = v;
+    }
+    for (final k in _userBoolKeys) {
+      if (prefs.containsKey(k)) out[k] = prefs.getBool(k);
+    }
+    return out;
+  }
+
+  /// Writes a cloud snapshot back into prefs, then repopulates the in-memory
+  /// globals via [loadInto]. Used when a signed-in user's cloud data is pulled.
+  Future<void> importUserData(Map<String, dynamic> data) async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      for (final entry in data.entries) {
+        final k = entry.key;
+        final v = entry.value;
+        if (v == null) continue;
+        if (_userStringListKeys.contains(k) && v is List) {
+          await prefs.setStringList(k, v.map((e) => e.toString()).toList());
+        } else if (_userBoolKeys.contains(k) && v is bool) {
+          await prefs.setBool(k, v);
+        } else if (v is String) {
+          await prefs.setString(k, v);
+        }
+      }
+      loadInto();
+    } catch (e) {
+      debugPrint('StorageService.importUserData failed: $e');
+    }
   }
 
   /// Returns the persisted parent identity {name, relationship}, or null.
@@ -529,6 +598,7 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveParent failed: $e');
     }
+    _triggerCloud();
   }
 
   /// Persists only the baby list. Call after add/edit/remove of a baby.
@@ -540,6 +610,7 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveBabies failed: $e');
     }
+    _triggerCloud();
   }
 
   /// Persists the entire user state. Cheap enough to call on every meaningful
@@ -582,5 +653,43 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveAll failed: $e');
     }
+    _triggerCloud();
+  }
+
+  /// Clears this device's LOCAL copy of the user's private data (on sign-out)
+  /// so a different account signing in on the same device can't inherit it.
+  /// Cloud data is untouched — a returning user gets it back via [importUserData].
+  Future<void> clearUserData() async {
+    final prefs = _prefs;
+    if (prefs != null) {
+      try {
+        for (final k in [..._userStringKeys, ..._userStringListKeys, ..._userBoolKeys]) {
+          await prefs.remove(k);
+        }
+      } catch (e) {
+        debugPrint('StorageService.clearUserData (prefs) failed: $e');
+      }
+    }
+    // Reset in-memory globals so nothing leaks into the next session.
+    globalWeeklyPlan.clear();
+    globalCartList.clear();
+    globalCartQuantities.clear();
+    globalCartChecked.clear();
+    globalFavoriteRecipes.clear();
+    globalRecipeTried.clear();
+    globalRecipeMyRating.clear();
+    globalGrowthRecords.clear();
+    globalMilestonesDone.clear();
+    globalIsPremium = false;
+    globalTrialStart = null;
+    for (final f in globalFoodsDatabase) {
+      f.tried = false;
+      f.isFavorite = false;
+    }
+    globalBabyFoodStates.clear();
+    globalReminders.clear();
+    globalBabyMeds.clear();
+    globalDailyLogs.clear();
+    globalMyProfile = null;
   }
 }

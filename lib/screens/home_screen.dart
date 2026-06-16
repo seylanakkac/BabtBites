@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
+import '../services/cloud_sync.dart';
 import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -3176,14 +3177,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           TextButton(onPressed: () => Navigator.pop(dctx), child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
           ElevatedButton(
             onPressed: () async {
-              _persist();
-              setAdminMode(false);
-              StorageService.instance.saveIsAdmin(false);
               final nav = Navigator.of(context);
               Navigator.pop(dctx);
+              _persist();
+              await CloudSync.instance.push(); // flush last changes to cloud
+              setAdminMode(false);
+              StorageService.instance.saveIsAdmin(false);
               try {
                 await FirebaseAuth.instance.signOut();
               } catch (_) {}
+              await StorageService.instance.clearUserData();
               nav.pushNamedAndRemoveUntil('/login', (route) => false);
             },
             style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),

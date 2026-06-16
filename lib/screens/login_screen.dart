@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/cloud_sync.dart';
 import '../services/storage_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -51,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> {
         isNewUser = true;
       }
       _applyAdmin(email);
+      // Bring this user's cloud data down (or seed it on first use).
+      await CloudSync.instance.pull();
       if (!mounted) return;
       _routeAfterAuth(isNewUser);
     } on FirebaseAuthException catch (e) {
@@ -78,6 +81,7 @@ class _LoginScreenState extends State<LoginScreen> {
             .saveParent(cred.user?.displayName ?? "", "Anne");
       }
       _applyAdmin(email);
+      await CloudSync.instance.pull();
       if (!mounted) return;
       _routeAfterAuth(isNew);
     } on FirebaseAuthException catch (e) {

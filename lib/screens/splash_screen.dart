@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/cloud_sync.dart';
 import '../services/storage_service.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
@@ -49,11 +50,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // After the splash, route based on the Firebase auth session: a signed-in
     // user skips login (admin → panel, returning user with babies → home,
     // otherwise → onboarding); no session → login.
-    Timer(const Duration(milliseconds: 3800), () {
+    Timer(const Duration(milliseconds: 3800), () async {
+      if (!mounted) return;
+      final target = await _initialScreen();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => _initialScreen(),
+          pageBuilder: (context, animation, secondaryAnimation) => target,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(opacity: animation, child: child);
           },
@@ -63,13 +66,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     });
   }
 
-  Widget _initialScreen() {
+  Future<Widget> _initialScreen() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const LoginScreen();
     final isAdmin = (user.email ?? "").trim().toLowerCase() == "admin@babybites.com";
     setAdminMode(isAdmin);
     StorageService.instance.saveIsAdmin(isAdmin);
     if (isAdmin) return const AdminScreen();
+    // Pull this user's cloud data before deciding onboarding vs home.
+    await CloudSync.instance.pull();
     final babies = StorageService.instance.loadBabies();
     if (babies == null || babies.isEmpty) return const OnboardingScreen();
     return const HomeScreen();

@@ -2,7 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'services/cloud_sync.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -19,6 +21,13 @@ Future<void> main() async {
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     debugPrint('Firebase initialized: ${Firebase.app().options.projectId}');
+    // Offline cache so the app works without a connection and syncs on reconnect.
+    try {
+      FirebaseFirestore.instance.settings =
+          const Settings(persistenceEnabled: true);
+    } catch (_) {}
+    // Mirror every user-data save to the cloud (when signed in).
+    StorageService.cloudPush = CloudSync.instance.push;
   } catch (e) {
     debugPrint('Firebase init failed (app continues in local mode): $e');
   }

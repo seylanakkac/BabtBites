@@ -256,13 +256,14 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   void _logout() async {
+    final nav = Navigator.of(context);
     setAdminMode(false);
     StorageService.instance.saveIsAdmin(false);
     try {
       await FirebaseAuth.instance.signOut();
     } catch (_) {}
-    if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/login');
+    await StorageService.instance.clearUserData();
+    nav.pushReplacementNamed('/login');
   }
 
   Widget _content() {
