@@ -69,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<Widget> _initialScreen() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return const LoginScreen();
-    final isAdmin = (user.email ?? "").trim().toLowerCase() == "admin@babybites.com";
+    final isAdmin = isAdminEmail(user.email);
     setAdminMode(isAdmin);
     StorageService.instance.saveIsAdmin(isAdmin);
     if (isAdmin) return const AdminScreen();

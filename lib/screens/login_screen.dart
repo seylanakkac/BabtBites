@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,8 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
-
-  static const String _adminEmail = "admin@babybites.com";
+  bool _rememberMe = true;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -37,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final email = _emailController.text.trim();
     final pass = _passwordController.text;
     try {
+      await _applyPersistence();
       bool isNewUser = false;
       if (_isLogin) {
         await FirebaseAuth.instance
@@ -72,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => _isLoading = true);
     try {
+      await _applyPersistence();
       final cred =
           await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
       final email = cred.user?.email ?? "";
@@ -98,8 +100,18 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// "Beni hatırla": on web, LOCAL persistence keeps the session across browser
+  /// restarts; SESSION clears it when the tab closes. No-op off web.
+  Future<void> _applyPersistence() async {
+    if (!kIsWeb) return;
+    try {
+      await FirebaseAuth.instance
+          .setPersistence(_rememberMe ? Persistence.LOCAL : Persistence.SESSION);
+    } catch (_) {}
+  }
+
   void _applyAdmin(String email) {
-    final isAdmin = email.trim().toLowerCase() == _adminEmail;
+    final isAdmin = isAdminEmail(email);
     setAdminMode(isAdmin);
     StorageService.instance.saveIsAdmin(isAdmin);
   }
@@ -332,6 +344,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
+                    textInputAction: _isLogin ? TextInputAction.done : TextInputAction.next,
+                    onFieldSubmitted: (_) {
+                      if (_isLogin && !_isLoading) _submit();
+                    },
                     style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: textColor),
                     decoration: InputDecoration(
                       hintText: "........",
@@ -527,24 +543,50 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                   const SizedBox(height: 8),
 
-                  // Forgot Password (only shown on Login screen)
+                  // Remember me + Forgot password (only on Login screen)
                   if (_isLogin)
-                    Center(
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: TextButton(
-                          onPressed: _isLoading ? null : _resetPassword,
-                          child: const Text(
-                            "Şifremi Unuttum",
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: primaryColor,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () => setState(() => _rememberMe = !_rememberMe),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: Checkbox(
+                                    value: _rememberMe,
+                                    activeColor: primaryColor,
+                                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    visualDensity: VisualDensity.compact,
+                                    onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "Beni hatırla",
+                                  style: TextStyle(fontFamily: 'Inter', color: lightTextColor, fontSize: 13),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      ),
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: TextButton(
+                            onPressed: _isLoading ? null : _resetPassword,
+                            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 4)),
+                            child: const Text(
+                              "Şifremi Unuttum",
+                              style: TextStyle(fontFamily: 'Inter', color: primaryColor, fontSize: 13, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
 
                   // Terms and Conditions Checkbox (Only in Register mode)

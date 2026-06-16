@@ -25,6 +25,17 @@ void setAdminMode(bool value) {
   adminModeNotifier.value = value;
 }
 
+/// Emails granted admin access (client-side gate). For production this should
+/// be backed by a Firebase custom claim (admin:true) instead — see Faz 3.
+const Set<String> kAdminEmails = {
+  'admin@babybites.com',
+  'seylanakkac@gmail.com',
+};
+
+/// True if [email] belongs to an admin account (case-insensitive).
+bool isAdminEmail(String? email) =>
+    email != null && kAdminEmails.contains(email.trim().toLowerCase());
+
 /// Centralised persistence layer for BabyBites.
 ///
 /// The app keeps its mutable user data in a handful of top-level globals
