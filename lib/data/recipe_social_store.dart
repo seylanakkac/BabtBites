@@ -19,6 +19,15 @@ final Map<String, List<String>> globalRecipeTriedPhotos = {};
 /// Recipe ids the user marked as "Denedim" (tried). Photo is optional.
 final Set<String> globalRecipeTried = {};
 
+/// recipeId -> star rating (1..5) this device gave. With Firebase this becomes
+/// one rating per user under the recipe.
+final Map<String, double> globalRecipeMyRating = {};
+
+/// User-submitted recipes awaiting admin approval. Each item is a Recipe JSON
+/// plus { "submittedBy": username, "date": "yyyy-MM-dd" }. NOT added to
+/// globalRecipesDatabase until an admin approves it (so it stays unpublished).
+final List<Map<String, dynamic>> globalPendingRecipes = [];
+
 int _seed(String key, int min, int max) {
   final h = key.hashCode.abs();
   return min + (h % (max - min + 1));
@@ -57,3 +66,32 @@ List<Map<String, dynamic>> pendingComments() {
 }
 
 int pendingCommentCount() => pendingComments().length;
+
+// ---- Star ratings (1..5) ----
+
+/// Average star rating for a recipe = stable community base blended with this
+/// device's own vote (if any). Range ~3.8..4.9 before the user votes.
+double recipeRatingAverage(String id) {
+  final baseAvg = _seed("ra_$id", 38, 49) / 10.0;
+  final baseCount = _seed("rc_$id", 5, 90);
+  final my = globalRecipeMyRating[id];
+  if (my == null) return baseAvg;
+  return (baseAvg * baseCount + my) / (baseCount + 1);
+}
+
+/// Number of ratings shown for a recipe (community base + this device's vote).
+int recipeRatingCount(String id) =>
+    _seed("rc_$id", 5, 90) + (globalRecipeMyRating.containsKey(id) ? 1 : 0);
+
+/// The star value (1..5) this device gave a recipe, or 0 if not rated.
+double myRecipeRating(String id) => globalRecipeMyRating[id] ?? 0;
+
+void setRecipeRating(String id, double value) {
+  globalRecipeMyRating[id] = value.clamp(1, 5).toDouble();
+}
+
+// ---- User-submitted recipes (admin approval queue) ----
+
+List<Map<String, dynamic>> pendingRecipes() => globalPendingRecipes;
+
+int pendingRecipeCount() => globalPendingRecipes.length;

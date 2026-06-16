@@ -7,6 +7,7 @@ import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/tracking_store.dart';
+import '../data/user_profile_store.dart';
 import '../screens/articles_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/recipe_detail_screen.dart';
@@ -69,6 +70,10 @@ class StorageService {
   static const String _kDeletedArticles = 'deleted_articles';
   static const String _kAdminConfig = 'admin_config';
   static const String _kIsAdmin = 'is_admin';
+  static const String _kRecipeRatings = 'recipe_ratings';
+  static const String _kPendingRecipes = 'pending_recipes';
+  static const String _kMyProfile = 'my_profile';
+  static const String _kKnownProfiles = 'known_profiles';
 
   SharedPreferences? _prefs;
   bool get isReady => _prefs != null;
@@ -176,6 +181,35 @@ class StorageService {
         globalRecipeTried
           ..clear()
           ..addAll(recipeTriedRaw);
+      }
+      final ratingsRaw = prefs.getString(_kRecipeRatings);
+      if (ratingsRaw != null) {
+        globalRecipeMyRating.clear();
+        (jsonDecode(ratingsRaw) as Map<String, dynamic>)
+            .forEach((k, v) => globalRecipeMyRating[k] = (v as num).toDouble());
+      }
+      final pendingRaw = prefs.getString(_kPendingRecipes);
+      if (pendingRaw != null) {
+        globalPendingRecipes
+          ..clear()
+          ..addAll((jsonDecode(pendingRaw) as List<dynamic>)
+              .map((e) => Map<String, dynamic>.from(e as Map)));
+      }
+
+      // User public profile + cache of known profiles (by username).
+      final myProfRaw = prefs.getString(_kMyProfile);
+      if (myProfRaw != null) {
+        globalMyProfile =
+            UserProfile.fromJson(jsonDecode(myProfRaw) as Map<String, dynamic>);
+        if (globalMyProfile!.username.isNotEmpty) {
+          globalKnownProfiles[globalMyProfile!.username] = globalMyProfile!.toJson();
+        }
+      }
+      final knownRaw = prefs.getString(_kKnownProfiles);
+      if (knownRaw != null) {
+        (jsonDecode(knownRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalKnownProfiles[k] = Map<String, dynamic>.from(v as Map);
+        });
       }
 
       final growthRaw = prefs.getString(_kGrowth);
@@ -389,8 +423,27 @@ class StorageService {
       await prefs.setString(_kRecipeComments, jsonEncode(globalRecipeComments));
       await prefs.setString(_kRecipeTriedPhotos, jsonEncode(globalRecipeTriedPhotos));
       await prefs.setStringList(_kRecipeTried, globalRecipeTried.toList());
+      await prefs.setString(_kRecipeRatings, jsonEncode(globalRecipeMyRating));
+      await prefs.setString(_kPendingRecipes, jsonEncode(globalPendingRecipes));
     } catch (e) {
       debugPrint('StorageService.saveRecipeSocial failed: $e');
+    }
+  }
+
+  /// Persists the current user's public profile + the known-profiles cache.
+  Future<void> saveMyProfile() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      if (globalMyProfile != null) {
+        await prefs.setString(_kMyProfile, jsonEncode(globalMyProfile!.toJson()));
+        if (globalMyProfile!.username.isNotEmpty) {
+          globalKnownProfiles[globalMyProfile!.username] = globalMyProfile!.toJson();
+        }
+      }
+      await prefs.setString(_kKnownProfiles, jsonEncode(globalKnownProfiles));
+    } catch (e) {
+      debugPrint('StorageService.saveMyProfile failed: $e');
     }
   }
 
@@ -505,6 +558,8 @@ class StorageService {
       await prefs.setString(_kRecipeComments, jsonEncode(globalRecipeComments));
       await prefs.setString(_kRecipeTriedPhotos, jsonEncode(globalRecipeTriedPhotos));
       await prefs.setStringList(_kRecipeTried, globalRecipeTried.toList());
+      await prefs.setString(_kRecipeRatings, jsonEncode(globalRecipeMyRating));
+      await prefs.setString(_kPendingRecipes, jsonEncode(globalPendingRecipes));
       await prefs.setStringList(
         _kTried,
         globalFoodsDatabase.where((f) => f.tried).map((f) => f.name).toList(),

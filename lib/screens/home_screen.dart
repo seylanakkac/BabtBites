@@ -6,6 +6,7 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/seasonal_database.dart';
 import '../data/tracking_store.dart';
+import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
@@ -17,6 +18,7 @@ import 'milestones_screen.dart';
 import 'premium_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'report_screen.dart';
+import 'user_profile_screen.dart';
 
 // Shared globals used across screens.
 final Map<String, int> globalCartQuantities = {};
@@ -682,6 +684,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
+                Positioned(
+                  top: 15,
+                  right: 15,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.star_rounded, size: 13, color: Color(0xFFFFB300)),
+                        const SizedBox(width: 3),
+                        Text(recipeRatingAverage(recipe.id).toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: _text)),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
             Padding(
@@ -1224,6 +1242,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Icon(Icons.favorite, size: 12, color: _danger.withOpacity(0.85)),
                         const SizedBox(width: 3),
                         Text("${recipeLikeBase(recipe.id) + (globalFavoriteRecipes.contains(recipe.id) ? 1 : 0)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                        const SizedBox(width: 10),
+                        const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFB300)),
+                        const SizedBox(width: 3),
+                        Text(recipeRatingAverage(recipe.id).toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: _text)),
                       ],
                     ),
                   ],
@@ -1448,6 +1470,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _showAddUserRecipeDialog,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text("Kendi Tarifini Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
           ),
         ),
@@ -1625,11 +1660,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  /// Moves the calendar by whole weeks (keeps the same weekday selected).
+  void _shiftSelectedWeek(int weeks) => _shiftSelectedDay(weeks * 7);
+
+  /// Header label showing the selected week's Monday–Sunday range, e.g.
+  /// "15 – 21 Haz 2026", "29 Haz – 5 Tem 2026" or "30 Ara 2025 – 5 Oca 2026".
+  String _weekRangeLabel(DateTime sel) {
+    const monthsTr = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+    final monday = sel.subtract(Duration(days: sel.weekday - 1));
+    final sunday = monday.add(const Duration(days: 6));
+    final sameYear = monday.year == sunday.year;
+    final sameMonth = sameYear && monday.month == sunday.month;
+    final startMonth = monthsTr[monday.month - 1];
+    final endMonth = monthsTr[sunday.month - 1];
+    if (sameMonth) {
+      return "${monday.day} – ${sunday.day} $startMonth ${sunday.year}";
+    } else if (sameYear) {
+      return "${monday.day} $startMonth – ${sunday.day} $endMonth ${sunday.year}";
+    }
+    return "${monday.day} $startMonth ${monday.year} – ${sunday.day} $endMonth ${sunday.year}";
+  }
+
   Widget _buildCalendarTab() {
     final weekDays = _getWeeklyDays();
     final sel = _selectedDate();
-    const monthsTr = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
-    final dateLabel = "${sel.day} ${monthsTr[sel.month - 1]} ${sel.year}";
+    final dateLabel = _weekRangeLabel(sel);
     final targets = _calculateBabyTargets();
     final planned = _calculatePlannedNutrition();
 
@@ -1645,9 +1700,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         // Date header with arrows
         Row(
           children: [
-            IconButton(icon: const Icon(Icons.chevron_left, color: _primary, size: 26), onPressed: () => _shiftSelectedDay(-1)),
-            Expanded(child: Center(child: Text(dateLabel, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)))),
-            IconButton(icon: const Icon(Icons.chevron_right, color: _primary, size: 26), onPressed: () => _shiftSelectedDay(1)),
+            IconButton(tooltip: "Önceki hafta", icon: const Icon(Icons.chevron_left, color: _primary, size: 26), onPressed: () => _shiftSelectedWeek(-1)),
+            Expanded(child: Center(child: Text(dateLabel, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)))),
+            IconButton(tooltip: "Sonraki hafta", icon: const Icon(Icons.chevron_right, color: _primary, size: 26), onPressed: () => _shiftSelectedWeek(1)),
           ],
         ),
         const SizedBox(height: 8),
@@ -2551,6 +2606,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
+        const SizedBox(height: 12),
+        // Social profile card
+        _buildSocialProfileCard(),
         const SizedBox(height: 20),
         // Active baby banner
         Container(
@@ -2688,6 +2746,419 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 8),
       ],
+    );
+  }
+
+  // ---- Social profile (public @username + linked accounts) ----
+  Widget _buildSocialProfileCard() {
+    final fallback = _parent?["name"] ?? "";
+    final uname = myUsername(fallbackName: fallback);
+    final socials = globalMyProfile?.socials ?? const <String, String>{};
+    final linkedCount = kSocialPlatforms.where((p) => (socials[p] ?? "").trim().isNotEmpty).length;
+    final hasProfile = globalMyProfile != null && globalMyProfile!.username.trim().isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(width: 48, height: 48, decoration: const BoxDecoration(gradient: LinearGradient(colors: [_primary, _danger]), shape: BoxShape.circle), child: const Center(child: Icon(Icons.alternate_email, color: Colors.white, size: 22))),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("@$uname", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+                    const SizedBox(height: 2),
+                    Text(hasProfile ? "$linkedCount sosyal hesap bağlı" : "Herkese açık profilini oluştur", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ),
+              IconButton(tooltip: "Düzenle", icon: const Icon(Icons.edit_outlined, color: _primary, size: 20), onPressed: _showEditProfileDialog),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => UserProfileScreen(author: uname))),
+              icon: const Icon(Icons.visibility_outlined, size: 16),
+              label: const Text("Profilimi Gör (herkese açık)", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 12)),
+              style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditProfileDialog() {
+    final fallback = _parent?["name"] ?? "";
+    final current = globalMyProfile ?? UserProfile(username: usernameSlug(fallback));
+    final usernameCtrl = TextEditingController(text: current.username.isEmpty ? usernameSlug(fallback) : current.username);
+    final ctrls = {for (final p in kSocialPlatforms) p: TextEditingController(text: current.socials[p] ?? "")};
+    const hints = {
+      "instagram": "kullanici_adi",
+      "tiktok": "kullanici_adi",
+      "youtube": "@kanal",
+      "facebook": "kullanici_adi",
+      "x": "kullanici_adi",
+      "whatsapp": "905xxxxxxxxx",
+    };
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (sheetCtx) => Padding(
+        padding: EdgeInsets.only(left: 20, right: 20, top: 18, bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              const Text("Sosyal Profilim", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 4),
+              const Text("Kullanıcı adın ve sosyal hesapların tariflerinde herkese görünür.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              const SizedBox(height: 16),
+              const Text("Kullanıcı Adı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 6),
+              TextField(
+                controller: usernameCtrl,
+                decoration: InputDecoration(
+                  prefixText: "@",
+                  hintText: "kullanici_adi",
+                  isDense: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text("Sosyal Hesaplar", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 8),
+              ...kSocialPlatforms.map((p) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TextField(
+                      controller: ctrls[p],
+                      decoration: InputDecoration(
+                        labelText: kSocialLabels[p],
+                        hintText: hints[p],
+                        isDense: true,
+                        prefixIcon: Icon(_socialIcon(p), size: 18, color: _light),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  )),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final uname = usernameSlug(usernameCtrl.text);
+                    final socials = <String, String>{};
+                    for (final p in kSocialPlatforms) {
+                      final v = ctrls[p]!.text.trim();
+                      if (v.isNotEmpty) socials[p] = v;
+                    }
+                    globalMyProfile = UserProfile(username: uname, socials: socials);
+                    StorageService.instance.saveMyProfile();
+                    Navigator.pop(sheetCtx);
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profilin kaydedildi.")));
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _socialIcon(String p) {
+    switch (p) {
+      case "instagram":
+        return Icons.camera_alt_outlined;
+      case "tiktok":
+        return Icons.music_note_outlined;
+      case "youtube":
+        return Icons.smart_display_outlined;
+      case "facebook":
+        return Icons.facebook_outlined;
+      case "x":
+        return Icons.alternate_email;
+      case "whatsapp":
+        return Icons.chat_outlined;
+      default:
+        return Icons.link;
+    }
+  }
+
+  // ---- User-submitted recipe form (goes to admin approval queue) ----
+  void _pickFoodForRecipe(void Function(String name) onPick) {
+    String q = "";
+    showDialog(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setD) {
+          final matches = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).take(60).toList();
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: const Text("Gıda Seç", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+            content: SizedBox(
+              width: 320,
+              height: 380,
+              child: Column(
+                children: [
+                  TextField(
+                    onChanged: (v) => setD(() => q = v.trim().toLowerCase()),
+                    decoration: InputDecoration(hintText: "Gıda ara...", isDense: true, prefixIcon: const Icon(Icons.search, size: 18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: matches.length,
+                      itemBuilder: (_, i) {
+                        final f = matches[i];
+                        return ListTile(
+                          dense: true,
+                          leading: Text(f.emoji, style: const TextStyle(fontSize: 20)),
+                          title: Text(f.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
+                          onTap: () {
+                            Navigator.pop(dctx);
+                            onPick(f.name);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showAddUserRecipeDialog() {
+    final nameCtrl = TextEditingController();
+    final prepCtrl = TextEditingController();
+    final kcalCtrl = TextEditingController();
+    final allergyCtrl = TextEditingController();
+    int startMonth = 6;
+    String? photo;
+    final units = recipeUnitOptions;
+    final defaultUnit = units.isNotEmpty ? units.first : "adet";
+    final ingredients = <Map<String, String>>[{"name": "", "qty": "", "unit": defaultUnit}];
+    final stepCtrls = <TextEditingController>[TextEditingController()];
+
+    InputDecoration dec(String label) => InputDecoration(labelText: label, isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16),
+          child: SizedBox(
+            height: MediaQuery.of(sheetCtx).size.height * 0.86,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+                const SizedBox(height: 14),
+                const Text("Kendi Tarifini Ekle 🍳", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+                const SizedBox(height: 2),
+                const Text("Tarifin yönetici onayından sonra herkese yayınlanır.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      PhotoPickerField(value: photo, label: "Tarif Fotoğrafı (isteğe bağlı)", height: 140, onChanged: (v) => setSheet(() => photo = v)),
+                      const SizedBox(height: 14),
+                      TextField(controller: nameCtrl, decoration: dec("Tarif adı")),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: TextField(controller: prepCtrl, decoration: dec("Süre (örn. 20 dk)"))),
+                          const SizedBox(width: 10),
+                          Expanded(child: TextField(controller: kcalCtrl, keyboardType: TextInputType.number, decoration: dec("kcal"))),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      InputDecorator(
+                        decoration: dec("Başlangıç ayı"),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: startMonth,
+                            isExpanded: true,
+                            items: const [6, 8, 9, 12].map((m) => DropdownMenuItem(value: m, child: Text("$m+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
+                            onChanged: (v) => setSheet(() => startMonth = v ?? 6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          const Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => setSheet(() => ingredients.add({"name": "", "qty": "", "unit": defaultUnit})),
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text("Ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      ...ingredients.asMap().entries.map((e) {
+                        final i = e.key;
+                        final row = e.value;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6))),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () => _pickFoodForRecipe((name) => setSheet(() => row["name"] = name)),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE2E2E6))),
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.search, size: 16, color: row["name"]!.isEmpty ? _light : _primary),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(row["name"]!.isEmpty ? "Gıda seç" : row["name"]!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: row["name"]!.isEmpty ? _light : _text))),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (ingredients.length > 1)
+                                    IconButton(icon: const Icon(Icons.remove_circle_outline, color: _danger, size: 20), onPressed: () => setSheet(() => ingredients.removeAt(i))),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: TextField(
+                                      keyboardType: TextInputType.number,
+                                      decoration: dec("Miktar"),
+                                      controller: TextEditingController(text: row["qty"])..selection = TextSelection.collapsed(offset: row["qty"]!.length),
+                                      onChanged: (v) => row["qty"] = v,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    flex: 3,
+                                    child: InputDecorator(
+                                      decoration: dec("Birim"),
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: units.contains(row["unit"]) ? row["unit"] : defaultUnit,
+                                          isExpanded: true,
+                                          items: units.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontFamily: 'Inter', fontSize: 13)))).toList(),
+                                          onChanged: (v) => setSheet(() => row["unit"] = v ?? defaultUnit),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Text("Hazırlanış Adımları", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => setSheet(() => stepCtrls.add(TextEditingController())),
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text("Adım", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                      ...stepCtrls.asMap().entries.map((e) {
+                        final i = e.key;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              CircleAvatar(radius: 13, backgroundColor: _primary.withOpacity(0.12), child: Text("${i + 1}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary))),
+                              const SizedBox(width: 8),
+                              Expanded(child: TextField(controller: stepCtrls[i], maxLines: null, decoration: dec("Adım ${i + 1}"))),
+                              if (stepCtrls.length > 1)
+                                IconButton(icon: const Icon(Icons.remove_circle_outline, color: _danger, size: 20), onPressed: () => setSheet(() => stepCtrls.removeAt(i))),
+                            ],
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      TextField(controller: allergyCtrl, decoration: dec("Alerji uyarısı (isteğe bağlı)")),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final name = nameCtrl.text.trim();
+                      final validIngs = ingredients.where((r) => r["name"]!.trim().isNotEmpty).toList();
+                      if (name.isEmpty || validIngs.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen tarif adı ve en az bir malzeme girin.")));
+                        return;
+                      }
+                      final stepsList = stepCtrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+                      final now = DateTime.now();
+                      final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+                      final author = myUsername(fallbackName: _parent?["name"] ?? "");
+                      globalPendingRecipes.add({
+                        "id": "user_${now.millisecondsSinceEpoch}",
+                        "name": name,
+                        "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
+                        "startingMonth": startMonth,
+                        "kcal": double.tryParse(kcalCtrl.text.trim()) ?? 0,
+                        "imageUrl": photo ?? "",
+                        "ingredients": validIngs.map((r) => r["name"]!).toList(),
+                        "ingredientAmounts": validIngs.map((r) => "${r["qty"]} ${r["unit"]}".trim()).toList(),
+                        "steps": stepsList,
+                        "allergyWarning": allergyCtrl.text.trim(),
+                        "author": author,
+                        "submittedBy": author,
+                        "date": date,
+                        "approved": false,
+                      });
+                      StorageService.instance.saveRecipeSocial();
+                      Navigator.pop(sheetCtx);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tarifin alındı. Yönetici onayından sonra yayınlanacak. 👍")));
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: const Text("Onaya Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

@@ -5,6 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
+import '../services/storage_service.dart';
+import 'user_profile_screen.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
@@ -49,6 +51,51 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       content: Text(_cookMode ? "Pişirme modu açık — ekran kapanmayacak 👨‍🍳" : "Pişirme modu kapatıldı."),
       duration: const Duration(seconds: 2),
     ));
+  }
+
+  /// Interactive 5-star rating + community average. Tapping a star records this
+  /// device's vote (persisted immediately) and updates the shown average.
+  Widget _buildRatingRow(Recipe recipe) {
+    const star = Color(0xFFFFB300);
+    const textColor = Color(0xFF2D2D3A);
+    const lightTextColor = Color(0xFFA8A8B3);
+    final my = myRecipeRating(recipe.id).round();
+    final avg = recipeRatingAverage(recipe.id);
+    final count = recipeRatingCount(recipe.id);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: star.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: star.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          for (int i = 1; i <= 5; i++)
+            GestureDetector(
+              onTap: () {
+                setState(() => setRecipeRating(recipe.id, i.toDouble()));
+                StorageService.instance.saveRecipeSocial();
+                widget.onStateChanged?.call();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text("Puanın: $i ★ — teşekkürler!"),
+                  duration: const Duration(seconds: 1),
+                ));
+              },
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(i <= my ? Icons.star_rounded : Icons.star_outline_rounded, size: 28, color: star),
+              ),
+            ),
+          const Spacer(),
+          const Icon(Icons.star_rounded, size: 18, color: star),
+          const SizedBox(width: 3),
+          Text(avg.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
+          const SizedBox(width: 4),
+          Text("($count)", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -302,15 +349,38 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ),
                         const SizedBox(height: 6),
                         
-                        // Author
-                        Text(
-                          "Hazırlayan: ${recipe.author} • ${recipe.startingMonth}+ Ay",
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            color: lightTextColor,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        // Author (tappable -> public profile)
+                        Row(
+                          children: [
+                            const Text(
+                              "Hazırlayan: ",
+                              style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor, fontWeight: FontWeight.w500),
+                            ),
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => UserProfileScreen(author: recipe.author)),
+                                ),
+                                child: Text(
+                                  "@${recipe.author}",
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    color: primaryColor,
+                                    fontWeight: FontWeight.w800,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: primaryColor,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              " • ${recipe.startingMonth}+ Ay",
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor, fontWeight: FontWeight.w500),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 12),
                         // Views + likes + share
@@ -331,6 +401,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             _shareBtn(FontAwesomeIcons.whatsapp, const Color(0xFF25D366), () => _shareRecipe("whatsapp")),
                           ],
                         ),
+                        const SizedBox(height: 12),
+                        // Star rating (1..5) — taps record this user's vote.
+                        _buildRatingRow(recipe),
                         const SizedBox(height: 14),
                         // Like + I-tried buttons
                         Row(
