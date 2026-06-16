@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -12,6 +14,14 @@ import 'services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Connect to Firebase (account + cloud sync backend). Wrapped so a transient
+  // init failure never blocks app startup — local storage still works offline.
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('Firebase initialized: ${Firebase.app().options.projectId}');
+  } catch (e) {
+    debugPrint('Firebase init failed (app continues in local mode): $e');
+  }
   // Restore persisted user data (cart, weekly plan, food flags) before the
   // first frame so screens render with the user's saved state.
   await StorageService.instance.init();
