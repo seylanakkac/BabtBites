@@ -342,7 +342,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(child: body),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Persistent ad banner — stays pinned while the page scrolls
+            // (hidden for BabyBites+ members).
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+              child: AdBanner(onUpgrade: _openPremium, margin: EdgeInsets.zero),
+            ),
+            Expanded(child: body),
+          ],
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
@@ -520,10 +532,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 itemCount: gridFoods.length,
                 itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
-        const SizedBox(height: 12),
-        // Ad slot (hidden for BabyBites+ members)
-        AdBanner(onUpgrade: _openPremium),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
         // Günün Tarifleri header
         Row(
           children: [
@@ -1506,12 +1515,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: AdBanner(onUpgrade: _openPremium),
-          ),
-        ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -1806,8 +1809,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 18),
         _buildDailyTrackingSection(),
-        const SizedBox(height: 12),
-        AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 30),
       ],
     );

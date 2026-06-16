@@ -467,6 +467,16 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
       ),
       body: Column(
         children: [
+          // Persistent ad banner (pinned at top; hidden for premium).
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+            child: AdBanner(
+              margin: EdgeInsets.zero,
+              onUpgrade: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+              ),
+            ),
+          ),
           // Search Input
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -617,15 +627,8 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     physics: const BouncingScrollPhysics(),
-                    itemCount: filteredArticles.length + 1,
+                    itemCount: filteredArticles.length,
                     itemBuilder: (context, index) {
-                      if (index == filteredArticles.length) {
-                        return AdBanner(
-                          onUpgrade: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
-                          ),
-                        );
-                      }
                       final article = filteredArticles[index];
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
