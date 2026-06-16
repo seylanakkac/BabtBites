@@ -342,19 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: _bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Persistent ad banner — stays pinned while the page scrolls
-            // (hidden for BabyBites+ members).
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-              child: AdBanner(onUpgrade: _openPremium, margin: EdgeInsets.zero),
-            ),
-            Expanded(child: body),
-          ],
-        ),
-      ),
+      body: SafeArea(child: body),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (i) => setState(() => _currentIndex = i),
@@ -1510,8 +1498,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate(
-                (context, index) => _recipeListItem(filteredRecipes[index]),
-                childCount: filteredRecipes.length,
+                (context, index) => _recipeOrAd(index, filteredRecipes),
+                childCount: _withAdsCount(filteredRecipes.length),
               ),
             ),
           ),
@@ -3237,6 +3225,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _openPremium() {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)));
+  }
+
+  /// Combined item count when one ad banner is inserted after every 3 cards.
+  int _withAdsCount(int n) => n + (n ~/ 3);
+
+  /// Maps a combined index to either a recipe card or an ad banner — one ad
+  /// after every 3 recipe cards (repeating).
+  Widget _recipeOrAd(int index, List<Recipe> recipes) {
+    final full = recipes.length ~/ 3;
+    if (index < full * 4) {
+      final within = index % 4;
+      if (within == 3) return AdBanner(onUpgrade: _openPremium);
+      return _recipeListItem(recipes[(index ~/ 4) * 3 + within]);
+    }
+    return _recipeListItem(recipes[full * 3 + (index - full * 4)]);
   }
 
   void _showAchievements() {

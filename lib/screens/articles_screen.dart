@@ -467,16 +467,6 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
       ),
       body: Column(
         children: [
-          // Persistent ad banner (pinned at top; hidden for premium).
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-            child: AdBanner(
-              margin: EdgeInsets.zero,
-              onUpgrade: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
-              ),
-            ),
-          ),
           // Search Input
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 12.0),
@@ -627,9 +617,25 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     physics: const BouncingScrollPhysics(),
-                    itemCount: filteredArticles.length,
+                    itemCount: filteredArticles.length + (filteredArticles.length ~/ 3),
                     itemBuilder: (context, index) {
-                      final article = filteredArticles[index];
+                      // One ad banner after every 3 article cards (repeating).
+                      final full = filteredArticles.length ~/ 3;
+                      int artIdx;
+                      if (index < full * 4) {
+                        final within = index % 4;
+                        if (within == 3) {
+                          return AdBanner(
+                            onUpgrade: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+                            ),
+                          );
+                        }
+                        artIdx = (index ~/ 4) * 3 + within;
+                      } else {
+                        artIdx = full * 3 + (index - full * 4);
+                      }
+                      final article = filteredArticles[artIdx];
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: GestureDetector(
