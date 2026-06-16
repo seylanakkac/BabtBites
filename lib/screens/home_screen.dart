@@ -10,6 +10,7 @@ import '../data/seasonal_database.dart';
 import '../data/tracking_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -519,7 +520,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 itemCount: gridFoods.length,
                 itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+        // Ad slot (hidden for BabyBites+ members)
+        AdBanner(onUpgrade: _openPremium),
+        const SizedBox(height: 12),
         // Günün Tarifleri header
         Row(
           children: [
@@ -1502,6 +1506,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: AdBanner(onUpgrade: _openPremium),
+          ),
+        ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
       ],
     );
@@ -1796,6 +1806,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 18),
         _buildDailyTrackingSection(),
+        const SizedBox(height: 12),
+        AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 30),
       ],
     );
@@ -3218,6 +3230,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _extrasChanged() {
     setState(() {});
     _persist();
+  }
+
+  // Opens BabyBites+ (used by ad banners' "Reklamsız" upsell).
+  void _openPremium() {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)));
   }
 
   void _showAchievements() {

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../data/admin_store.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
+import 'premium_screen.dart';
 
 class Article {
   final String id;
@@ -615,8 +617,15 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     physics: const BouncingScrollPhysics(),
-                    itemCount: filteredArticles.length,
+                    itemCount: filteredArticles.length + 1,
                     itemBuilder: (context, index) {
+                      if (index == filteredArticles.length) {
+                        return AdBanner(
+                          onUpgrade: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+                          ),
+                        );
+                      }
                       final article = filteredArticles[index];
                       return MouseRegion(
                         cursor: SystemMouseCursors.click,
