@@ -520,7 +520,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 itemCount: gridFoods.length,
                 itemBuilder: (context, index) => _homeFoodCard(gridFoods[index]),
               ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
+        // Ad banner (hidden for BabyBites+ members)
+        AdBanner(onUpgrade: _openPremium),
+        const SizedBox(height: 14),
         // Günün Tarifleri header
         Row(
           children: [
@@ -1771,6 +1774,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(height: 16),
           ];
         }()),
+        // Ad banner above the meal plan (hidden for BabyBites+ members)
+        AdBanner(onUpgrade: _openPremium),
+        const SizedBox(height: 8),
         // Öğün Planı
         Row(
           children: [
