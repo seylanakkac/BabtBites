@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/storage_service.dart';
 import 'login_screen.dart';
+import 'home_screen.dart';
+import 'onboarding_screen.dart';
+import 'admin_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,20 +46,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Start the animation
     _controller.forward();
 
-    // Redirect to Login Screen after 3.8 seconds
+    // After the splash, route based on the Firebase auth session: a signed-in
+    // user skips login (admin → panel, returning user with babies → home,
+    // otherwise → onboarding); no session → login.
     Timer(const Duration(milliseconds: 3800), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 600),
-          ),
-        );
-      }
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => _initialScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 600),
+        ),
+      );
     });
+  }
+
+  Widget _initialScreen() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const LoginScreen();
+    final isAdmin = (user.email ?? "").trim().toLowerCase() == "admin@babybites.com";
+    setAdminMode(isAdmin);
+    StorageService.instance.saveIsAdmin(isAdmin);
+    if (isAdmin) return const AdminScreen();
+    final babies = StorageService.instance.loadBabies();
+    if (babies == null || babies.isEmpty) return const OnboardingScreen();
+    return const HomeScreen();
   }
 
   @override

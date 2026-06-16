@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../data/extras_store.dart';
@@ -3174,12 +3175,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           TextButton(onPressed: () => Navigator.pop(dctx), child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               _persist();
               setAdminMode(false);
               StorageService.instance.saveIsAdmin(false);
+              final nav = Navigator.of(context);
               Navigator.pop(dctx);
-              Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+              try {
+                await FirebaseAuth.instance.signOut();
+              } catch (_) {}
+              nav.pushNamedAndRemoveUntil('/login', (route) => false);
             },
             style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),

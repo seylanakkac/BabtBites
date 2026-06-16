@@ -1,5 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/storage_service.dart';
 
@@ -27,68 +28,139 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscureConfirmPassword = true;
   bool _acceptTerms = false;
 
-  void _submit() {
+  static const String _adminEmail = "admin@babybites.com";
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // Admin account unlocks the admin panel (no backend — fixed credentials).
-    final isAdmin = _isLogin &&
-        _emailController.text.trim().toLowerCase() == "admin@babybites.com" &&
-        _passwordController.text == "admin1234";
-    setAdminMode(isAdmin);
-    StorageService.instance.saveIsAdmin(isAdmin);
-
-    // On registration, persist the parent identity (name + relationship).
-    if (!_isLogin) {
-      StorageService.instance.saveParent(
-        _parentNameController.text.trim(),
-        _parentRelationship,
-      );
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    // Simulate loading delay
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Navigate based on admin / Login / Register mode
-        if (globalIsAdmin) {
-          Navigator.of(context).pushReplacementNamed('/admin');
-        } else if (_isLogin) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/onboarding');
-        }
+    setState(() => _isLoading = true);
+    final email = _emailController.text.trim();
+    final pass = _passwordController.text;
+    try {
+      bool isNewUser = false;
+      if (_isLogin) {
+        await FirebaseAuth.instance
+            .signInWithEmailAndPassword(email: email, password: pass);
+      } else {
+        final cred = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: pass);
+        await cred.user?.updateDisplayName(_parentNameController.text.trim());
+        StorageService.instance.saveParent(
+          _parentNameController.text.trim(),
+          _parentRelationship,
+        );
+        isNewUser = true;
       }
-    });
+      _applyAdmin(email);
+      if (!mounted) return;
+      _routeAfterAuth(isNewUser);
+    } on FirebaseAuthException catch (e) {
+      if (mounted) _showError(_authErrorTr(e.code));
+    } catch (_) {
+      if (mounted) _showError("Bir hata oluştu. Lütfen tekrar deneyin.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
-  void _socialLogin(String platform) {
-    setState(() {
-      _isLoading = true;
-    });
-
-    Future.delayed(const Duration(milliseconds: 1200), () {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Navigate based on admin / Login / Register mode
-        if (globalIsAdmin) {
-          Navigator.of(context).pushReplacementNamed('/admin');
-        } else if (_isLogin) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        } else {
-          Navigator.of(context).pushReplacementNamed('/onboarding');
-        }
+  Future<void> _socialLogin(String platform) async {
+    if (platform == "Apple") {
+      _showError("Apple ile giriş yakında (web yapılandırması gerekiyor).");
+      return;
+    }
+    setState(() => _isLoading = true);
+    try {
+      final cred =
+          await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      final email = cred.user?.email ?? "";
+      final isNew = cred.additionalUserInfo?.isNewUser ?? false;
+      if (isNew) {
+        StorageService.instance
+            .saveParent(cred.user?.displayName ?? "", "Anne");
       }
-    });
+      _applyAdmin(email);
+      if (!mounted) return;
+      _routeAfterAuth(isNew);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == "popup-closed-by-user" ||
+          e.code == "cancelled-popup-request") {
+        // user dismissed the popup — no error toast.
+      } else if (mounted) {
+        _showError(_authErrorTr(e.code));
+      }
+    } catch (_) {
+      if (mounted) _showError("Google ile giriş yapılamadı.");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _applyAdmin(String email) {
+    final isAdmin = email.trim().toLowerCase() == _adminEmail;
+    setAdminMode(isAdmin);
+    StorageService.instance.saveIsAdmin(isAdmin);
+  }
+
+  void _routeAfterAuth(bool isNewUser) {
+    if (globalIsAdmin) {
+      Navigator.of(context).pushReplacementNamed('/admin');
+      return;
+    }
+    final babies = StorageService.instance.loadBabies();
+    if (isNewUser || babies == null || babies.isEmpty) {
+      Navigator.of(context).pushReplacementNamed('/onboarding');
+    } else {
+      Navigator.of(context).pushReplacementNamed('/home');
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      _showError("Önce e-posta adresinizi girin.");
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Şifre sıfırlama e-postası gönderildi.")),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) _showError(_authErrorTr(e.code));
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: const Color(0xFFFF4D6A)),
+    );
+  }
+
+  String _authErrorTr(String code) {
+    switch (code) {
+      case 'invalid-email':
+        return "Geçersiz e-posta adresi.";
+      case 'user-disabled':
+        return "Bu hesap devre dışı bırakılmış.";
+      case 'user-not-found':
+        return "Bu e-posta ile kayıtlı hesap yok.";
+      case 'wrong-password':
+      case 'invalid-credential':
+        return "E-posta veya şifre hatalı.";
+      case 'email-already-in-use':
+        return "Bu e-posta zaten kayıtlı. Giriş yapın.";
+      case 'weak-password':
+        return "Şifre çok zayıf (en az 6 karakter).";
+      case 'operation-not-allowed':
+        return "Bu giriş yöntemi etkin değil.";
+      case 'too-many-requests':
+        return "Çok fazla deneme. Lütfen sonra tekrar deneyin.";
+      case 'network-request-failed':
+        return "İnternet bağlantısı yok.";
+      default:
+        return "Giriş başarısız ($code).";
+    }
   }
 
   Future<void> _openTermsUrl() async {
@@ -457,11 +529,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
                         child: TextButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Şifre sıfırlama e-postası gönderildi.")),
-                            );
-                          },
+                          onPressed: _isLoading ? null : _resetPassword,
                           child: const Text(
                             "Şifremi Unuttum",
                             style: TextStyle(

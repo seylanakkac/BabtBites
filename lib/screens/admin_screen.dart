@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../data/admin_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -254,9 +255,13 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  void _logout() {
+  void _logout() async {
     setAdminMode(false);
     StorageService.instance.saveIsAdmin(false);
+    try {
+      await FirebaseAuth.instance.signOut();
+    } catch (_) {}
+    if (!mounted) return;
     Navigator.of(context).pushReplacementNamed('/login');
   }
 
