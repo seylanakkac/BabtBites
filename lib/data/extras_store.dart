@@ -24,6 +24,15 @@ bool globalIsPremium = false;
 /// ISO date the free trial started (or null).
 String? globalTrialStart;
 
+/// babyId -> list of uploaded report/document files (e.g. e-Nabız PDFs).
+/// Item shape: { "name": String, "date": "yyyy-MM-dd", "dataUri": "data:application/pdf;base64,..." }
+/// Stored LOCALLY only for now (files are large); moves to Firebase Storage in Faz 4.
+final Map<String, List<Map<String, dynamic>>> globalReportFiles = {};
+
+/// Uploaded documents for a baby (mutable list, created if absent).
+List<Map<String, dynamic>> reportFilesFor(String babyId) =>
+    globalReportFiles.putIfAbsent(babyId, () => []);
+
 /// Temporary ad-free window earned by watching a rewarded ad (ISO8601), or null.
 /// While active (and the user isn't premium), ad banners are hidden.
 String? globalAdFreeUntil;

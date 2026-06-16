@@ -1743,6 +1743,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 20),
+        // Daily mood + note
+        _buildMoodNoteCard(),
+        const SizedBox(height: 20),
         // Nutrition rings
         Container(
           padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
@@ -1810,6 +1813,76 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _buildDailyTrackingSection(),
         const SizedBox(height: 30),
       ],
+    );
+  }
+
+  Widget _buildMoodNoteCard() {
+    final log = dailyLog(_activeBabyId, _selectedDay);
+    final mood = log["mood"]?.toString() ?? "";
+    const moods = [
+      ["uzgun", "😢", "Üzgün"],
+      ["normal", "😐", "Normal"],
+      ["mutlu", "😄", "Mutlu"],
+    ];
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Bebeğin bugünkü hali 🍼", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 12),
+          Row(
+            children: moods.map((m) {
+              final selected = mood == m[0];
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => log["mood"] = selected ? "" : m[0]);
+                    _persist();
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      color: selected ? _primary.withOpacity(0.12) : _bg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: selected ? _primary : const Color(0xFFE2E2E6).withOpacity(0.6), width: selected ? 1.5 : 1),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(m[1], style: const TextStyle(fontSize: 28)),
+                        const SizedBox(height: 4),
+                        Text(m[2], style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: selected ? _primary : _light)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            key: ValueKey('note_$_selectedDay'),
+            controller: TextEditingController(text: log["note"]?.toString() ?? "")
+              ..selection = TextSelection.collapsed(offset: (log["note"]?.toString() ?? "").length),
+            maxLines: 3,
+            minLines: 2,
+            style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text),
+            onChanged: (v) => log["note"] = v,
+            onEditingComplete: () { FocusScope.of(context).unfocus(); _persist(); },
+            onTapOutside: (_) { FocusScope.of(context).unfocus(); _persist(); },
+            decoration: InputDecoration(
+              hintText: "Bugüne dair bir not... (örn. yeni diş çıktı, huysuzdu, iyi uyudu)",
+              hintStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
+              filled: true,
+              fillColor: _bg,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.all(12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

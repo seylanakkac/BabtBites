@@ -75,6 +75,7 @@ class StorageService {
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
   static const String _kAdFreeUntil = 'ad_free_until';
+  static const String _kReportFiles = 'report_files';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
   // (Catalog/admin/social keys are intentionally excluded — those become the
@@ -251,6 +252,15 @@ class StorageService {
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
       globalAdFreeUntil = prefs.getString(_kAdFreeUntil);
+      final reportFilesRaw = prefs.getString(_kReportFiles);
+      if (reportFilesRaw != null) {
+        globalReportFiles.clear();
+        (jsonDecode(reportFilesRaw) as Map<String, dynamic>).forEach((babyId, list) {
+          globalReportFiles[babyId] = (list as List)
+              .map((e) => Map<String, dynamic>.from(e as Map))
+              .toList();
+        });
+      }
 
       final tried = prefs.getStringList(_kTried)?.toSet();
       final favorites = prefs.getStringList(_kFavorites)?.toSet();
@@ -684,6 +694,18 @@ class StorageService {
       debugPrint('StorageService.saveExtras failed: $e');
     }
     _triggerCloud();
+  }
+
+  /// Persists uploaded report documents (e-Nabız PDFs etc.). Local-only for now
+  /// (files are large; they move to Firebase Storage in Faz 4).
+  Future<void> saveReportFiles() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      await prefs.setString(_kReportFiles, jsonEncode(globalReportFiles));
+    } catch (e) {
+      debugPrint('StorageService.saveReportFiles failed: $e');
+    }
   }
 
   /// Clears this device's LOCAL copy of the user's private data (on sign-out)

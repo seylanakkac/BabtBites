@@ -49,6 +49,8 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
       "kakaList": <Map<String, dynamic>>[],
       "su": 0,
       "taken": <String, dynamic>{},
+      "mood": "", // "uzgun" | "normal" | "mutlu" — baby's general mood that day
+      "note": "", // mother's free-text note for the day
     };
     forBaby[dateKey] = log;
     return log;
@@ -68,7 +70,40 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
   }
   log["su"] = (log["su"] as num?)?.toInt() ?? 0;
   log["taken"] ??= <String, dynamic>{};
+  log["mood"] ??= "";
+  log["note"] ??= "";
   return log;
+}
+
+/// Days (newest first) that have a recorded mood or note, for the report.
+/// Returns a list of { "date", "mood", "note" }.
+List<Map<String, String>> moodNoteHistory(String babyId) {
+  final forBaby = globalDailyLogs[babyId];
+  if (forBaby == null) return [];
+  final out = <Map<String, String>>[];
+  forBaby.forEach((dateKey, log) {
+    final m = (log as Map)["mood"]?.toString() ?? "";
+    final n = log["note"]?.toString() ?? "";
+    if (m.isNotEmpty || n.trim().isNotEmpty) {
+      out.add({"date": dateKey, "mood": m, "note": n});
+    }
+  });
+  out.sort((a, b) => b["date"]!.compareTo(a["date"]!));
+  return out;
+}
+
+/// Emoji for a stored mood key.
+String moodEmoji(String mood) {
+  switch (mood) {
+    case "uzgun":
+      return "😢";
+    case "normal":
+      return "😐";
+    case "mutlu":
+      return "😄";
+    default:
+      return "";
+  }
 }
 
 /// Returns the mutable state map for a (baby, food), creating it if absent.
