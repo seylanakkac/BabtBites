@@ -21,7 +21,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
     ["📈", "Büyüme grafiği & WHO persentil", "Boy/kilo gelişimini referans bantlarıyla izle."],
     ["📄", "Doktora özel gelişim raporu", "Denenen gıdalar, reaksiyonlar ve gelişim özetini paylaş."],
     ["🗓️", "Otomatik haftalık menü", "Yaşa ve denenenlere göre tek dokunuşla menü."],
-    ["☁️", "Bulut yedek & çoklu cihaz", "Verilerin güvende; her cihazdan eriş."],
+    ["☁️", "Sınırsız yedek & geçmiş", "Tüm geçmişin bulutta. Ücretsizde son 2 ay görünür, premium'da sınırsız."],
     ["🚫", "Reklamsız deneyim", "Kesintisiz, sade kullanım."],
     ["👶", "Sınırsız bebek profili", "Tüm çocuklarını tek hesapta yönet."],
   ];

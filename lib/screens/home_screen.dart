@@ -1818,13 +1818,47 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 18),
-        _buildDailyTrackingSection(),
+        if (!_isDayLocked(_selectedDay)) _buildDailyTrackingSection(),
         const SizedBox(height: 30),
       ],
     );
   }
 
+  /// Free users keep the last 60 days of dated records; older days are hidden
+  /// (not deleted) behind a BabyBites+ upsell. Premium = unlimited history.
+  bool _isDayLocked(String dayKey) {
+    if (globalIsPremium) return false;
+    final d = DateTime.tryParse(dayKey);
+    if (d == null) return false;
+    return DateTime.now().difference(d).inDays > 60;
+  }
+
+  Widget _historyLockedCard() => Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(color: _primary.withOpacity(0.06), borderRadius: BorderRadius.circular(16), border: Border.all(color: _primary.withOpacity(0.25))),
+        child: Column(
+          children: [
+            const Icon(Icons.history, color: _primary, size: 30),
+            const SizedBox(height: 8),
+            const Text("Bu tarih 2 aydan eski", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+            const SizedBox(height: 4),
+            const Text("Ücretsiz sürümde son 2 ayın kayıtları görünür. Tüm geçmişe BabyBites+ ile eriş — verilerin silinmez.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.4)),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _openPremium,
+                icon: const Icon(Icons.workspace_premium, size: 18),
+                label: const Text("Sınırsız Geçmiş — BabyBites+", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ),
+          ],
+        ),
+      );
+
   Widget _buildMoodNoteCard() {
+    if (_isDayLocked(_selectedDay)) return _historyLockedCard();
     final log = dailyLog(_activeBabyId, _selectedDay);
     final mood = log["mood"]?.toString() ?? "";
     const moods = [
