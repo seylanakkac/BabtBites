@@ -23,3 +23,15 @@ bool globalIsPremium = false;
 
 /// ISO date the free trial started (or null).
 String? globalTrialStart;
+
+/// Temporary ad-free window earned by watching a rewarded ad (ISO8601), or null.
+/// While active (and the user isn't premium), ad banners are hidden.
+String? globalAdFreeUntil;
+
+/// True if a rewarded ad-free window is currently active.
+bool adFreeActive() {
+  final s = globalAdFreeUntil;
+  if (s == null) return false;
+  final until = DateTime.tryParse(s);
+  return until != null && until.isAfter(DateTime.now());
+}

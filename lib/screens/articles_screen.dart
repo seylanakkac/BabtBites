@@ -3,6 +3,7 @@ import '../data/admin_store.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/sponsored_badge.dart';
 import 'premium_screen.dart';
 
 class Article {
@@ -14,6 +15,8 @@ class Article {
   final String content;
   final String emoji;
   final String imageUrl; // optional photo (base64 data URI / URL); empty = use emoji
+  final bool sponsored; // admin-flagged sponsored content
+  final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
 
   const Article({
     required this.id,
@@ -24,6 +27,8 @@ class Article {
     required this.content,
     required this.emoji,
     this.imageUrl = "",
+    this.sponsored = false,
+    this.sponsorLabel = "",
   });
 
   Map<String, dynamic> toJson() => {
@@ -35,6 +40,8 @@ class Article {
         "content": content,
         "emoji": emoji,
         "imageUrl": imageUrl,
+        "sponsored": sponsored,
+        "sponsorLabel": sponsorLabel,
       };
 
   factory Article.fromJson(Map<String, dynamic> j) => Article(
@@ -46,6 +53,8 @@ class Article {
         content: j["content"]?.toString() ?? "",
         emoji: j["emoji"]?.toString() ?? "📝",
         imageUrl: j["imageUrl"]?.toString() ?? "",
+        sponsored: j["sponsored"] == true,
+        sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
       );
 }
 
@@ -712,6 +721,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                                           ),
                                         ],
                                       ),
+                                      if (article.sponsored) ...[
+                                        const SizedBox(height: 6),
+                                        SponsoredBadge(label: article.sponsorLabel),
+                                      ],
                                       const SizedBox(height: 6),
                                       Text(
                                         article.title,
@@ -795,6 +808,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (article.sponsored) ...[
+                  SponsoredBadge(label: article.sponsorLabel),
+                  const SizedBox(height: 12),
+                ],
                 // Cover photo (if provided)
                 if (isPhotoUrl(article.imageUrl)) ...[
                   ClipRRect(

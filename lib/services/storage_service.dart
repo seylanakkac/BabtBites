@@ -74,6 +74,7 @@ class StorageService {
   static const String _kPendingRecipes = 'pending_recipes';
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
+  static const String _kAdFreeUntil = 'ad_free_until';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
   // (Catalog/admin/social keys are intentionally excluded — those become the
@@ -81,7 +82,7 @@ class StorageService {
   static const List<String> _userStringKeys = [
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
-    _kSupplements, _kMyProfile, _kRecipeRatings,
+    _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
@@ -249,6 +250,7 @@ class StorageService {
       }
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
+      globalAdFreeUntil = prefs.getString(_kAdFreeUntil);
 
       final tried = prefs.getStringList(_kTried)?.toSet();
       final favorites = prefs.getStringList(_kFavorites)?.toSet();
@@ -650,8 +652,36 @@ class StorageService {
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setBool(_kPremium, globalIsPremium);
       if (globalTrialStart != null) await prefs.setString(_kTrialStart, globalTrialStart!);
+      if (globalAdFreeUntil != null) {
+        await prefs.setString(_kAdFreeUntil, globalAdFreeUntil!);
+      } else {
+        await prefs.remove(_kAdFreeUntil);
+      }
     } catch (e) {
       debugPrint('StorageService.saveAll failed: $e');
+    }
+    _triggerCloud();
+  }
+
+  /// Persists just the premium/trial/ad-free flags (used by the BabyBites+ and
+  /// rewarded-ad flows, which don't have the baby list handy). Syncs to cloud.
+  Future<void> saveExtras() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      await prefs.setBool(_kPremium, globalIsPremium);
+      if (globalTrialStart != null) {
+        await prefs.setString(_kTrialStart, globalTrialStart!);
+      } else {
+        await prefs.remove(_kTrialStart);
+      }
+      if (globalAdFreeUntil != null) {
+        await prefs.setString(_kAdFreeUntil, globalAdFreeUntil!);
+      } else {
+        await prefs.remove(_kAdFreeUntil);
+      }
+    } catch (e) {
+      debugPrint('StorageService.saveExtras failed: $e');
     }
     _triggerCloud();
   }
@@ -682,6 +712,7 @@ class StorageService {
     globalMilestonesDone.clear();
     globalIsPremium = false;
     globalTrialStart = null;
+    globalAdFreeUntil = null;
     for (final f in globalFoodsDatabase) {
       f.tried = false;
       f.isFavorite = false;

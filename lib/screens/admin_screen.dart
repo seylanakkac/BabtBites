@@ -607,6 +607,8 @@ class _AdminScreenState extends State<AdminScreen> {
     final author = TextEditingController(text: existing?["author"]?.toString() ?? "babykitchenwithege");
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
+    final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
+    bool sponsored = existing?["sponsored"] == true;
 
     // Structured ingredient list: name (from foods or custom) + quantity + unit.
     final ingredients = <String>[];
@@ -726,6 +728,15 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 8),
                   _field(steps, "Adımlar (her satır)", maxLines: 5),
                   _field(warn, "Alerji uyarısı"),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                    subtitle: const Text("Kartlarda ve detayda 'Sponsorlu' etiketi gösterilir", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                    value: sponsored,
+                    activeColor: _primary,
+                    onChanged: (v) => setD(() => sponsored = v),
+                  ),
+                  if (sponsored) _field(sponsorLabel, "Sponsor adı (marka)", hint: "ör. MarkaAdı"),
                 ],
               ),
             ),
@@ -755,6 +766,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   "steps": steps.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   "allergyWarning": warn.text.trim(),
                   "author": author.text.trim().isEmpty ? "babykitchenwithege" : author.text.trim(),
+                  "sponsored": sponsored,
+                  "sponsorLabel": sponsorLabel.text.trim(),
                 });
                 _persistAll();
                 Navigator.pop(ctx);
@@ -871,6 +884,8 @@ class _AdminScreenState extends State<AdminScreen> {
     final readTime = TextEditingController(text: existing?.readTime ?? "3 dk");
     final summary = TextEditingController(text: existing?.summary ?? "");
     final content = TextEditingController(text: existing?.content ?? "");
+    final sponsorLabel = TextEditingController(text: existing?.sponsorLabel ?? "");
+    bool sponsored = existing?.sponsored ?? false;
 
     showDialog(
       context: context,
@@ -892,6 +907,15 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(readTime, "Okuma süresi", hint: "3 dk"),
                   _field(summary, "Özet", maxLines: 2),
                   _field(content, "İçerik", maxLines: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                    subtitle: const Text("Kartlarda ve detayda 'Sponsorlu' etiketi gösterilir", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                    value: sponsored,
+                    activeColor: _primary,
+                    onChanged: (v) => setD(() => sponsored = v),
+                  ),
+                  if (sponsored) _field(sponsorLabel, "Sponsor adı (marka)", hint: "ör. MarkaAdı"),
                 ],
               ),
             ),
@@ -914,6 +938,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   content: content.text.trim(),
                   emoji: existing?.emoji ?? "📝",
                   imageUrl: image,
+                  sponsored: sponsored,
+                  sponsorLabel: sponsorLabel.text.trim(),
                 ));
                 _persistAll();
                 Navigator.pop(ctx);

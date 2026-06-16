@@ -10,6 +10,7 @@ import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
+import '../widgets/sponsored_badge.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
 import 'home_screen.dart';
@@ -404,6 +405,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           ],
                         ),
                         const SizedBox(height: 12),
+                        if (recipe.sponsored) ...[
+                          Align(alignment: Alignment.centerLeft, child: SponsoredBadge(label: recipe.sponsorLabel)),
+                          const SizedBox(height: 12),
+                        ],
                         // Star rating (1..5) — taps record this user's vote.
                         _buildRatingRow(recipe),
                         const SizedBox(height: 14),

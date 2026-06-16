@@ -74,6 +74,8 @@ class Recipe {
   final List<String> steps;
   final String allergyWarning;
   final String author; // recipe creator shown as "Hazırlayan: ..."
+  final bool sponsored; // admin-flagged sponsored content
+  final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
 
   Recipe({
     required this.id,
@@ -87,6 +89,8 @@ class Recipe {
     required this.steps,
     required this.allergyWarning,
     this.author = "babykitchenwithege",
+    this.sponsored = false,
+    this.sponsorLabel = "",
   });
 
   Map<String, dynamic> toJson() => {
@@ -101,6 +105,8 @@ class Recipe {
         "steps": steps,
         "allergyWarning": allergyWarning,
         "author": author,
+        "sponsored": sponsored,
+        "sponsorLabel": sponsorLabel,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -115,6 +121,8 @@ class Recipe {
         steps: (j["steps"] as List?)?.map((e) => e.toString()).toList() ?? [],
         allergyWarning: j["allergyWarning"]?.toString() ?? "",
         author: j["author"]?.toString() ?? "babykitchenwithege",
+        sponsored: j["sponsored"] == true,
+        sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
       );
 }
 

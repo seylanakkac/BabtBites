@@ -13,6 +13,7 @@ import '../services/storage_service.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/sponsored_badge.dart';
 import 'articles_screen.dart';
 import 'food_detail_screen.dart';
 import 'growth_screen.dart';
@@ -1234,6 +1235,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
                       ],
                     ),
+                    if (recipe.sponsored) ...[
+                      const SizedBox(height: 6),
+                      Align(alignment: Alignment.centerLeft, child: SponsoredBadge(label: recipe.sponsorLabel)),
+                    ],
                     const SizedBox(height: 8),
                     Text(recipe.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
                     const SizedBox(height: 4),

@@ -26,8 +26,8 @@ class AdBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ad-free for premium subscribers.
-    if (globalIsPremium) return const SizedBox.shrink();
+    // Ad-free for premium subscribers OR during a rewarded ad-free window.
+    if (globalIsPremium || adFreeActive()) return const SizedBox.shrink();
 
     const primary = Color(0xFFFF7A45);
     const light = Color(0xFFA8A8B3);
