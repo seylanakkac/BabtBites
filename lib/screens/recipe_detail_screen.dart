@@ -7,6 +7,8 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
 import 'user_profile_screen.dart';
+import 'premium_screen.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
@@ -848,7 +850,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             ],
                           ),
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
+                        AdBanner(
+                          onUpgrade: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         _buildCommentsSection(recipe),
                         const SizedBox(height: 100),
                       ],

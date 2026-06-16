@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../data/food_database.dart';
 import '../data/tracking_store.dart';
+import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
+import 'premium_screen.dart';
 import 'recipe_detail_screen.dart';
 
 class FoodDetailScreen extends StatefulWidget {
@@ -843,6 +845,12 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
           ),
           const SizedBox(height: 16),
           const MedicalDisclaimer(),
+          const SizedBox(height: 16),
+          AdBanner(
+            onUpgrade: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+            ),
+          ),
         ],
       ),
     );
