@@ -2380,15 +2380,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(6),
           child: LinearProgressIndicator(value: pct, minHeight: 8, backgroundColor: const Color(0xFFECECF0), valueColor: const AlwaysStoppedAnimation(Color(0xFF7A5CFF))),
         ),
-        const SizedBox(height: 22),
-        // Alınacaklar
-        bigTitle("Alınacaklar"),
-        const SizedBox(height: 12),
-        if (toBuy.isEmpty)
-          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Alınacak ürün yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
-        ...toBuy.map((i) => _cartItemRow(i, checked: false)),
-        const SizedBox(height: 4),
-        // Add row
+        const SizedBox(height: 18),
+        // Add new item — placed right under the progress bar so the "+" button
+        // jumps straight here.
         TextField(
           controller: _cartInputController,
           focusNode: _cartFocus,
@@ -2414,6 +2408,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             }
           },
         ),
+        const SizedBox(height: 22),
+        // Alınacaklar
+        bigTitle("Alınacaklar"),
+        const SizedBox(height: 12),
+        if (toBuy.isEmpty)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Alınacak ürün yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+        ...toBuy.map((i) => _cartItemRow(i, checked: false)),
         if (bought.isNotEmpty) ...[
           const SizedBox(height: 26),
           bigTitle("Alınanlar"),
