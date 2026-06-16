@@ -70,7 +70,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 const SizedBox(height: 12),
                 const Text("Bebeğinin gelişimini bir üst seviyeye taşı", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
                 const SizedBox(height: 4),
-                const Text("İlk 1 ay ücretsiz, sonra ayda 100 ₺. İstediğin zaman iptal et.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                const Text("İlk 1 ay ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
               ],
             ),
           ),

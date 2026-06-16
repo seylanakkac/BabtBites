@@ -1006,6 +1006,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _autoFillWeeklyMenu() {
+    if (!_requirePremium("Otomatik Haftalık Menü")) return;
     final months = _ageMonths(_activeBaby?["dob"]?.toString());
     final maxAge = months < 6 ? 6 : months;
     final eligible = globalRecipesDatabase.where((r) => r.startingMonth <= maxAge).toList();
@@ -2839,8 +2840,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: _showAddBabyDialog,
-            icon: const Icon(Icons.add, size: 18),
+            onPressed: () {
+              // First baby is free; additional profiles need BabyBites+.
+              if (_babies.isNotEmpty && !globalIsPremium) {
+                _showPremiumGate("Sınırsız Bebek Profili");
+                return;
+              }
+              _showAddBabyDialog();
+            },
+            icon: Icon(_babies.isNotEmpty && !globalIsPremium ? Icons.lock_outline : Icons.add, size: 18),
             label: const Text("Yeni Bebek Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
@@ -2857,11 +2865,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ? Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: const Text("Aktif", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _green)))
                       : null),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
-              _navTile("Büyüme Grafiği", Icons.show_chart, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              _navTile("Büyüme Grafiği", Icons.show_chart, () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
-              _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
-              _navTile("Gelişim Raporu", Icons.description_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? "")))),
+              _navTile("Gelişim Raporu", Icons.description_outlined, () { if (_requirePremium("Gelişim Raporu")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Başarımlar", Icons.emoji_events_outlined, _showAchievements),
             ],
@@ -3368,6 +3376,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)));
   }
+
+  /// Premium gate: returns true if the user may use the feature (is premium),
+  /// otherwise shows an upsell sheet and returns false.
+  bool _requirePremium([String? featureName]) {
+    if (globalIsPremium) return true;
+    _showPremiumGate(featureName);
+    return false;
+  }
+
+  void _showPremiumGate([String? featureName]) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE2E2E6), borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [_primary, Color(0xFFFFB199)]), borderRadius: BorderRadius.circular(16)),
+                  child: const Text("BabyBites+", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ]),
+              const SizedBox(height: 14),
+              Text(
+                featureName != null ? "“$featureName” BabyBites+ özelliğidir" : "Bu bir BabyBites+ özelliğidir",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text),
+              ),
+              const SizedBox(height: 6),
+              const Text("İlk 1 ay ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openPremium();
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                  child: const Text("BabyBites+'a Geç", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Small lock badge shown on premium-only tiles for non-premium users.
+  Widget? _premiumLock() => globalIsPremium
+      ? null
+      : Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(color: _primary.withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
+          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.lock_outline, size: 12, color: _primary),
+            SizedBox(width: 4),
+            Text("BabyBites+", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _primary)),
+          ]),
+        );
 
   /// Combined item count when one ad banner is inserted after every 3 cards.
   int _withAdsCount(int n) => n + (n ~/ 3);
