@@ -78,9 +78,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           for (int i = 1; i <= 5; i++)
             GestureDetector(
               onTap: () {
-                final prev = globalRecipeMyRating[recipe.id];
                 setState(() => setRecipeRating(recipe.id, i.toDouble()));
-                SocialSync.instance.rate(recipe.id, i.toDouble(), previous: prev);
+                SocialSync.instance.rate(recipe.id, i.toDouble());
                 StorageService.instance.saveRecipeSocial();
                 widget.onStateChanged?.call();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(

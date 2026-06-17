@@ -48,49 +48,58 @@ class SocialSync {
   }
 
   /// Records this user's star rating (1..5) and updates the aggregate average.
-  Future<void> rate(String id, double value, {double? previous}) async {
+  /// The previous vote is read from the server inside the transaction (not
+  /// passed in), so changing/repeating a vote never double-counts. The local
+  /// cache is set to the authoritative values the transaction computed.
+  Future<void> rate(String id, double value) async {
     final uid = _uid;
     if (uid == null) return;
     final statsRef = _stats.doc(id);
     final myRef = statsRef.collection('ratings').doc(uid);
     try {
-      await _db.runTransaction((tx) async {
+      final result = await _db.runTransaction<Map<String, num>>((tx) async {
         final mySnap = await tx.get(myRef);
         final statsSnap = await tx.get(statsRef);
         final prev = (mySnap.data()?['value'] as num?)?.toDouble();
         final curSum = (statsSnap.data()?['ratingSum'] as num?)?.toDouble() ?? 0;
         final curCount = (statsSnap.data()?['ratingCount'] as num?)?.toInt() ?? 0;
-        tx.set(statsRef, {
-          'ratingSum': curSum - (prev ?? 0) + value,
-          'ratingCount': curCount + (prev == null ? 1 : 0),
-        }, SetOptions(merge: true));
+        final newSum = curSum - (prev ?? 0) + value;
+        final newCount = curCount + (prev == null ? 1 : 0);
+        tx.set(statsRef, {'ratingSum': newSum, 'ratingCount': newCount}, SetOptions(merge: true));
         tx.set(myRef, {'value': value});
+        return {'ratingSum': newSum, 'ratingCount': newCount};
       });
-      _bumpLocal(id, 'ratingSum', value - (previous ?? 0));
-      if (previous == null) _bumpLocal(id, 'ratingCount', 1);
+      final s = globalRecipeStats.putIfAbsent(id, () => {});
+      s['ratingSum'] = result['ratingSum']!;
+      s['ratingCount'] = result['ratingCount']!;
     } catch (e) {
       debugPrint('SocialSync.rate failed: $e');
     }
   }
 
   /// Adds/removes this user's like and updates the aggregate like count.
+  /// Only changes the count when the like state actually flips on the server
+  /// (so liking twice / out-of-sync state can't double-count).
   Future<void> setLike(String id, bool liked) async {
     final uid = _uid;
     if (uid == null) return;
     final statsRef = _stats.doc(id);
     final myRef = statsRef.collection('likes').doc(uid);
     try {
-      await _db.runTransaction((tx) async {
+      final delta = await _db.runTransaction<int>((tx) async {
         final already = (await tx.get(myRef)).exists;
         if (liked && !already) {
           tx.set(statsRef, {'likeCount': FieldValue.increment(1)}, SetOptions(merge: true));
           tx.set(myRef, {'ts': FieldValue.serverTimestamp()});
+          return 1;
         } else if (!liked && already) {
           tx.set(statsRef, {'likeCount': FieldValue.increment(-1)}, SetOptions(merge: true));
           tx.delete(myRef);
+          return -1;
         }
+        return 0;
       });
-      _bumpLocal(id, 'likeCount', liked ? 1 : -1);
+      if (delta != 0) _bumpLocal(id, 'likeCount', delta);
     } catch (e) {
       debugPrint('SocialSync.setLike failed: $e');
     }
