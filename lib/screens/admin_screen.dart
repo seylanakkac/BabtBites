@@ -76,6 +76,21 @@ class _AdminScreenState extends State<AdminScreen> {
     StorageService.instance.saveAdminContent();
   }
 
+  /// Runs [work] while showing a blocking spinner (used for photo uploads on
+  /// save so the button doesn't look frozen). Always dismisses the spinner.
+  Future<T> _runSaving<T>(Future<T> Function() work) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: _primary)),
+    );
+    try {
+      return await work();
+    } finally {
+      if (mounted) Navigator.of(context, rootNavigator: true).pop();
+    }
+  }
+
   // ---------- shared field helpers ----------
   InputDecoration _dec(String label, {String? hint}) => InputDecoration(
         labelText: label,
@@ -586,7 +601,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 final m = int.tryParse(month.text.trim()) ?? 6;
                 double pn(TextEditingController c) => double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0;
                 final nav = Navigator.of(ctx);
-                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/foods/${n.hashCode}.jpg", image);
+                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/foods/${n.hashCode}.jpg", image));
                 saveFoodEdit({
                   "name": n,
                   "emoji": existing?["emoji"]?.toString() ?? "🍽️",
@@ -809,7 +824,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 final nav = Navigator.of(ctx);
                 final rid = existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}";
-                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/recipes/$rid.jpg", image);
+                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/recipes/$rid.jpg", image));
                 saveRecipeEdit({
                   "id": rid,
                   "name": n,
@@ -991,7 +1006,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 final nav = Navigator.of(ctx);
                 final aid = existing?.id ?? "ac_${DateTime.now().millisecondsSinceEpoch}";
-                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/articles/$aid.jpg", image);
+                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/articles/$aid.jpg", image));
                 saveArticleEdit(Article(
                   id: aid,
                   title: t,

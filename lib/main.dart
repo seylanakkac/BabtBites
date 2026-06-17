@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'firebase_options.dart';
 import 'services/cloud_sync.dart';
 import 'services/catalog_sync.dart';
@@ -27,6 +28,11 @@ Future<void> main() async {
     try {
       FirebaseFirestore.instance.settings =
           const Settings(persistenceEnabled: true);
+    } catch (_) {}
+    // Don't let a failing upload retry for the default 2 minutes (UI would hang).
+    try {
+      FirebaseStorage.instance.setMaxOperationRetryTime(const Duration(seconds: 20));
+      FirebaseStorage.instance.setMaxUploadRetryTime(const Duration(seconds: 25));
     } catch (_) {}
     // Mirror user-data saves and admin catalog edits to the cloud.
     StorageService.cloudPush = CloudSync.instance.push;

@@ -26,11 +26,13 @@ class FileStorage {
       final contentType = semi > 5 ? value.substring(5, semi) : 'image/jpeg';
       final bytes = base64Decode(value.split(',').last);
       final ref = FirebaseStorage.instance.ref(path);
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
-      return await ref.getDownloadURL();
+      await ref
+          .putData(bytes, SettableMetadata(contentType: contentType))
+          .timeout(const Duration(seconds: 20));
+      return await ref.getDownloadURL().timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('FileStorage.uploadDataUri failed: $e');
-      return value; // keep base64 fallback
+      return value; // keep base64 fallback so the save still succeeds
     }
   }
 
@@ -39,8 +41,10 @@ class FileStorage {
   Future<String?> uploadBytes(String path, Uint8List bytes, String contentType) async {
     try {
       final ref = FirebaseStorage.instance.ref(path);
-      await ref.putData(bytes, SettableMetadata(contentType: contentType));
-      return await ref.getDownloadURL();
+      await ref
+          .putData(bytes, SettableMetadata(contentType: contentType))
+          .timeout(const Duration(seconds: 30));
+      return await ref.getDownloadURL().timeout(const Duration(seconds: 10));
     } catch (e) {
       debugPrint('FileStorage.uploadBytes failed: $e');
       return null;
