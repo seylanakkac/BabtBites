@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../services/cloud_sync.dart';
+import '../services/rewarded_ad.dart';
 import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -1006,7 +1007,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _autoFillWeeklyMenu() {
-    if (!_requirePremium("Otomatik Haftalık Menü")) return;
+    _gatedFeature("Otomatik Haftalık Menü", rewardKey: "auto_menu", action: _doAutoFillWeeklyMenu);
+  }
+
+  void _doAutoFillWeeklyMenu() {
     final months = _ageMonths(_activeBaby?["dob"]?.toString());
     final maxAge = months < 6 ? 6 : months;
     final eligible = globalRecipesDatabase.where((r) => r.startingMonth <= maxAge).toList();
@@ -2903,7 +2907,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
-              _navTile("Gelişim Raporu", Icons.description_outlined, () { if (_requirePremium("Gelişim Raporu")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))); }, trailing: _premiumLock()),
+              _navTile("Gelişim Raporu", Icons.description_outlined, () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? "")))), trailing: _premiumLock("report")),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Başarımlar", Icons.emoji_events_outlined, _showAchievements),
             ],
@@ -3419,7 +3423,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return false;
   }
 
-  void _showPremiumGate([String? featureName]) {
+  /// Runs [action] if the user may use the feature (premium, or a rewarded
+  /// unlock is active for [rewardKey]); otherwise shows the gate. When
+  /// [rewardKey] is set, the gate offers a "watch ad to unlock" option.
+  void _gatedFeature(String name, {String? rewardKey, required VoidCallback action}) {
+    if (globalIsPremium || (rewardKey != null && featureUnlocked(rewardKey))) {
+      action();
+      return;
+    }
+    _showPremiumGate(name, rewardKey, action);
+  }
+
+  void _showPremiumGate([String? featureName, String? rewardKey, VoidCallback? rewardAction]) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -3459,6 +3474,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: const Text("BabyBites+'a Geç", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold)),
                 ),
               ),
+              if (rewardKey != null && rewardAction != null) ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _watchAdToUnlock(ctx, rewardKey, rewardAction),
+                    icon: const Icon(Icons.play_circle_outline, size: 18),
+                    label: const Text("Reklam izle ve bu kez aç", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 13), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Center(child: Text("Reklam sonrası özellik ~30 dk açık kalır.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
+              ],
             ],
           ),
         ),
@@ -3466,8 +3495,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  /// Small lock badge shown on premium-only tiles for non-premium users.
-  Widget? _premiumLock() => globalIsPremium
+  /// Shows a rewarded ad; on success unlocks [rewardKey] for ~30 min and runs
+  /// the gated [action].
+  Future<void> _watchAdToUnlock(BuildContext sheetCtx, String rewardKey, VoidCallback action) async {
+    Navigator.pop(sheetCtx);
+    final earned = await RewardedAdService.instance.show(context);
+    if (!earned || !mounted) return;
+    globalFeatureUnlocks[rewardKey] = DateTime.now().add(const Duration(minutes: 30)).toIso8601String();
+    _persist();
+    setState(() {});
+    action();
+  }
+
+  /// Small lock badge for premium-only tiles (hidden when premium or when a
+  /// rewarded unlock is currently active for [rewardKey]).
+  Widget? _premiumLock([String? rewardKey]) => (globalIsPremium || (rewardKey != null && featureUnlocked(rewardKey)))
       ? null
       : Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

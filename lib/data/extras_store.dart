@@ -44,3 +44,15 @@ bool adFreeActive() {
   final until = DateTime.tryParse(s);
   return until != null && until.isAfter(DateTime.now());
 }
+
+/// featureKey -> ISO time until which a rewarded-ad temporary unlock is active.
+/// Lets non-premium users open a specific premium feature by watching an ad.
+final Map<String, String> globalFeatureUnlocks = {};
+
+/// True if [key] has an active rewarded-ad unlock window.
+bool featureUnlocked(String key) {
+  final s = globalFeatureUnlocks[key];
+  if (s == null) return false;
+  final until = DateTime.tryParse(s);
+  return until != null && until.isAfter(DateTime.now());
+}

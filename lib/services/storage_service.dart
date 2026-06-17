@@ -87,6 +87,7 @@ class StorageService {
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
   static const String _kAdFreeUntil = 'ad_free_until';
+  static const String _kFeatureUnlocks = 'feature_unlocks';
   static const String _kReportFiles = 'report_files';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
@@ -95,7 +96,7 @@ class StorageService {
   static const List<String> _userStringKeys = [
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
-    _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil,
+    _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
@@ -272,6 +273,13 @@ class StorageService {
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
       globalAdFreeUntil = prefs.getString(_kAdFreeUntil);
+      final featureUnlocksRaw = prefs.getString(_kFeatureUnlocks);
+      if (featureUnlocksRaw != null) {
+        globalFeatureUnlocks.clear();
+        (jsonDecode(featureUnlocksRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalFeatureUnlocks[k] = v.toString();
+        });
+      }
       final reportFilesRaw = prefs.getString(_kReportFiles);
       if (reportFilesRaw != null) {
         globalReportFiles.clear();
@@ -688,6 +696,7 @@ class StorageService {
       } else {
         await prefs.remove(_kAdFreeUntil);
       }
+      await prefs.setString(_kFeatureUnlocks, jsonEncode(globalFeatureUnlocks));
     } catch (e) {
       debugPrint('StorageService.saveAll failed: $e');
     }
@@ -757,6 +766,7 @@ class StorageService {
     globalIsPremium = false;
     globalTrialStart = null;
     globalAdFreeUntil = null;
+    globalFeatureUnlocks.clear();
     for (final f in globalFoodsDatabase) {
       f.tried = false;
       f.isFavorite = false;
