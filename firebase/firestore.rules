@@ -3,9 +3,15 @@ rules_version = '2';
 // BabyBites Firestore güvenlik kuralları
 // - Kullanıcılar yalnızca KENDİ verilerine erişir.
 // - Ortak katalog (gıda/tarif/yazı/config) herkes tarafından okunur,
-//   yalnızca admin (custom claim: admin == true) tarafından yazılır.
+//   yalnızca admin e-postaları tarafından yazılır (token.email doğrulanmıştır).
+//   (İleride custom claim'e (admin==true) geçilebilir.)
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.email in ['seylanakkac@gmail.com', 'admin@babybites.com'];
+    }
 
     // Kullanıcıya özel veri: /users/{uid}/...
     match /users/{uid}/{document=**} {
@@ -15,7 +21,7 @@ service cloud.firestore {
     // Ortak katalog: /catalog/...
     match /catalog/{document=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.token.admin == true;
+      allow write: if isAdmin();
     }
   }
 }

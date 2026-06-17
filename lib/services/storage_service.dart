@@ -111,6 +111,60 @@ class StorageService {
     if (push != null) push();
   }
 
+  // ---- Central catalog (Faz 3): admin-managed content shared with everyone.
+  static const List<String> _catalogStringKeys = [
+    _kCustomFoods, _kCustomRecipes, _kCustomArticles,
+    _kFoodOverrides, _kRecipeOverrides, _kArticleOverrides, _kAdminConfig,
+  ];
+  static const List<String> _catalogStringListKeys = [
+    _kDeletedFoods, _kDeletedRecipes, _kDeletedArticles,
+  ];
+
+  /// Set by main() to CatalogSync.instance.push — called after an admin edits
+  /// catalog content so the shared /catalog stays current. Null until wired.
+  static Future<void> Function()? catalogPush;
+  void _triggerCatalog() {
+    final push = catalogPush;
+    if (push != null) push();
+  }
+
+  /// Snapshots the current catalog (admin content) from prefs into a map.
+  Map<String, dynamic> exportCatalog() {
+    final prefs = _prefs;
+    final out = <String, dynamic>{};
+    if (prefs == null) return out;
+    for (final k in _catalogStringKeys) {
+      final v = prefs.getString(k);
+      if (v != null) out[k] = v;
+    }
+    for (final k in _catalogStringListKeys) {
+      final v = prefs.getStringList(k);
+      if (v != null) out[k] = v;
+    }
+    return out;
+  }
+
+  /// Writes a cloud catalog snapshot into prefs. Does NOT apply it — call this
+  /// BEFORE [loadInto] so the catalog is merged cleanly in a single pass.
+  Future<void> importCatalog(Map<String, dynamic> data) async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      for (final entry in data.entries) {
+        final k = entry.key;
+        final v = entry.value;
+        if (v == null) continue;
+        if (_catalogStringListKeys.contains(k) && v is List) {
+          await prefs.setStringList(k, v.map((e) => e.toString()).toList());
+        } else if (_catalogStringKeys.contains(k) && v is String) {
+          await prefs.setString(k, v);
+        }
+      }
+    } catch (e) {
+      debugPrint('StorageService.importCatalog failed: $e');
+    }
+  }
+
   SharedPreferences? _prefs;
   bool get isReady => _prefs != null;
 
@@ -472,6 +526,7 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveAdminContent failed: $e');
     }
+    _triggerCatalog();
   }
 
   /// Persists recipe social data (views/comments/tried). Call after the admin
@@ -524,6 +579,7 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveCustomContent failed: $e');
     }
+    _triggerCatalog();
   }
 
   /// Returns the persisted supplements/medications plan keyed by date, or

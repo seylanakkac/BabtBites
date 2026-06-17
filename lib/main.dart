@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'services/cloud_sync.dart';
+import 'services/catalog_sync.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -18,6 +19,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Connect to Firebase (account + cloud sync backend). Wrapped so a transient
   // init failure never blocks app startup — local storage still works offline.
+  bool firebaseReady = false;
   try {
     await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
     debugPrint('Firebase initialized: ${Firebase.app().options.projectId}');
@@ -26,14 +28,21 @@ Future<void> main() async {
       FirebaseFirestore.instance.settings =
           const Settings(persistenceEnabled: true);
     } catch (_) {}
-    // Mirror every user-data save to the cloud (when signed in).
+    // Mirror user-data saves and admin catalog edits to the cloud.
     StorageService.cloudPush = CloudSync.instance.push;
+    StorageService.catalogPush = CatalogSync.instance.push;
+    firebaseReady = true;
   } catch (e) {
     debugPrint('Firebase init failed (app continues in local mode): $e');
   }
   // Restore persisted user data (cart, weekly plan, food flags) before the
   // first frame so screens render with the user's saved state.
   await StorageService.instance.init();
+  // Pull the shared catalog (admin content) into prefs BEFORE loadInto so it
+  // merges in a single clean pass and every user sees the admin's edits.
+  if (firebaseReady) {
+    await CatalogSync.instance.pull();
+  }
   StorageService.instance.loadInto();
   runApp(const BabyBitesApp());
 }
