@@ -97,6 +97,7 @@ class StorageService {
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
+    _kReportFiles,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,

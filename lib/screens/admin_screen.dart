@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/admin_store.dart';
+import '../services/file_storage.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
@@ -576,7 +577,7 @@ class _AdminScreenState extends State<AdminScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final n = name.text.trim();
                 if (n.isEmpty) {
                   _toast("Lütfen ad girin");
@@ -584,13 +585,15 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 final m = int.tryParse(month.text.trim()) ?? 6;
                 double pn(TextEditingController c) => double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0;
+                final nav = Navigator.of(ctx);
+                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/foods/${n.hashCode}.jpg", image);
                 saveFoodEdit({
                   "name": n,
                   "emoji": existing?["emoji"]?.toString() ?? "🍽️",
                   "category": cat,
                   "startingMonth": m,
                   "allergyRisk": risk,
-                  "imageUrl": image,
+                  "imageUrl": imgUrl,
                   "cartUnit": cartUnit,
                   "presentationStyles": {
                     for (final e in presEntries)
@@ -604,8 +607,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   },
                 });
                 _persistAll();
-                Navigator.pop(ctx);
-                setState(() {});
+                nav.pop();
+                if (mounted) setState(() {});
                 _toast(existing == null ? "$n eklendi" : "$n güncellendi");
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -798,19 +801,22 @@ class _AdminScreenState extends State<AdminScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final n = name.text.trim();
                 if (n.isEmpty) {
                   _toast("Lütfen ad girin");
                   return;
                 }
+                final nav = Navigator.of(ctx);
+                final rid = existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}";
+                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/recipes/$rid.jpg", image);
                 saveRecipeEdit({
-                  "id": existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}",
+                  "id": rid,
                   "name": n,
                   "prepTime": prep.text.trim().isEmpty ? "15 dk" : prep.text.trim(),
                   "startingMonth": int.tryParse(month.text.trim()) ?? 6,
                   "kcal": double.tryParse(kcal.text.trim().replaceAll(',', '.')) ?? 0,
-                  "imageUrl": image,
+                  "imageUrl": imgUrl,
                   "ingredients": List<String>.from(ingredients),
                   "ingredientAmounts": List.generate(ingredients.length, (i) {
                     final q = qtyCtrls[i].text.trim();
@@ -824,8 +830,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   "sponsorLabel": sponsorLabel.text.trim(),
                 });
                 _persistAll();
-                Navigator.pop(ctx);
-                setState(() {});
+                nav.pop();
+                if (mounted) setState(() {});
                 _toast(existing == null ? "$n eklendi" : "$n güncellendi");
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -977,27 +983,30 @@ class _AdminScreenState extends State<AdminScreen> {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final t = title.text.trim();
                 if (t.isEmpty) {
                   _toast("Lütfen başlık girin");
                   return;
                 }
+                final nav = Navigator.of(ctx);
+                final aid = existing?.id ?? "ac_${DateTime.now().millisecondsSinceEpoch}";
+                final imgUrl = await FileStorage.instance.uploadDataUri("catalog/articles/$aid.jpg", image);
                 saveArticleEdit(Article(
-                  id: existing?.id ?? "ac_${DateTime.now().millisecondsSinceEpoch}",
+                  id: aid,
                   title: t,
                   category: cat,
                   readTime: readTime.text.trim().isEmpty ? "3 dk" : readTime.text.trim(),
                   summary: summary.text.trim(),
                   content: content.text.trim(),
                   emoji: existing?.emoji ?? "📝",
-                  imageUrl: image,
+                  imageUrl: imgUrl,
                   sponsored: sponsored,
                   sponsorLabel: sponsorLabel.text.trim(),
                 ));
                 _persistAll();
-                Navigator.pop(ctx);
-                setState(() {});
+                nav.pop();
+                if (mounted) setState(() {});
                 _toast(existing == null ? "Yazı eklendi" : "Yazı güncellendi");
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),

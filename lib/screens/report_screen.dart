@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, rootBundle;
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -9,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/extras_store.dart';
 import '../data/tracking_store.dart';
+import '../services/file_storage.dart';
 import '../services/storage_service.dart';
 import '../widgets/disclaimer.dart';
 
@@ -167,21 +169,31 @@ class _ReportScreenState extends State<ReportScreen> {
         _snack("Dosya okunamadı.");
         return;
       }
-      if (bytes.length > 4 * 1024 * 1024) {
-        _snack("Dosya çok büyük (en fazla ~4 MB).");
+      if (bytes.length > 8 * 1024 * 1024) {
+        _snack("Dosya çok büyük (en fazla ~8 MB).");
         return;
       }
       final now = DateTime.now();
       final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      // Upload to Firebase Storage (cross-device); fall back to local base64.
+      String? url;
+      if (uid != null) {
+        url = await FileStorage.instance.uploadBytes(
+          "users/$uid/reports/${now.millisecondsSinceEpoch}_${f.name}",
+          bytes,
+          "application/pdf",
+        );
+      }
       reportFilesFor(_id).add({
         "name": f.name,
         "date": date,
-        "dataUri": "data:application/pdf;base64,${base64Encode(bytes)}",
+        if (url != null) "url": url else "dataUri": "data:application/pdf;base64,${base64Encode(bytes)}",
       });
       await StorageService.instance.saveReportFiles();
       if (!mounted) return;
       setState(() {});
-      _snack("Belge yüklendi.");
+      _snack(url != null ? "Belge buluta yüklendi." : "Belge yüklendi (yerel).");
     } catch (e) {
       _snack("Yükleme başarısız: $e");
     }
@@ -196,10 +208,15 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   void _deleteFile(Map<String, dynamic> file) {
+    final url = file["url"]?.toString() ?? "";
+    if (url.isNotEmpty) FileStorage.instance.deleteUrl(url); // best-effort
     reportFilesFor(_id).remove(file);
     StorageService.instance.saveReportFiles();
     setState(() {});
   }
+
+  String _fileSource(Map<String, dynamic> f) =>
+      (f["url"] ?? f["dataUri"])?.toString() ?? "";
 
   Widget _section(String title, IconData icon, Color color, List<Widget> children) => Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -321,7 +338,7 @@ class _ReportScreenState extends State<ReportScreen> {
                             ],
                           ),
                         ),
-                        IconButton(tooltip: "Aç", icon: const Icon(Icons.open_in_new, size: 18, color: _primary), onPressed: () => _openFile(f["dataUri"]?.toString() ?? "")),
+                        IconButton(tooltip: "Aç", icon: const Icon(Icons.open_in_new, size: 18, color: _primary), onPressed: () => _openFile(_fileSource(f))),
                         IconButton(tooltip: "Sil", icon: const Icon(Icons.delete_outline, size: 18, color: _danger), onPressed: () => _deleteFile(f)),
                       ],
                     ),
