@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'firebase_options.dart';
 import 'services/cloud_sync.dart';
 import 'services/catalog_sync.dart';
+import 'services/social_sync.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -48,6 +49,8 @@ Future<void> main() async {
   // merges in a single clean pass and every user sees the admin's edits.
   if (firebaseReady) {
     await CatalogSync.instance.pull();
+    // Real cross-user recipe stats (ratings/likes/views) — public read.
+    await SocialSync.instance.loadStats();
   }
   StorageService.instance.loadInto();
   runApp(const BabyBitesApp());

@@ -6,6 +6,7 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
+import '../services/social_sync.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/ad_banner.dart';
@@ -77,7 +78,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           for (int i = 1; i <= 5; i++)
             GestureDetector(
               onTap: () {
+                final prev = globalRecipeMyRating[recipe.id];
                 setState(() => setRecipeRating(recipe.id, i.toDouble()));
+                SocialSync.instance.rate(recipe.id, i.toDouble(), previous: prev);
                 StorageService.instance.saveRecipeSocial();
                 widget.onStateChanged?.call();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -105,8 +108,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // Count a view for this recipe (persisted).
+    // Count a view for this recipe (local + real cross-user).
     addRecipeView(widget.recipe.id);
+    SocialSync.instance.addView(widget.recipe.id);
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.onStateChanged?.call());
   }
 
@@ -248,6 +252,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             globalFavoriteRecipes.add(recipe.id);
                           }
                         });
+                        SocialSync.instance.setLike(recipe.id, globalFavoriteRecipes.contains(recipe.id));
                         widget.onStateChanged?.call();
                       },
                     ),
@@ -425,6 +430,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                       globalFavoriteRecipes.add(recipe.id);
                                     }
                                   });
+                                  SocialSync.instance.setLike(recipe.id, globalFavoriteRecipes.contains(recipe.id));
                                   widget.onStateChanged?.call();
                                 },
                                 icon: Icon(globalFavoriteRecipes.contains(recipe.id) ? Icons.favorite : Icons.favorite_border, size: 18, color: const Color(0xFFFF4D6A)),

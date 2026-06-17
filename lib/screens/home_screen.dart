@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
 import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
+import '../services/social_sync.dart';
 import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -1264,7 +1265,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         const SizedBox(width: 10),
                         Icon(Icons.favorite, size: 12, color: _danger.withOpacity(0.85)),
                         const SizedBox(width: 3),
-                        Text("${recipeLikeBase(recipe.id) + (globalFavoriteRecipes.contains(recipe.id) ? 1 : 0)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                        Text("${recipeLikeCount(recipe.id)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
                         const SizedBox(width: 10),
                         const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFFB300)),
                         const SizedBox(width: 3),
@@ -1283,7 +1284,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () { setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); _persist(); },
+                    onTap: () { setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); SocialSync.instance.setLike(recipe.id, !fav); _persist(); },
                     child: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? _danger : _light, size: 20),
                   ),
                 ],

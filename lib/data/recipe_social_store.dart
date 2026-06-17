@@ -33,11 +33,30 @@ int _seed(String key, int min, int max) {
   return min + (h % (max - min + 1));
 }
 
-/// Display view count = stable community base + this device's views.
-int recipeViewCount(String id) => _seed("v_$id", 60, 1400) + (globalRecipeViews[id] ?? 0);
+/// Real cross-user aggregate stats per recipe, loaded from Firestore
+/// (`/recipeStats/{id}` → { views, ratingSum, ratingCount, likeCount }).
+/// When a recipe has no real data yet, the UI falls back to the stable seed so
+/// it doesn't look empty. SocialSync keeps this in sync with the cloud.
+final Map<String, Map<String, num>> globalRecipeStats = {};
 
-/// Stable community "like" base for a recipe (the user's own like is added in UI).
-int recipeLikeBase(String id) => _seed("l_$id", 8, 180);
+num? _stat(String id, String key) => globalRecipeStats[id]?[key];
+
+/// Display view count: real cloud views (if any) else stable seed, + this
+/// device's own opens this session.
+int recipeViewCount(String id) {
+  final v = _stat(id, 'views');
+  final base = v != null ? v.toInt() : _seed("v_$id", 60, 1400);
+  return base + (globalRecipeViews[id] ?? 0);
+}
+
+/// Total likes: real cloud like count (if present) else stable seed.
+int recipeLikeCount(String id) {
+  final l = _stat(id, 'likeCount');
+  return l != null ? l.toInt() : _seed("l_$id", 8, 180);
+}
+
+/// Deprecated alias kept for older call sites.
+int recipeLikeBase(String id) => recipeLikeCount(id);
 
 void addRecipeView(String id) {
   globalRecipeViews[id] = (globalRecipeViews[id] ?? 0) + 1;
@@ -72,16 +91,20 @@ int pendingCommentCount() => pendingComments().length;
 /// Average star rating for a recipe = stable community base blended with this
 /// device's own vote (if any). Range ~3.8..4.9 before the user votes.
 double recipeRatingAverage(String id) {
-  final baseAvg = _seed("ra_$id", 38, 49) / 10.0;
-  final baseCount = _seed("rc_$id", 5, 90);
-  final my = globalRecipeMyRating[id];
-  if (my == null) return baseAvg;
-  return (baseAvg * baseCount + my) / (baseCount + 1);
+  final count = (_stat(id, 'ratingCount'))?.toInt() ?? 0;
+  if (count > 0) {
+    final sum = (_stat(id, 'ratingSum'))?.toDouble() ?? 0;
+    return sum / count;
+  }
+  // No real ratings yet → stable seed so cards aren't empty.
+  return _seed("ra_$id", 38, 49) / 10.0;
 }
 
-/// Number of ratings shown for a recipe (community base + this device's vote).
-int recipeRatingCount(String id) =>
-    _seed("rc_$id", 5, 90) + (globalRecipeMyRating.containsKey(id) ? 1 : 0);
+/// Number of ratings shown for a recipe (real count, else stable seed).
+int recipeRatingCount(String id) {
+  final count = (_stat(id, 'ratingCount'))?.toInt() ?? 0;
+  return count > 0 ? count : _seed("rc_$id", 5, 90);
+}
 
 /// The star value (1..5) this device gave a recipe, or 0 if not rated.
 double myRecipeRating(String id) => globalRecipeMyRating[id] ?? 0;
