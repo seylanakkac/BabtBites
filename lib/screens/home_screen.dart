@@ -6,6 +6,7 @@ import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
 import '../services/file_storage.dart';
+import 'notifications_screen.dart';
 import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -102,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _selectedDay = _formatDateKey(DateTime.now());
     _selectedSeason = seasonForMonth(DateTime.now().month);
+    // Load this user's in-app notifications (for the bell badge).
+    SocialSync.instance.loadNotifications().then((_) {
+      if (mounted) setState(() {});
+    });
 
     Map<String, dynamic> defaultBaby() => {
           "name": "Asya",
@@ -448,6 +453,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.bold, color: _primary.withOpacity(0.35)),
               ),
             ),
+            _notifBell(),
             GestureDetector(
               onTap: _openFavorites,
               child: Container(
@@ -3418,6 +3424,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _extrasChanged() {
     setState(() {});
     _persist();
+  }
+
+  Widget _notifBell() {
+    final unread = unreadNotificationCount();
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+        if (mounted) setState(() {}); // refresh badge after they're marked read
+      },
+      child: Container(
+        width: 38,
+        height: 38,
+        margin: const EdgeInsets.only(right: 8),
+        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: const Color(0xFFE2E2E6))),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            const Icon(Icons.notifications_none_rounded, color: _text, size: 20),
+            if (unread > 0)
+              Positioned(
+                top: 5,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                  decoration: BoxDecoration(color: _danger, borderRadius: BorderRadius.circular(7), border: Border.all(color: Colors.white, width: 1)),
+                  child: Text("${unread > 9 ? '9+' : unread}", textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'Inter', fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   // Opens BabyBites+ (used by ad banners' "Reklamsız" upsell).

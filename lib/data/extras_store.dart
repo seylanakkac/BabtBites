@@ -45,6 +45,14 @@ bool adFreeActive() {
   return until != null && until.isAfter(DateTime.now());
 }
 
+/// The current user's in-app notifications (loaded from Firestore
+/// /notifications). Item: { id, title, body, type, read, date }.
+final List<Map<String, dynamic>> globalNotifications = [];
+
+/// Number of unread notifications (for the bell badge).
+int unreadNotificationCount() =>
+    globalNotifications.where((n) => n["read"] != true).length;
+
 /// featureKey -> ISO time until which a rewarded-ad temporary unlock is active.
 /// Lets non-premium users open a specific premium feature by watching an ad.
 final Map<String, String> globalFeatureUnlocks = {};

@@ -1351,6 +1351,10 @@ class _AdminScreenState extends State<AdminScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       await SocialSync.instance.approveComment(id);
+                      final toUid = c["uid"]?.toString() ?? "";
+                      if (toUid.isNotEmpty) {
+                        await SocialSync.instance.sendNotification(toUid, "Yorumun onaylandı 💬", "Bir tarife yaptığın yorum yayınlandı.", type: 'comment');
+                      }
                       if (mounted) setState(() => _pendingComments!.remove(c));
                       _toast("Yorum onaylandı");
                     },
@@ -1448,6 +1452,10 @@ class _AdminScreenState extends State<AdminScreen> {
                         globalCustomRecipes.add(recipe.toJson());
                       }
                       _persistAll(); // saves custom content → pushes to /catalog
+                      final toUid = p["uid"]?.toString() ?? "";
+                      if (toUid.isNotEmpty) {
+                        await SocialSync.instance.sendNotification(toUid, "Tarifin onaylandı! 🎉", "\"$name\" tarifin yayınlandı.", type: 'recipe');
+                      }
                       if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
                       if (mounted) setState(() => _pendingRecipesList!.remove(p));
                       _toast("Tarif onaylandı ve yayınlandı");

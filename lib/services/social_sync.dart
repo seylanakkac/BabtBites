@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
+import '../data/extras_store.dart';
 
 class SocialSync {
   SocialSync._();
@@ -244,6 +245,61 @@ class SocialSync {
       await _profiles.doc(uid).set({...json, 'uid': uid});
     } catch (e) {
       debugPrint('SocialSync.saveProfile failed: $e');
+    }
+  }
+
+  // ---- In-app notifications ----
+  CollectionReference<Map<String, dynamic>> get _notifs => _db.collection('notifications');
+
+  /// Sends an in-app notification to [toUid] (admin action).
+  Future<void> sendNotification(String toUid, String title, String body, {String type = 'info'}) async {
+    if (toUid.isEmpty) return;
+    try {
+      await _notifs.add({
+        'toUid': toUid,
+        'title': title,
+        'body': body,
+        'type': type,
+        'read': false,
+        'date': _today(),
+        'ts': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('SocialSync.sendNotification failed: $e');
+    }
+  }
+
+  /// Loads the current user's notifications (newest first) into [globalNotifications].
+  Future<void> loadNotifications() async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      final snap = await _notifs.where('toUid', isEqualTo: uid).get();
+      final list = snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        m['_ms'] = (d.data()['ts'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+        return m;
+      }).toList();
+      list.sort((a, b) => (b['_ms'] as int).compareTo(a['_ms'] as int));
+      globalNotifications
+        ..clear()
+        ..addAll(list);
+    } catch (e) {
+      debugPrint('SocialSync.loadNotifications failed: $e');
+    }
+  }
+
+  /// Marks all of the user's unread notifications as read (locally + cloud).
+  Future<void> markAllNotificationsRead() async {
+    for (final n in globalNotifications.where((n) => n['read'] != true).toList()) {
+      n['read'] = true;
+      final id = n['id']?.toString();
+      if (id != null) {
+        try {
+          await _notifs.doc(id).update({'read': true});
+        } catch (_) {}
+      }
     }
   }
 
