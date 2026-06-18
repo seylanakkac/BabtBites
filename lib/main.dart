@@ -48,9 +48,11 @@ Future<void> main() async {
   // Pull the shared catalog (admin content) into prefs BEFORE loadInto so it
   // merges in a single clean pass and every user sees the admin's edits.
   if (firebaseReady) {
-    await CatalogSync.instance.pull();
+    // Time-box startup network reads so a slow/offline connection can never
+    // block the first frame.
+    await CatalogSync.instance.pull().timeout(const Duration(seconds: 10), onTimeout: () {});
     // Real cross-user recipe stats (ratings/likes/views) — public read.
-    await SocialSync.instance.loadStats();
+    await SocialSync.instance.loadStats().timeout(const Duration(seconds: 10), onTimeout: () {});
   }
   StorageService.instance.loadInto();
   runApp(const BabyBitesApp());

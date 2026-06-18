@@ -67,17 +67,24 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<Widget> _initialScreen() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const LoginScreen();
-    final isAdmin = isAdminEmail(user.email);
-    setAdminMode(isAdmin);
-    StorageService.instance.saveIsAdmin(isAdmin);
-    if (isAdmin) return const AdminScreen();
-    // Pull this user's cloud data before deciding onboarding vs home.
-    await CloudSync.instance.pull();
-    final babies = StorageService.instance.loadBabies();
-    if (babies == null || babies.isEmpty) return const OnboardingScreen();
-    return const HomeScreen();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const LoginScreen();
+      final isAdmin = isAdminEmail(user.email);
+      setAdminMode(isAdmin);
+      StorageService.instance.saveIsAdmin(isAdmin);
+      if (isAdmin) return const AdminScreen();
+      // Pull this user's cloud data before deciding onboarding vs home — but
+      // never let it hang the splash (time-box it; fall back to local).
+      await CloudSync.instance.pull().timeout(const Duration(seconds: 8), onTimeout: () {});
+      final babies = StorageService.instance.loadBabies();
+      if (babies == null || babies.isEmpty) return const OnboardingScreen();
+      return const HomeScreen();
+    } catch (e) {
+      // Firebase/network unavailable → don't get stuck; go to login.
+      debugPrint('Splash _initialScreen failed: $e');
+      return const LoginScreen();
+    }
   }
 
   @override
