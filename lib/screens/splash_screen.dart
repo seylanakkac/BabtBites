@@ -68,7 +68,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<Widget> _initialScreen() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
+      // Wait for Firebase to restore the persisted session — right after page
+      // load currentUser can still be null even when the user is signed in.
+      User? user;
+      try {
+        user = await FirebaseAuth.instance
+            .authStateChanges()
+            .first
+            .timeout(const Duration(seconds: 6));
+      } catch (_) {
+        user = FirebaseAuth.instance.currentUser;
+      }
       if (user == null) return const LoginScreen();
       final isAdmin = isAdminEmail(user.email);
       setAdminMode(isAdmin);
