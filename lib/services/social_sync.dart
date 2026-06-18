@@ -105,6 +105,88 @@ class SocialSync {
     }
   }
 
+  // ---- Comments (cross-user, admin-moderated) ----
+  CollectionReference<Map<String, dynamic>> get _comments => _db.collection('recipeComments');
+
+  /// Loads a recipe's comments into the local cache [globalRecipeComments].
+  /// (Single-field query — no composite index needed; filtered client-side.)
+  Future<void> loadComments(String recipeId) async {
+    try {
+      final snap = await _comments.where('recipeId', isEqualTo: recipeId).get();
+      final list = snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        return m;
+      }).toList();
+      globalRecipeComments[recipeId] = list;
+    } catch (e) {
+      debugPrint('SocialSync.loadComments failed: $e');
+    }
+  }
+
+  /// Submits a comment (awaits admin approval). Returns the created doc id.
+  Future<String?> submitComment(String recipeId, {required String name, required String text, String photo = ''}) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    final data = <String, dynamic>{
+      'recipeId': recipeId,
+      'uid': uid,
+      'name': name,
+      'text': text,
+      'photo': photo,
+      'approved': false,
+      'date': _today(),
+      'ts': FieldValue.serverTimestamp(),
+    };
+    try {
+      final ref = await _comments.add(data);
+      final local = Map<String, dynamic>.from(data)
+        ..remove('ts')
+        ..['id'] = ref.id;
+      globalRecipeComments.putIfAbsent(recipeId, () => []).insert(0, local);
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.submitComment failed: $e');
+      return null;
+    }
+  }
+
+  /// All comments awaiting approval (admin moderation). Each item carries its id.
+  Future<List<Map<String, dynamic>>> loadPendingComments() async {
+    try {
+      final snap = await _comments.where('approved', isEqualTo: false).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadPendingComments failed: $e');
+      return [];
+    }
+  }
+
+  Future<void> approveComment(String id) async {
+    try {
+      await _comments.doc(id).update({'approved': true});
+    } catch (e) {
+      debugPrint('SocialSync.approveComment failed: $e');
+    }
+  }
+
+  Future<void> rejectComment(String id) async {
+    try {
+      await _comments.doc(id).delete();
+    } catch (e) {
+      debugPrint('SocialSync.rejectComment failed: $e');
+    }
+  }
+
+  String _today() {
+    final n = DateTime.now();
+    return "${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}";
+  }
+
   /// Counts a view once per recipe per app session.
   Future<void> addView(String id) async {
     if (_viewedThisSession.contains(id)) return;

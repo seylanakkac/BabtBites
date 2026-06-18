@@ -5,8 +5,11 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/social_sync.dart';
+import '../services/file_storage.dart';
+import '../data/user_profile_store.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/ad_banner.dart';
@@ -113,6 +116,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     // Count a view for this recipe (local + real cross-user).
     addRecipeView(widget.recipe.id);
     SocialSync.instance.addView(widget.recipe.id);
+    // Load real cross-user comments (approved + this user's own pending).
+    SocialSync.instance.loadComments(widget.recipe.id).then((_) {
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => widget.onStateChanged?.call());
   }
 
@@ -1261,8 +1268,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     const lightTextColor = Color(0xFFA8A8B3);
     const primaryColor = Color(0xFFFF7A45);
     final comments = commentsFor(recipe.id);
-    // Public list: approved comments + the user's own pending ones.
-    final visible = comments.where((c) => c["approved"] == true || c["name"] == "Siz").toList();
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    // Public list: approved comments + the user's own (still pending) ones.
+    final visible = comments.where((c) => c["approved"] == true || (myUid != null && c["uid"] == myUid)).toList();
 
     String fmtDate(String iso) {
       final p = iso.split('-');
@@ -1304,21 +1312,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             ),
             const SizedBox(width: 8),
             GestureDetector(
-              onTap: () {
+              onTap: () async {
                 final t = _commentController.text.trim();
                 if (t.isEmpty && !isPhotoUrl(_commentPhoto)) return;
-                final now = DateTime.now();
-                comments.insert(0, {
-                  "name": "Siz",
-                  "text": t,
-                  "photo": _commentPhoto,
-                  "date": "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-                  "approved": false,
-                });
+                final messenger = ScaffoldMessenger.of(context);
+                final auth = FirebaseAuth.instance.currentUser;
+                final name = myUsername(fallbackName: auth?.displayName ?? "Kullanıcı");
+                final photoSrc = _commentPhoto;
                 _commentController.clear();
                 setState(() => _commentPhoto = "");
+                // Upload the photo to Storage (if any), then submit for approval.
+                String photoUrl = "";
+                if (isPhotoUrl(photoSrc) && auth != null) {
+                  photoUrl = await FileStorage.instance.uploadDataUri(
+                      "users/${auth.uid}/comments/${DateTime.now().millisecondsSinceEpoch}.jpg", photoSrc);
+                }
+                await SocialSync.instance.submitComment(recipe.id, name: name, text: t, photo: photoUrl);
+                if (mounted) setState(() {});
                 widget.onStateChanged?.call();
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Yorumun alındı. Yönetici onayından sonra yayınlanacak."), duration: Duration(seconds: 2)));
+                messenger.showSnackBar(const SnackBar(content: Text("Yorumun alındı. Yönetici onayından sonra yayınlanacak."), duration: Duration(seconds: 2)));
               },
               child: Container(padding: const EdgeInsets.all(11), decoration: const BoxDecoration(color: primaryColor, shape: BoxShape.circle), child: const Icon(Icons.send, color: Colors.white, size: 18)),
             ),

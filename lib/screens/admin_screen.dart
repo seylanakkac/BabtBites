@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/admin_store.dart';
 import '../services/file_storage.dart';
+import '../services/social_sync.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
@@ -1293,20 +1294,41 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   // ---------- comment moderation ----------
+  List<Map<String, dynamic>>? _pendingComments;
+
+  Future<void> _reloadPendingComments() async {
+    final list = await SocialSync.instance.loadPendingComments();
+    if (mounted) setState(() => _pendingComments = list);
+  }
+
   Widget _commentsManager() {
-    final pending = pendingComments();
+    // Lazy-load pending comments from Firestore the first time this opens.
+    if (_pendingComments == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pendingComments == null) _reloadPendingComments();
+      });
+      return _pane([
+        _sectionHeader("Yorum Onayı", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+
+    final pending = _pendingComments!;
     String recipeName(String rid) {
       final m = globalRecipesDatabase.where((r) => r.id == rid).toList();
       return m.isNotEmpty ? m.first.name : "Tarif";
     }
 
     return _pane([
-      _sectionHeader("Yorum Onayı", "${pending.length} yorum onay bekliyor"),
+      Row(children: [
+        Expanded(child: _sectionHeader("Yorum Onayı", "${pending.length} yorum onay bekliyor")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadPendingComments),
+      ]),
       if (pending.isEmpty)
         _card(child: const Text("Onay bekleyen yorum yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
-      ...pending.map((p) {
-        final rid = p["recipeId"] as String;
-        final c = p["comment"] as Map<String, dynamic>;
+      ...pending.map((c) {
+        final id = c["id"]?.toString() ?? "";
+        final rid = c["recipeId"]?.toString() ?? "";
         return _card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1314,7 +1336,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Row(children: [
                 const Icon(Icons.restaurant_menu, size: 16, color: _primary),
                 const SizedBox(width: 6),
-                Expanded(child: Text(recipeName(rid), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
+                Expanded(child: Text("${recipeName(rid)}  •  ${c["name"]?.toString() ?? "Kullanıcı"}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
                 Text(c["date"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
               ]),
               const SizedBox(height: 8),
@@ -1328,10 +1350,9 @@ class _AdminScreenState extends State<AdminScreen> {
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      c["approved"] = true;
-                      StorageService.instance.saveRecipeSocial();
-                      setState(() {});
+                    onPressed: () async {
+                      await SocialSync.instance.approveComment(id);
+                      if (mounted) setState(() => _pendingComments!.remove(c));
                       _toast("Yorum onaylandı");
                     },
                     icon: const Icon(Icons.check, size: 18),
@@ -1342,10 +1363,9 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      commentsFor(rid).remove(c);
-                      StorageService.instance.saveRecipeSocial();
-                      setState(() {});
+                    onPressed: () async {
+                      await SocialSync.instance.rejectComment(id);
+                      if (mounted) setState(() => _pendingComments!.remove(c));
                       _toast("Yorum reddedildi");
                     },
                     icon: const Icon(Icons.close, size: 18),
