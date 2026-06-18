@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
+import '../services/social_sync.dart';
 import 'recipe_detail_screen.dart';
 
 const _primary = Color(0xFFFF7A45);
@@ -16,9 +17,23 @@ const _star = Color(0xFFFFB300);
 
 /// Public profile of a recipe author. Shows ONLY the @username, linked social
 /// accounts and the recipes they authored — no real name, baby or contact info.
-class UserProfileScreen extends StatelessWidget {
+class UserProfileScreen extends StatefulWidget {
   final String author;
   const UserProfileScreen({super.key, required this.author});
+
+  @override
+  State<UserProfileScreen> createState() => _UserProfileScreenState();
+}
+
+class _UserProfileScreenState extends State<UserProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch the real public profile (social links) from Firestore.
+    SocialSync.instance.loadProfileByUsername(widget.author).then((_) {
+      if (mounted) setState(() {});
+    });
+  }
 
   static const Map<String, IconData> _icons = {
     "instagram": FontAwesomeIcons.instagram,
@@ -47,6 +62,7 @@ class UserProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final author = widget.author;
     final profile = profileForAuthor(author);
     final recipes = recipesByAuthor(author);
     final socials = profile?.socials ?? const <String, String>{};

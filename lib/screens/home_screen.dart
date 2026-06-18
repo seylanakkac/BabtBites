@@ -5,6 +5,7 @@ import '../data/admin_store.dart';
 import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
+import '../services/file_storage.dart';
 import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
@@ -3059,6 +3060,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     }
                     globalMyProfile = UserProfile(username: uname, socials: socials);
                     StorageService.instance.saveMyProfile();
+                    SocialSync.instance.saveProfile(globalMyProfile!.toJson()); // public profile
                     Navigator.pop(sheetCtx);
                     setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profilin kaydedildi.")));
@@ -3312,7 +3314,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
+                    onPressed: () async {
                       final name = nameCtrl.text.trim();
                       final validIngs = ingredients.where((r) => r["name"]!.trim().isNotEmpty).toList();
                       if (name.isEmpty || validIngs.isEmpty) {
@@ -3323,13 +3325,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       final now = DateTime.now();
                       final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
                       final author = myUsername(fallbackName: _parent?["name"] ?? "");
-                      globalPendingRecipes.add({
+                      final messenger = ScaffoldMessenger.of(context);
+                      final nav = Navigator.of(sheetCtx);
+                      // Upload photo to Storage (if any), then submit to the
+                      // shared approval queue.
+                      String imgUrl = photo ?? "";
+                      final uid = FirebaseAuth.instance.currentUser?.uid;
+                      if (isPhotoUrl(imgUrl) && imgUrl.startsWith('data:') && uid != null) {
+                        imgUrl = await FileStorage.instance.uploadDataUri(
+                            "users/$uid/recipes/${now.millisecondsSinceEpoch}.jpg", imgUrl);
+                      }
+                      await SocialSync.instance.submitRecipe({
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
                         "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
                         "startingMonth": startMonth,
                         "kcal": double.tryParse(kcalCtrl.text.trim()) ?? 0,
-                        "imageUrl": photo ?? "",
+                        "imageUrl": imgUrl,
                         "ingredients": validIngs.map((r) => r["name"]!).toList(),
                         "ingredientAmounts": validIngs.map((r) => "${r["qty"]} ${r["unit"]}".trim()).toList(),
                         "steps": stepsList,
@@ -3337,11 +3349,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "author": author,
                         "submittedBy": author,
                         "date": date,
-                        "approved": false,
                       });
-                      StorageService.instance.saveRecipeSocial();
-                      Navigator.pop(sheetCtx);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tarifin alındı. Yönetici onayından sonra yayınlanacak. 👍")));
+                      nav.pop();
+                      messenger.showSnackBar(const SnackBar(content: Text("Tarifin alındı. Yönetici onayından sonra yayınlanacak. 👍")));
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                     child: const Text("Onaya Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),

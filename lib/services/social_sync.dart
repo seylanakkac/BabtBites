@@ -14,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/recipe_social_store.dart';
+import '../data/user_profile_store.dart';
 
 class SocialSync {
   SocialSync._();
@@ -185,6 +186,81 @@ class SocialSync {
   String _today() {
     final n = DateTime.now();
     return "${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}";
+  }
+
+  // ---- User-submitted recipes (admin approval → catalog) ----
+  CollectionReference<Map<String, dynamic>> get _pending => _db.collection('pendingRecipes');
+
+  /// Submits a user recipe for admin approval. [data] is the recipe JSON.
+  Future<String?> submitRecipe(Map<String, dynamic> data) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final ref = await _pending.add({
+        ...data,
+        'uid': uid,
+        'approved': false,
+        'ts': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.submitRecipe failed: $e');
+      return null;
+    }
+  }
+
+  /// All recipes awaiting approval (admin). Each item carries its Firestore id
+  /// under '_docId'.
+  Future<List<Map<String, dynamic>>> loadPendingRecipes() async {
+    try {
+      final snap = await _pending.where('approved', isEqualTo: false).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['_docId'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadPendingRecipes failed: $e');
+      return [];
+    }
+  }
+
+  Future<void> deletePendingRecipe(String docId) async {
+    try {
+      await _pending.doc(docId).delete();
+    } catch (e) {
+      debugPrint('SocialSync.deletePendingRecipe failed: $e');
+    }
+  }
+
+  // ---- Public profiles ----
+  CollectionReference<Map<String, dynamic>> get _profiles => _db.collection('profiles');
+
+  /// Saves the current user's public profile at /profiles/{uid}.
+  Future<void> saveProfile(Map<String, dynamic> json) async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _profiles.doc(uid).set({...json, 'uid': uid});
+    } catch (e) {
+      debugPrint('SocialSync.saveProfile failed: $e');
+    }
+  }
+
+  /// Loads a public profile by its @username; caches it in globalKnownProfiles.
+  Future<Map<String, dynamic>?> loadProfileByUsername(String username) async {
+    final u = username.trim();
+    if (u.isEmpty) return null;
+    try {
+      final snap = await _profiles.where('username', isEqualTo: u).limit(1).get();
+      if (snap.docs.isEmpty) return null;
+      final m = Map<String, dynamic>.from(snap.docs.first.data());
+      globalKnownProfiles[u] = m;
+      return m;
+    } catch (e) {
+      debugPrint('SocialSync.loadProfileByUsername failed: $e');
+      return null;
+    }
   }
 
   /// Counts a view once per recipe per app session.

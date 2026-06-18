@@ -46,5 +46,22 @@ service cloud.firestore {
       allow update, delete: if isAdmin()
         || (request.auth != null && resource.data.uid == request.auth.uid);
     }
+
+    // Kullanıcı tarifleri (admin onay kuyruğu): admin tümünü okur; kullanıcı
+    // kendi gönderdiğini görür/siler; herkes kendi onaysız tarifini oluşturur.
+    match /pendingRecipes/{id} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.approved == false;
+      allow update, delete: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid);
+    }
+
+    // Herkese açık kullanıcı profilleri: herkes okur, sahibi yazar.
+    match /profiles/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

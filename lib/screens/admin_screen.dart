@@ -4,7 +4,6 @@ import '../data/admin_store.dart';
 import '../services/file_storage.dart';
 import '../services/social_sync.dart';
 import '../data/food_database.dart';
-import '../data/recipe_social_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -1382,10 +1381,29 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   // ---------- user-submitted recipe approval ----------
+  List<Map<String, dynamic>>? _pendingRecipesList;
+
+  Future<void> _reloadPendingRecipes() async {
+    final list = await SocialSync.instance.loadPendingRecipes();
+    if (mounted) setState(() => _pendingRecipesList = list);
+  }
+
   Widget _recipesApprovalManager() {
-    final pending = pendingRecipes();
+    if (_pendingRecipesList == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pendingRecipesList == null) _reloadPendingRecipes();
+      });
+      return _pane([
+        _sectionHeader("Tarif Onayı", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+    final pending = _pendingRecipesList!;
     return _pane([
-      _sectionHeader("Tarif Onayı", "${pending.length} kullanıcı tarifi onay bekliyor"),
+      Row(children: [
+        Expanded(child: _sectionHeader("Tarif Onayı", "${pending.length} kullanıcı tarifi onay bekliyor")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadPendingRecipes),
+      ]),
       if (pending.isEmpty)
         _card(child: const Text("Onay bekleyen tarif yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
       ...pending.map((p) {
@@ -1420,7 +1438,8 @@ class _AdminScreenState extends State<AdminScreen> {
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
                       final recipe = Recipe.fromJson(p);
                       if (!globalRecipesDatabase.any((x) => x.id == recipe.id)) {
                         globalRecipesDatabase.add(recipe);
@@ -1428,10 +1447,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       if (!globalCustomRecipes.any((m) => m["id"] == recipe.id)) {
                         globalCustomRecipes.add(recipe.toJson());
                       }
-                      globalPendingRecipes.remove(p);
-                      StorageService.instance.saveCustomContent();
-                      StorageService.instance.saveRecipeSocial();
-                      setState(() {});
+                      _persistAll(); // saves custom content → pushes to /catalog
+                      if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
+                      if (mounted) setState(() => _pendingRecipesList!.remove(p));
                       _toast("Tarif onaylandı ve yayınlandı");
                     },
                     icon: const Icon(Icons.check, size: 18),
@@ -1442,10 +1460,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      globalPendingRecipes.remove(p);
-                      StorageService.instance.saveRecipeSocial();
-                      setState(() {});
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
+                      if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
+                      if (mounted) setState(() => _pendingRecipesList!.remove(p));
                       _toast("Tarif reddedildi");
                     },
                     icon: const Icon(Icons.close, size: 18),
