@@ -77,15 +77,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
         children: [
           for (int i = 1; i <= 5; i++)
             GestureDetector(
-              onTap: () {
+              onTap: () async {
+                if (myRecipeRating(recipe.id) == i.toDouble()) return; // same vote → no change
                 setState(() => setRecipeRating(recipe.id, i.toDouble()));
-                SocialSync.instance.rate(recipe.id, i.toDouble());
                 StorageService.instance.saveRecipeSocial();
                 widget.onStateChanged?.call();
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text("Puanın: $i ★ — teşekkürler!"),
                   duration: const Duration(seconds: 1),
                 ));
+                // Update the cloud aggregate, then refresh the shown average.
+                await SocialSync.instance.rate(recipe.id, i.toDouble());
+                if (mounted) setState(() {});
               },
               child: Padding(
                 padding: const EdgeInsets.only(right: 4),
