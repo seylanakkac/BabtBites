@@ -4,6 +4,7 @@ import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/sponsored_badge.dart';
+import '../widgets/web_shell.dart';
 import 'premium_screen.dart';
 
 class Article {
@@ -444,6 +445,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return webPageShell(context, maxWidth: 1000, child: _shelled(context));
+  }
+
+  Widget _shelled(BuildContext context) {
     const primaryColor = Color(0xFFFF7A45); // Vibrant Apricot/Coral
     const textColor = Color(0xFF2D2D3A); // Darker grey
     const lightTextColor = Color(0xFFA8A8B3);

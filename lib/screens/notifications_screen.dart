@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/extras_store.dart';
 import '../services/social_sync.dart';
+import '../widgets/web_shell.dart';
 
 const _primary = Color(0xFFFF7A45);
 const _text = Color(0xFF2D2D3A);
@@ -55,6 +56,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return webPageShell(context, maxWidth: 760, child: _shelled(context));
+  }
+
+  Widget _shelled(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(

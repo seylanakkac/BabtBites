@@ -184,6 +184,43 @@ class Recipe {
 final List<Map<String, dynamic>> globalCustomFoods = [];
 final List<Map<String, dynamic>> globalCustomRecipes = [];
 
+/// TR gıda adı (foodKey) → TheMealDB malzeme görseli dosya adı (İngilizce).
+/// Web'de fotoğrafı olmayan gıdalar için ücretsiz CDN'den gerçek fotoğraf çekilir;
+/// eşleşmeyen ya da 404 olanlar zarif şekilde ikon yer-tutucuya düşer.
+const Map<String, String> kMealDbIngredient = {
+  // Sebzeler
+  "brokoli": "Broccoli", "havuç": "Carrots", "kabak": "Courgettes", "patates": "Potatoes",
+  "balkabağı": "Pumpkin", "bezelye": "Peas", "ispanak": "Spinach", "karnabahar": "Cauliflower",
+  "tatlı patates": "Sweet Potatoes", "kereviz": "Celery", "pırasa": "Leek", "kırmızı biber": "Red Pepper",
+  "pancar": "Beetroot", "kuşkonmaz": "Asparagus", "taze fasulye": "Green Beans", "sarımsak": "Garlic",
+  "soğan": "Onion", "dereotu": "Dill", "maydanoz": "Parsley", "bamya": "Okra",
+  // Meyveler
+  "muz": "Banana", "elma": "Apple", "armut": "Pear", "şeftali": "Peach", "kayısı": "Apricot",
+  "erik": "Plum", "kavun": "Melon", "karpuz": "Watermelon", "böğürtlen": "Blackberries",
+  "yaban mersini": "Blueberries", "mango": "Mango", "ananas": "Pineapple", "incir": "Figs",
+  "hurma": "Dates", "portakal": "Orange", "limon": "Lemon", "çilek": "Strawberries",
+  "kivi": "Kiwi", "nar": "Pomegranate", "vişne": "Cherries", "kiraz": "Cherries", "üzüm": "Grapes",
+  // Tahıllar & baklagiller
+  "yulaf": "Oats", "pirinç": "Rice", "kinoa": "Quinoa", "kırmızı mercimek": "Red Lentils",
+  "yeşil mercimek": "Lentils", "nohut": "Chickpeas", "bulgur": "Bulgur Wheat",
+  // Protein & süt
+  "yumurta sarısı": "Egg Yolks", "haşlanmış yumurta": "Eggs", "yumurta akı": "Egg Whites",
+  "tavuk göğsü": "Chicken Breast", "dana kıyma": "Minced Beef", "yoğurt": "Yogurt",
+  "kuzu eti": "Lamb", "hindi göğsü": "Turkey Breast", "tereyağı": "Butter",
+  // Balık
+  "somon": "Salmon", "sardalya": "Sardines", "hamsi": "Anchovies",
+  // Diğer
+  "zeytinyağı": "Olive Oil", "ceviz": "Walnuts", "badem": "Almonds", "fındık": "Hazelnuts",
+  "tahin": "Tahini", "susam": "Sesame Seed", "chia tohumu": "Chia Seeds",
+};
+
+/// Web'de gösterilecek CDN fotoğraf URL'i (TheMealDB). Eşleşme yoksa null.
+String? cdnFoodPhotoUrl(String name) {
+  final n = kMealDbIngredient[foodKey(name)];
+  if (n == null) return null;
+  return "https://www.themealdb.com/images/ingredients/${n.replaceAll(' ', '%20')}.png";
+}
+
 /// Carbohydrate estimate (g) via the Atwater relation from energy/protein/fat:
 /// energy(kcal) ≈ 4·protein + 9·fat + 4·carb  →  carb ≈ (energy − 4·protein − 9·fat)/4.
 double atwaterCarb(double energy, double protein, double fat) {

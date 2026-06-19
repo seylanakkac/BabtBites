@@ -12,6 +12,7 @@ import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
+import '../widgets/web_shell.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/sponsored_badge.dart';
@@ -201,9 +202,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     const alertBgColor = Color(0xFFFFF0F2); // Soft pink
     const alertTextColor = Color(0xFFFF4D6A);
 
-    return Scaffold(
+    return webPageShell(
+      context,
+      maxWidth: 900,
+      child: Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
-      body: Stack(
+      body: LayoutBuilder(
+        builder: (context, c) => Center(
+          child: SizedBox(
+            // Web/masaüstünde içeriği makul genişlikte tut → görsel yayılmaz.
+            width: c.maxWidth < 860 ? c.maxWidth : 860,
+            height: c.maxHeight,
+            child: Stack(
         children: [
           // Main scrollable content
           CustomScrollView(
@@ -923,6 +933,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           ),
         ],
       ),
+          ),
+        ),
+      ),
+    ),
     );
   }
 

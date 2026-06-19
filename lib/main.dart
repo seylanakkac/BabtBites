@@ -139,11 +139,12 @@ class BabyBitesApp extends StatelessWidget {
         '/admin': (context) => const AdminScreen(),
       },
       builder: (context, child) {
-        // Slightly compact the whole app (text ~10% smaller) so dense screens
-        // breathe and dialogs fit the phone frame.
+        // Dar (mobil) ekranda metni biraz sıkıştır; geniş (web/masaüstü) ekranda
+        // ise büyüt — masaüstünde "mobil uygulama" gibi küçük görünmesin.
         final mq = MediaQuery.of(context);
+        final scale = mq.size.width >= 900 ? 1.08 : 0.92;
         return MediaQuery(
-          data: mq.copyWith(textScaler: const TextScaler.linear(0.9)),
+          data: mq.copyWith(textScaler: TextScaler.linear(scale)),
           child: MobileWebFrame(child: child!),
         );
       },

@@ -180,7 +180,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
       body: SafeArea(
-        child: Column(
+        child: LayoutBuilder(
+          builder: (context, c) => Center(
+            child: SizedBox(
+              width: c.maxWidth < 560 ? c.maxWidth : 560,
+              height: c.maxHeight,
+              child: Column(
           children: [
             // Top Navigation Bar
             Padding(
@@ -850,6 +855,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
           ],
+              ),
+            ),
+          ),
         ),
       ),
     );

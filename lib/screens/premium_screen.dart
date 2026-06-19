@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/extras_store.dart';
 import '../services/rewarded_ad.dart';
 import '../services/storage_service.dart';
+import '../widgets/web_shell.dart';
 
 const _primary = Color(0xFFFF7A45);
 const _text = Color(0xFF2D2D3A);
@@ -48,6 +49,10 @@ class _PremiumScreenState extends State<PremiumScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return webPageShell(context, child: _shelled(context));
+  }
+
+  Widget _shelled(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(

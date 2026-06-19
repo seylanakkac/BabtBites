@@ -5,6 +5,7 @@ import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
+import '../widgets/web_shell.dart';
 import 'premium_screen.dart';
 import 'recipe_detail_screen.dart';
 
@@ -400,7 +401,10 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
       allergyColor = const Color(0xFFFF4D6A); // Red
     }
 
-    return Scaffold(
+    return webPageShell(
+      context,
+      maxWidth: 880,
+      child: Scaffold(
       backgroundColor: const Color(0xFFFAF9F6),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -433,7 +437,13 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
           ),
         ],
       ),
-      body: Column(
+      body: LayoutBuilder(
+        builder: (context, c) => Center(
+          child: SizedBox(
+            // Web/masaüstünde içeriği makul genişlikte tut → yayılma olmaz.
+            width: c.maxWidth < 820 ? c.maxWidth : 820,
+            height: c.maxHeight,
+            child: Column(
         children: [
           Expanded(
             child: NestedScrollView(
@@ -717,6 +727,10 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
           ),
         ],
       ),
+          ),
+        ),
+      ),
+    ),
     );
   }
 

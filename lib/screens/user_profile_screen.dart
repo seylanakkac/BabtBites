@@ -6,6 +6,7 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/social_sync.dart';
+import '../widgets/web_shell.dart';
 import 'recipe_detail_screen.dart';
 
 const _primary = Color(0xFFFF7A45);
@@ -62,6 +63,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return webPageShell(context, maxWidth: 880, child: _shelled(context));
+  }
+
+  Widget _shelled(BuildContext context) {
     final author = widget.author;
     final profile = profileForAuthor(author);
     final recipes = recipesByAuthor(author);
