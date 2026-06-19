@@ -1,4 +1,14 @@
 import 'nutrition_database.dart';
+import 'unit_conversion.dart';
+
+/// Besin/tablo anahtarı normalizasyonu. Türkçe "İ" harfi `toLowerCase()` ile
+/// "i" + birleşik nokta (U+0307) üretir; bu noktayı atarak tabloların düz
+/// küçük-harf anahtarlarıyla ("incir", "irmik") eşleşmeyi garantiler.
+String foodKey(String s) {
+  final l = s.toLowerCase().trim();
+  // U+0300–U+036F arası birleşik aksan işaretlerini (örn. "İ"→"i̇" noktası) at.
+  return String.fromCharCodes(l.runes.where((r) => r < 0x0300 || r > 0x036F));
+}
 
 class Food {
   final String name;
@@ -10,6 +20,9 @@ class Food {
   final Map<String, double> nutritionValues; // Energy(kcal), Protein(g), Fat(g), Iron(mg)
   final String imageUrl; // optional photo (base64 data URI / URL); empty = use emoji
   final String cartUnit; // shopping-list unit: "adet", "kg", "gr", "demet"...
+  final double gramsPerPiece; // 1 "adet" kaç gram (0 = bilinmiyor/tabloya bak)
+  final String chokingRisk; // boğulma riski: 'Düşük' | 'Orta' | 'Yüksek' ('' = tabloya bak)
+  final String chokingNote; // güvenli sunum / boğulma önlemi açıklaması
   bool tried;
   bool isFavorite;
 
@@ -23,6 +36,9 @@ class Food {
     required this.nutritionValues,
     this.imageUrl = "",
     this.cartUnit = "adet",
+    this.gramsPerPiece = 0,
+    this.chokingRisk = "",
+    this.chokingNote = "",
     this.tried = false,
     this.isFavorite = false,
   });
@@ -37,6 +53,9 @@ class Food {
         "nutritionValues": nutritionValues,
         "imageUrl": imageUrl,
         "cartUnit": cartUnit,
+        "gramsPerPiece": gramsPerPiece,
+        "chokingRisk": chokingRisk,
+        "chokingNote": chokingNote,
       };
 
   factory Food.fromJson(Map<String, dynamic> j) => Food(
@@ -53,6 +72,9 @@ class Food {
             {},
         imageUrl: j["imageUrl"]?.toString() ?? "",
         cartUnit: j["cartUnit"]?.toString() ?? "adet",
+        gramsPerPiece: (j["gramsPerPiece"] as num?)?.toDouble() ?? 0,
+        chokingRisk: j["chokingRisk"]?.toString() ?? "",
+        chokingNote: j["chokingNote"]?.toString() ?? "",
       );
 
   /// Resolves the cart/shopping unit for a food name (built-in or custom).
@@ -60,6 +82,38 @@ class Food {
     final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == name.toLowerCase()).toList();
     return m.isNotEmpty ? m.first.cartUnit : "adet";
   }
+}
+
+/// 1 "adet" için ortalama gram ağırlığı. Önce besinin kendi alanı (admin/özel),
+/// yoksa yerleşik [kFoodGramsPerPiece] tablosu, o da yoksa 0 (varsayılan kullanılır).
+double gramsPerPieceFor(Food food) {
+  if (food.gramsPerPiece > 0) return food.gramsPerPiece;
+  return kFoodGramsPerPiece[foodKey(food.name)] ?? 0;
+}
+
+/// İsimle 1 adet gram ağırlığı (tarif malzemesi besine bağlanırken kullanılır).
+double gramsPerPieceForName(String name) {
+  for (final f in globalFoodsDatabase) {
+    if (f.name.toLowerCase() == name.toLowerCase()) return gramsPerPieceFor(f);
+  }
+  return kFoodGramsPerPiece[foodKey(name)] ?? 0;
+}
+
+/// Boğulma riski seviyesi: besin alanı → tablo → kategori bazlı makul varsayılan.
+String chokingRiskFor(Food food) {
+  if (food.chokingRisk.isNotEmpty) return food.chokingRisk;
+  final t = kFoodChoking[foodKey(food.name)];
+  if (t != null) return t[0];
+  return "Düşük";
+}
+
+/// Boğulma riskine karşı güvenli sunum açıklaması.
+String chokingNoteFor(Food food) {
+  if (food.chokingNote.isNotEmpty) return food.chokingNote;
+  final t = kFoodChoking[foodKey(food.name)];
+  if (t != null) return t[1];
+  return "Bebeğin gelişimine uygun kıvamda (püre/yumuşak dilim) ve her zaman gözetim "
+      "altında sunun. İlk yıl yuvarlak, sert ve kaygan parçalardan kaçının.";
 }
 
 class Recipe {
@@ -147,7 +201,7 @@ Map<String, double> nutritionForFood(Food food) {
   // win; otherwise use the researched USDA table for built-ins.
   final hasOwnDetail = nv.containsKey("Karbonhidrat") || nv.containsKey("Lif") || nv.containsKey("Sodyum");
   if (!hasOwnDetail) {
-    final detail = kDetailedNutrition[food.name.toLowerCase().trim()];
+    final detail = kDetailedNutrition[foodKey(food.name)];
     if (detail != null) {
       return {for (final k in kNutrientKeys) k: detail[k] ?? 0.0};
     }
@@ -165,30 +219,117 @@ Map<String, double> nutritionForFood(Food food) {
   return result;
 }
 
-/// Aggregated detailed nutrition for a recipe, summed across its ingredient
-/// foods (each via [nutritionForFood]). Energy uses the recipe's stored kcal
-/// when available; carbohydrate falls back to [atwaterCarb] if it summed to 0.
-Map<String, double> nutritionForRecipe(Recipe recipe) {
-  final sum = {for (final k in kNutrientKeys) k: 0.0};
-  for (final ing in recipe.ingredients) {
-    Food? f;
-    for (final cand in globalFoodsDatabase) {
-      if (cand.name.toLowerCase() == ing.toLowerCase()) {
-        f = cand;
-        break;
-      }
-    }
-    if (f == null) continue;
-    final n = nutritionForFood(f);
-    for (final k in kNutrientKeys) {
-      sum[k] = sum[k]! + (n[k] ?? 0);
+/// Tarif malzeme adlarının gıda veritabanındaki karşılıkları (tam ad farklıysa).
+const Map<String, String> kIngredientAliases = {
+  "tavuk": "Tavuk Göğsü",
+  "hindi": "Hindi Göğsü",
+  "peynir": "Lor Peyniri",
+  "yumurta": "Haşlanmış Yumurta",
+  "balık": "Somon",
+};
+
+/// Gıda veritabanında Food olarak bulunmayan ama tariflerde geçen sıvı/ek
+/// malzemeler için 100 g (≈100 ml) besin değeri.
+const Map<String, Map<String, double>> kExtraIngredientNutrition = {
+  "anne sütü": {"Enerji": 70, "Karbonhidrat": 6.9, "Protein": 1.0, "Yağ": 4.2, "Lif": 0, "Kolesterol": 14, "Sodyum": 17, "Potasyum": 51, "Kalsiyum": 32, "Vitamin A": 212, "Vitamin C": 5, "Demir": 0.03},
+  "formül mama": {"Enerji": 66, "Karbonhidrat": 7.3, "Protein": 1.3, "Yağ": 3.5, "Lif": 0, "Kolesterol": 0, "Sodyum": 18, "Potasyum": 70, "Kalsiyum": 51, "Vitamin A": 200, "Vitamin C": 8, "Demir": 0.7},
+  "su": {"Enerji": 0, "Karbonhidrat": 0, "Protein": 0, "Yağ": 0, "Lif": 0, "Kolesterol": 0, "Sodyum": 0, "Potasyum": 0, "Kalsiyum": 0, "Vitamin A": 0, "Vitamin C": 0, "Demir": 0},
+};
+
+/// Bir tarif malzeme adını gıda veritabanındaki [Food]'a çözer: tam ad →
+/// eşanlamlı → içerik eşleşmesi. Bulamazsa null.
+Food? foodForIngredient(String name) {
+  final key = name.toLowerCase().trim();
+  for (final f in globalFoodsDatabase) {
+    if (f.name.toLowerCase() == key) return f;
+  }
+  final alias = kIngredientAliases[key];
+  if (alias != null) {
+    for (final f in globalFoodsDatabase) {
+      if (f.name.toLowerCase() == alias.toLowerCase()) return f;
     }
   }
-  if (recipe.kcal > 0) sum["Enerji"] = recipe.kcal;
+  // İçerik eşleşmesi ("Tavuk" → "Tavuk Göğsü"). Çok kısa adlarda atla.
+  if (key.length >= 3) {
+    for (final f in globalFoodsDatabase) {
+      final fn = f.name.toLowerCase();
+      if (fn.contains(key) || key.contains(fn)) return f;
+    }
+  }
+  return null;
+}
+
+/// Bir malzemenin 100 g besin değeri (Food → [nutritionForFood], yoksa
+/// [kExtraIngredientNutrition]). Çözülemezse null.
+Map<String, double>? nutritionForIngredient(String name) {
+  final f = foodForIngredient(name);
+  if (f != null) return nutritionForFood(f);
+  final extra = kExtraIngredientNutrition[name.toLowerCase().trim()];
+  if (extra != null) return {for (final k in kNutrientKeys) k: extra[k] ?? 0};
+  return null;
+}
+
+/// Bir malzeme adı için 1 "adet" gram ağırlığı (çözümlemeli).
+double _ingredientGramsPerPiece(String name) {
+  final f = foodForIngredient(name);
+  if (f != null) return gramsPerPieceFor(f);
+  return kFoodGramsPerPiece[foodKey(name)] ?? 0;
+}
+
+/// Aggregated detailed nutrition for a recipe — her malzemenin GERÇEK miktarına
+/// göre ölçeklenerek hesaplanır. Malzeme miktarı ([Recipe.ingredientAmounts])
+/// birim→gram dönüşümünden geçer ([amountToGrams]) ve malzemenin 100 g değeri
+/// (gram/100) ile çarpılır. Böylece "50 gr soğan" tam 50 g sayılır.
+/// Hiçbir malzeme çözülemezse tarifin saklı `kcal` değerine düşülür.
+Map<String, double> nutritionForRecipe(Recipe recipe) {
+  final sum = {for (final k in kNutrientKeys) k: 0.0};
+  bool anyResolved = false;
+  for (var i = 0; i < recipe.ingredients.length; i++) {
+    final n = nutritionForIngredient(recipe.ingredients[i]);
+    if (n == null) continue;
+    final amount = i < recipe.ingredientAmounts.length ? recipe.ingredientAmounts[i] : "";
+    final grams = amountToGrams(amount, gramsPerPiece: _ingredientGramsPerPiece(recipe.ingredients[i]));
+    if (grams == null || grams <= 0) continue; // miktar çözülemedi → atla
+    anyResolved = true;
+    final factor = grams / 100.0;
+    for (final k in kNutrientKeys) {
+      sum[k] = sum[k]! + (n[k] ?? 0) * factor;
+    }
+  }
+
+  if (!anyResolved) {
+    // Hiçbir malzeme çözülemedi (özel/eski tarif) → saklı kcal'a düş.
+    sum["Enerji"] = recipe.kcal;
+    sum["Karbonhidrat"] = atwaterCarb(recipe.kcal, 0, 0);
+    return sum;
+  }
   if ((sum["Karbonhidrat"] ?? 0) == 0) {
     sum["Karbonhidrat"] = atwaterCarb(sum["Enerji"]!, sum["Protein"]!, sum["Yağ"]!);
   }
   return sum;
+}
+
+/// Tarifin malzemelerinden hesaplanan toplam kalori (kcal). Hiç malzeme
+/// çözülemezse tarifin saklı kcal'ı döner. Kart/detay/admin gösterimi için.
+double computedRecipeEnergy(Recipe recipe) {
+  final n = nutritionForRecipe(recipe);
+  return n["Enerji"] ?? 0;
+}
+
+/// JSON tarif verisinden ([Recipe.fromJson] geçmeden) kalori hesaplar — admin
+/// formundaki "otomatik" buton için. ingredients + amounts listeleri verilir.
+/// Hiç malzeme çözülemezse 0 döner.
+double computeEnergyFromIngredients(List<String> ingredients, List<String> amounts) {
+  double total = 0;
+  for (var i = 0; i < ingredients.length; i++) {
+    final n = nutritionForIngredient(ingredients[i]);
+    if (n == null) continue;
+    final amount = i < amounts.length ? amounts[i] : "";
+    final grams = amountToGrams(amount, gramsPerPiece: _ingredientGramsPerPiece(ingredients[i]));
+    if (grams == null || grams <= 0) continue;
+    total += (n["Enerji"] ?? 0) * grams / 100.0;
+  }
+  return total;
 }
 
 // 100 Foods Database
@@ -510,6 +651,32 @@ final List<Food> globalFoodsDatabase = [
       12: "Tam haşlanmış yumurta sarısını dilimler halinde kendi kendine yemesi için tabağına koyun."
     },
     nutritionValues: {"Enerji": 322, "Protein": 16.0, "Sağlıklı Yağ": 26.0, "Demir": 5.5},
+  ),
+  Food(
+    name: "Yumurta Akı",
+    emoji: "🥚",
+    category: "Et",
+    startingMonth: 8,
+    allergyRisk: "Yüksek",
+    presentationStyles: {
+      6: "6. ayda yumurta akı önerilmez; önce sarısı tek başına denenir.",
+      9: "İyice pişmiş (haşlanmış/omlet) yumurta akını çok küçük parçalar halinde sunun. Alerjenler arasındadır, 3 gün kuralını uygulayın.",
+      12: "Tam pişmiş yumurta akını dilimler halinde parmak gıda olarak verebilirsiniz."
+    },
+    nutritionValues: {"Enerji": 52, "Protein": 10.9, "Sağlıklı Yağ": 0.2, "Demir": 0.1},
+  ),
+  Food(
+    name: "Haşlanmış Yumurta",
+    emoji: "🥚",
+    category: "Et",
+    startingMonth: 8,
+    allergyRisk: "Yüksek",
+    presentationStyles: {
+      6: "6. ayda tam yumurta yerine önce sarısı ayrı denenir.",
+      9: "İyice haşlanmış (katı) tam yumurtayı ezerek veya küçük parçalar halinde sunun. Yumurta yaygın bir alerjendir.",
+      12: "Katı haşlanmış yumurtayı dilimler/dörtgenler halinde kendi kendine yemesi için verin."
+    },
+    nutritionValues: {"Enerji": 155, "Protein": 12.6, "Sağlıklı Yağ": 10.6, "Demir": 1.2},
   ),
   Food(
     name: "Tavuk Göğsü",

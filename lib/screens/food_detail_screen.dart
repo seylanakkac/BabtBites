@@ -729,7 +729,10 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(24.0),
-      children: food.presentationStyles.entries.map((entry) {
+      children: [
+        _buildSafetyCard(food),
+        const SizedBox(height: 4),
+        ...food.presentationStyles.entries.map((entry) {
         final int month = entry.key;
         final String text = entry.value;
 
@@ -811,7 +814,65 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
             ],
           ),
         );
-      }).toList(),
+      }),
+      ],
+    );
+  }
+
+  /// Boğulma riski + güvenli sunum uyarısı kartı (sunum sekmesinin başında).
+  Widget _buildSafetyCard(Food food) {
+    final risk = chokingRiskFor(food);
+    final note = chokingNoteFor(food);
+    Color color;
+    IconData icon;
+    if (risk == "Yüksek") {
+      color = const Color(0xFFE5484D);
+      icon = Icons.warning_amber_rounded;
+    } else if (risk == "Orta") {
+      color = const Color(0xFFF5A623);
+      icon = Icons.info_outline_rounded;
+    } else {
+      color = const Color(0xFF30A46C);
+      icon = Icons.check_circle_outline_rounded;
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: color, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                "Boğulma Riski: $risk",
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            note,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13,
+              color: Color(0xFF5A5A66),
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

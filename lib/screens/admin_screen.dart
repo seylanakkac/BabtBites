@@ -490,6 +490,10 @@ class _AdminScreenState extends State<AdminScreen> {
     String risk = existing?["allergyRisk"]?.toString() ?? "Düşük";
     String cartUnit = existing?["cartUnit"]?.toString() ?? "adet";
     if (!cartUnitOptions.contains(cartUnit)) cartUnit = cartUnitOptions.isNotEmpty ? cartUnitOptions.first : "adet";
+    String choking = existing?["chokingRisk"]?.toString() ?? "";
+    final chokingNote = TextEditingController(text: existing?["chokingNote"]?.toString() ?? "");
+    final gramsPiece = TextEditingController(
+        text: ((existing?["gramsPerPiece"] as num?)?.toDouble() ?? 0) > 0 ? existing!["gramsPerPiece"].toString() : "");
     // Presentation styles per age (month -> text). Each gets its own editable row.
     final ps = (existing?["presentationStyles"] as Map?) ?? {};
     final presEntries = <Map<String, TextEditingController>>[];
@@ -536,6 +540,16 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(month, "Başlangıç ayı", hint: "6", keyboard: TextInputType.number),
                   _dropdown("Alerji riski", risk, const ["Düşük", "Orta", "Yüksek"], (v) => setD(() => risk = v)),
                   _dropdown("Sepet birimi", cartUnit, cartUnitOptions, (v) => setD(() => cartUnit = v)),
+                  Row(children: [
+                    Expanded(
+                      child: _dropdown("Boğulma riski", choking.isEmpty ? "Otomatik" : choking,
+                          const ["Otomatik", "Düşük", "Orta", "Yüksek"],
+                          (v) => setD(() => choking = v == "Otomatik" ? "" : v)),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: _field(gramsPiece, "1 adet ≈ (gr)", hint: "ör. 100", keyboard: TextInputType.number)),
+                  ]),
+                  _field(chokingNote, "Güvenli sunum / boğulma notu", maxLines: 2, hint: "Boş bırakılırsa otomatik metin gösterilir"),
                   const Padding(
                     padding: EdgeInsets.only(top: 8, bottom: 4),
                     child: Align(alignment: Alignment.centerLeft, child: Text("Sunum şekilleri (aya göre)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
@@ -610,6 +624,9 @@ class _AdminScreenState extends State<AdminScreen> {
                   "allergyRisk": risk,
                   "imageUrl": imgUrl,
                   "cartUnit": cartUnit,
+                  "gramsPerPiece": double.tryParse(gramsPiece.text.trim().replaceAll(',', '.')) ?? 0,
+                  "chokingRisk": choking,
+                  "chokingNote": chokingNote.text.trim(),
                   "presentationStyles": {
                     for (final e in presEntries)
                       if (e["text"]!.text.trim().isNotEmpty)
@@ -633,7 +650,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, month, energy, carb, protein, fat, fiber, chol, sodium, potassium, calcium, vitA, vitC, iron]) {
+      for (final c in [name, month, energy, carb, protein, fat, fiber, chol, sodium, potassium, calcium, vitA, vitC, iron, chokingNote, gramsPiece]) {
         c.dispose();
       }
       for (final e in presEntries) {
@@ -656,7 +673,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 ? photoOrFallback(r.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)
                 : Container(color: _primary.withOpacity(0.1), child: const Icon(Icons.menu_book, color: _primary)),
             title: r.name,
-            subtitle: "${r.startingMonth}+ ay • ${r.prepTime} • ${r.kcal.toInt()} kcal",
+            subtitle: "${r.startingMonth}+ ay • ${r.prepTime} • ${computedRecipeEnergy(r).round()} kcal",
             isCustom: isCustomRecipe(r.id),
             onEdit: () => _recipeDialog(r.toJson()),
             onDelete: () => _confirmDelete("'${r.name}' tarifi", () {
@@ -731,7 +748,28 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 14),
                   _field(name, "Tarif adı"),
                   Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number))]),
-                  _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number),
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    Expanded(child: _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number)),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        final amts = List.generate(ingredients.length, (i) {
+                          final q = qtyCtrls[i].text.trim();
+                          final u = ingUnits[i].trim();
+                          return q.isEmpty ? u : (u.isEmpty ? q : "$q $u");
+                        });
+                        final e = computeEnergyFromIngredients(ingredients, amts);
+                        if (e > 0) {
+                          setD(() => kcal.text = e.round().toString());
+                          _toast("Malzemelerden ${e.round()} kcal hesaplandı");
+                        } else {
+                          _toast("Miktarlardan kalori hesaplanamadı (gıdaları/birimleri kontrol edin)");
+                        }
+                      },
+                      icon: const Icon(Icons.calculate_outlined, size: 18, color: _primary),
+                      label: const Text("Otomatik", style: TextStyle(fontFamily: 'Inter', color: _primary, fontWeight: FontWeight.bold)),
+                    ),
+                  ]),
                   _field(author, "Hazırlayan", hint: "babykitchenwithege"),
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   if (ingredients.isEmpty)

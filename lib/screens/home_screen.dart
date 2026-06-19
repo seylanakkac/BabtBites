@@ -740,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: Text("${recipe.startingMonth}+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
                       ),
                       const SizedBox(width: 6),
-                      Flexible(child: Text("• ${recipe.kcal.toInt()} kcal", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
+                      Flexible(child: Text("• ${computedRecipeEnergy(recipe).round()} kcal", maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
                     ],
                   ),
                 ],
@@ -1349,6 +1349,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Gıdalar sekmesi üstündeki özet: toplam gıda, denenen, kalan + ilerleme.
+  Widget _foodsStatsBar() {
+    final total = globalFoodsDatabase.length;
+    final triedNames = triedFoodNames(_activeBabyId);
+    final tried = globalFoodsDatabase.where((f) => triedNames.contains(f.name)).length;
+    final remaining = total - tried;
+    final pct = total == 0 ? 0.0 : tried / total;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 14),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [_primary, _primary.withOpacity(0.80)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [BoxShadow(color: _primary.withOpacity(0.25), blurRadius: 14, offset: const Offset(0, 6))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text("Gıda Keşfi 🍽️", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                const Spacer(),
+                Text("$tried / $total", style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.w800, color: Colors.white)),
+              ],
+            ),
+            const SizedBox(height: 3),
+            Text("%${(pct * 100).round()} denendi", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: Colors.white.withOpacity(0.85))),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: pct,
+                minHeight: 8,
+                backgroundColor: Colors.white.withOpacity(0.28),
+                valueColor: const AlwaysStoppedAnimation(Colors.white),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _foodStatChip("✅", "$tried denendi"),
+                const SizedBox(width: 8),
+                _foodStatChip("🔍", "$remaining kaldı"),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _foodStatChip(String emoji, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(20)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(emoji, style: const TextStyle(fontSize: 12)),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white)),
+      ]),
+    );
+  }
+
   Widget _buildFoodsExplorer() {
     final filteredFoods = globalFoodsDatabase.where((food) {
       final matchesSearch = food.name.toLowerCase().contains(_searchQuery);
@@ -1360,6 +1428,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       physics: const BouncingScrollPhysics(),
       child: Column(
         children: [
+          _foodsStatsBar(),
           Padding(padding: const EdgeInsets.symmetric(horizontal: 24), child: _buildSearchBar()),
           const SizedBox(height: 12),
           SizedBox(
@@ -3192,7 +3261,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         children: [
                           Expanded(child: TextField(controller: prepCtrl, decoration: dec("Süre (örn. 20 dk)"))),
                           const SizedBox(width: 10),
-                          Expanded(child: TextField(controller: kcalCtrl, keyboardType: TextInputType.number, decoration: dec("kcal"))),
+                          Expanded(child: TextField(controller: kcalCtrl, keyboardType: TextInputType.number, decoration: dec("kcal (otomatik)"))),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -3341,15 +3410,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         imgUrl = await FileStorage.instance.uploadDataUri(
                             "users/$uid/recipes/${now.millisecondsSinceEpoch}.jpg", imgUrl);
                       }
+                      final ingNames = validIngs.map((r) => r["name"]!).toList();
+                      final ingAmts = validIngs.map((r) => "${r["qty"]} ${r["unit"]}".trim()).toList();
+                      // Kaloriyi malzeme miktarlarından otomatik hesapla; kullanıcı
+                      // elle bir değer girdiyse ona öncelik ver, yoksa otomatik.
+                      final typedKcal = double.tryParse(kcalCtrl.text.trim().replaceAll(',', '.')) ?? 0;
+                      final autoKcal = computeEnergyFromIngredients(ingNames, ingAmts);
+                      final finalKcal = typedKcal > 0 ? typedKcal : autoKcal.roundToDouble();
                       await SocialSync.instance.submitRecipe({
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
                         "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
                         "startingMonth": startMonth,
-                        "kcal": double.tryParse(kcalCtrl.text.trim()) ?? 0,
+                        "kcal": finalKcal,
                         "imageUrl": imgUrl,
-                        "ingredients": validIngs.map((r) => r["name"]!).toList(),
-                        "ingredientAmounts": validIngs.map((r) => "${r["qty"]} ${r["unit"]}".trim()).toList(),
+                        "ingredients": ingNames,
+                        "ingredientAmounts": ingAmts,
                         "steps": stepsList,
                         "allergyWarning": allergyCtrl.text.trim(),
                         "author": author,
