@@ -37,6 +37,7 @@ dependencies:
   url_launcher: ^6.3.1
   shared_preferences: ^2.2.3
   image_picker: ^1.1.2
+  crop_your_image: 2.0.0
   font_awesome_flutter: 10.5.0
   wakelock_plus: ^1.2.5
   firebase_core: ^3.3.0
@@ -46,6 +47,7 @@ dependencies:
   printing: ^5.14.3
   file_picker: ^8.3.2
   firebase_storage: ^12.1.0
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:
