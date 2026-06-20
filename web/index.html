@@ -21,6 +21,7 @@
   <meta name="description" content="A new Flutter project.">
 
   <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="babybites">
@@ -33,6 +34,13 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Firebase JS SDK'sını (firebase_core_web 2.24.1 -> 11.9.1) elle yukle.
+       Boylece otomatik enjeksiyonun release/static build'de basarisiz olmasi
+       (FirebaseCoreHostApi.initializeCore channel-error / [core/no-app]) onlenir. -->
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
