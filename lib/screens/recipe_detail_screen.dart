@@ -525,16 +525,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           unselectedLabelColor: lightTextColor,
                           indicatorColor: primaryColor,
                           indicatorWeight: 3.0,
-                          labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
                           labelStyle: const TextStyle(
                             fontFamily: 'Inter',
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
                           ),
                           unselectedLabelStyle: const TextStyle(
                             fontFamily: 'Inter',
                             fontWeight: FontWeight.w500,
-                            fontSize: 12,
+                            fontSize: 15,
                           ),
                           onTap: (index) {
                             GlobalKey? targetKey;
@@ -1399,8 +1399,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     required Color color,
   }) {
     return Container(
-      width: 75,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      width: 92,
+      padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1419,7 +1419,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             value,
             style: TextStyle(
               fontFamily: 'Inter',
-              fontSize: 13,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
               color: color,
             ),
@@ -1429,7 +1429,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             label,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
+              fontSize: 12.5,
               color: Color(0xFFA8A8B3),
             ),
           ),

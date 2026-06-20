@@ -4,6 +4,7 @@ import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/sponsored_badge.dart';
+import '../widgets/web_embed.dart';
 import '../widgets/web_shell.dart';
 import 'premium_screen.dart';
 
@@ -18,6 +19,12 @@ class Article {
   final String imageUrl; // optional photo (base64 data URI / URL); empty = use emoji
   final bool sponsored; // admin-flagged sponsored content
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
+  final String author; // "Hazırlayan" — yazıyı hazırlayan
+  /// Zengin içerik blokları. Boşsa düz [content] gösterilir. Blok şekilleri:
+  /// {"t":"text","v":String,"color":"#RRGGBB","size":double,"bold":bool}
+  /// {"t":"image","v":urlString,"w":int(40-100)}
+  /// {"t":"youtube","v":urlString}  {"t":"video","v":urlString}
+  final List<Map<String, dynamic>> blocks;
 
   const Article({
     required this.id,
@@ -30,6 +37,8 @@ class Article {
     this.imageUrl = "",
     this.sponsored = false,
     this.sponsorLabel = "",
+    this.author = "",
+    this.blocks = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -43,6 +52,8 @@ class Article {
         "imageUrl": imageUrl,
         "sponsored": sponsored,
         "sponsorLabel": sponsorLabel,
+        "author": author,
+        "blocks": blocks,
       };
 
   factory Article.fromJson(Map<String, dynamic> j) => Article(
@@ -56,7 +67,64 @@ class Article {
         imageUrl: j["imageUrl"]?.toString() ?? "",
         sponsored: j["sponsored"] == true,
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
+        author: j["author"]?.toString() ?? "",
+        blocks: (j["blocks"] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? const [],
       );
+}
+
+/// "#RRGGBB" → Color (alfa eklenir). Geçersizse [fallback].
+Color articleHexColor(String hex, Color fallback) {
+  var h = hex.replaceAll('#', '').trim();
+  if (h.length == 6) h = 'FF$h';
+  final v = int.tryParse(h, radix: 16);
+  return v != null ? Color(v) : fallback;
+}
+
+/// Bir makalenin gövdesini bloklardan (veya boşsa düz [content]) render eder.
+List<Widget> renderArticleBlocks(Article a) {
+  const bodyColor = Color(0xFF2D2D3A);
+  if (a.blocks.isEmpty) {
+    return [
+      Text(a.content, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: bodyColor, height: 1.5)),
+    ];
+  }
+  final out = <Widget>[];
+  for (final b in a.blocks) {
+    final t = b["t"]?.toString() ?? "text";
+    if (t == "image") {
+      final url = b["v"]?.toString() ?? "";
+      final w = (((b["w"] as num?)?.toDouble() ?? 100).clamp(20, 100)) / 100;
+      if (url.isNotEmpty) {
+        out.add(Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Align(
+            alignment: Alignment.center,
+            child: FractionallySizedBox(
+              widthFactor: w.toDouble(),
+              child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
+            ),
+          ),
+        ));
+      }
+    } else if (t == "youtube" || t == "video") {
+      final url = b["v"]?.toString() ?? "";
+      if (url.isNotEmpty) {
+        out.add(Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: ClipRRect(borderRadius: BorderRadius.circular(12), child: mediaEmbed(youtube: t == "youtube", url: url)),
+        ));
+      }
+    } else {
+      final size = (b["size"] as num?)?.toDouble() ?? 15;
+      final bold = b["bold"] == true;
+      final color = articleHexColor(b["color"]?.toString() ?? "", bodyColor);
+      out.add(Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(b["v"]?.toString() ?? "", style: TextStyle(fontFamily: 'Inter', fontSize: size, fontWeight: bold ? FontWeight.bold : FontWeight.normal, color: color, height: 1.5)),
+      ));
+    }
+  }
+  return out;
 }
 
 /// Admin-added articles, merged into the list shown by ArticlesScreen.
@@ -628,9 +696,10 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
+                : GridView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     physics: const BouncingScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 520, mainAxisExtent: 180, crossAxisSpacing: 16),
                     itemCount: filteredArticles.length + (filteredArticles.length ~/ 3),
                     itemBuilder: (context, index) {
                       // One ad banner after every 3 article cards (repeating).
@@ -860,17 +929,13 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                     ),
                   ],
                 ),
+                if (article.author.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text("Hazırlayan: ${article.author}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFA8A8B3))),
+                ],
                 const SizedBox(height: 16),
-                Text(
-                  article.content,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 14,
-                    color: Color(0xFF2D2D3A),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 16),
+                ...renderArticleBlocks(article),
+                const SizedBox(height: 4),
                 const MedicalDisclaimer(),
               ],
             ),

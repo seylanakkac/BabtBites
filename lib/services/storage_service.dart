@@ -89,6 +89,7 @@ class StorageService {
   static const String _kAdFreeUntil = 'ad_free_until';
   static const String _kFeatureUnlocks = 'feature_unlocks';
   static const String _kReportFiles = 'report_files';
+  static const String _kUserFormulaNames = 'user_formula_names';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
   // (Catalog/admin/social keys are intentionally excluded — those become the
@@ -101,6 +102,7 @@ class StorageService {
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
+    _kUserFormulaNames,
   ];
   static const List<String> _userBoolKeys = [_kPremium];
 
@@ -402,6 +404,14 @@ class StorageService {
           });
           globalDailyLogs[babyId] = m;
         });
+      }
+
+      // Kullanıcının kendi formül mama adları (beslenme takibi açılır menüsü).
+      final ufn = prefs.getStringList(_kUserFormulaNames);
+      if (ufn != null) {
+        globalUserFormulaNames
+          ..clear()
+          ..addAll(ufn);
       }
 
       // Admin-added custom content → merge into the global databases.
@@ -744,6 +754,7 @@ class StorageService {
       await prefs.setString(_kReminders, jsonEncode(globalReminders));
       await prefs.setString(_kBabyMeds, jsonEncode(globalBabyMeds));
       await prefs.setString(_kDailyLogs, jsonEncode(globalDailyLogs));
+      await prefs.setStringList(_kUserFormulaNames, globalUserFormulaNames);
       await prefs.setString(_kGrowth, jsonEncode(globalGrowthRecords));
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setBool(_kPremium, globalIsPremium);
@@ -832,6 +843,7 @@ class StorageService {
     globalReminders.clear();
     globalBabyMeds.clear();
     globalDailyLogs.clear();
+    globalUserFormulaNames.clear();
     globalMyProfile = null;
   }
 }

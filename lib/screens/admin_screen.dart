@@ -38,6 +38,8 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newDoseUnit = TextEditingController();
   final _newCartUnit = TextEditingController();
   final _newRecipeUnit = TextEditingController();
+  final _newFormulaName = TextEditingController();
+  final _newFeedingUnit = TextEditingController();
   final Map<String, TextEditingController> _nt = {};
 
   @override
@@ -60,6 +62,8 @@ class _AdminScreenState extends State<AdminScreen> {
     _newDoseUnit.dispose();
     _newCartUnit.dispose();
     _newRecipeUnit.dispose();
+    _newFormulaName.dispose();
+    _newFeedingUnit.dispose();
     for (final c in _nt.values) {
       c.dispose();
     }
@@ -997,8 +1001,15 @@ class _AdminScreenState extends State<AdminScreen> {
     final readTime = TextEditingController(text: existing?.readTime ?? "3 dk");
     final summary = TextEditingController(text: existing?.summary ?? "");
     final content = TextEditingController(text: existing?.content ?? "");
+    final author = TextEditingController(text: existing?.author ?? "");
     final sponsorLabel = TextEditingController(text: existing?.sponsorLabel ?? "");
     bool sponsored = existing?.sponsored ?? false;
+    // Zengin içerik blokları (her birine düzenleyici-içi anahtar _k eklenir).
+    var bkCounter = 0;
+    final blocks = <Map<String, dynamic>>[
+      for (final b in (existing?.blocks ?? const <Map<String, dynamic>>[])) {...Map<String, dynamic>.from(b), "_k": "k${bkCounter++}"}
+    ];
+    String newKey() => "k${bkCounter++}";
 
     showDialog(
       context: context,
@@ -1019,7 +1030,17 @@ class _AdminScreenState extends State<AdminScreen> {
                   _dropdown("Kategori", cat, articleCategories, (v) => setD(() => cat = v)),
                   _field(readTime, "Okuma süresi", hint: "3 dk"),
                   _field(summary, "Özet", maxLines: 2),
-                  _field(content, "İçerik", maxLines: 8),
+                  _field(author, "Hazırlayan", hint: "ör. Uzm. Dyt. Ayşe Yılmaz"),
+                  _field(content, "İçerik (basit metin)", maxLines: 6),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10, bottom: 2),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Zengin İçerik (foto / video / YouTube + biçim)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Blok eklersen yazı bunlarla gösterilir; boşsa yukarıdaki basit metin kullanılır.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
+                  ),
+                  _articleBlockEditor(blocks, setD, newKey),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
@@ -1045,6 +1066,20 @@ class _AdminScreenState extends State<AdminScreen> {
                 final nav = Navigator.of(ctx);
                 final aid = existing?.id ?? "ac_${DateTime.now().millisecondsSinceEpoch}";
                 final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/articles/$aid.jpg", image));
+                // Blokları temizle: editör anahtarını at, yüklenen foto data-URI'lerini Storage'a yükle, boş blokları ele.
+                final cleanBlocks = <Map<String, dynamic>>[];
+                for (var i = 0; i < blocks.length; i++) {
+                  final b = Map<String, dynamic>.from(blocks[i]);
+                  b.remove("_k");
+                  if (b["t"] == "image") {
+                    final v = b["v"]?.toString() ?? "";
+                    if (v.startsWith("data:")) {
+                      b["v"] = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/articles/$aid/b$i.jpg", v));
+                    }
+                  }
+                  if ((b["v"]?.toString() ?? "").trim().isEmpty) continue;
+                  cleanBlocks.add(b);
+                }
                 saveArticleEdit(Article(
                   id: aid,
                   title: t,
@@ -1056,6 +1091,8 @@ class _AdminScreenState extends State<AdminScreen> {
                   imageUrl: imgUrl,
                   sponsored: sponsored,
                   sponsorLabel: sponsorLabel.text.trim(),
+                  author: author.text.trim(),
+                  blocks: cleanBlocks,
                 ));
                 _persistAll();
                 nav.pop();
@@ -1069,10 +1106,136 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [title, readTime, summary, content]) {
+      for (final c in [title, readTime, summary, content, author]) {
         c.dispose();
       }
     });
+  }
+
+  /// Zengin içerik blok editörü (metin renk/boyut, foto+genişlik, YouTube, video).
+  Widget _articleBlockEditor(List<Map<String, dynamic>> blocks, StateSetter setD, String Function() newKey) {
+    const palette = ["#2D2D3A", "#FF7A45", "#2BB673", "#E5484D", "#185FA5", "#8E8E9F"];
+    const sizes = {"Küçük": 13.0, "Normal": 15.0, "Büyük": 18.0, "Başlık": 22.0};
+
+    Widget iconBtn(IconData ic, VoidCallback? onTap, {Color color = _light}) => IconButton(
+          icon: Icon(ic, size: 18, color: onTap == null ? const Color(0xFFD0D0D6) : color),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+          onPressed: onTap,
+        );
+
+    Widget blockCard(int i) {
+      final b = blocks[i];
+      final t = b["t"]?.toString() ?? "text";
+      const labels = {"text": "Metin", "image": "Fotoğraf", "youtube": "YouTube", "video": "Video"};
+      return Container(
+        key: ValueKey(b["_k"]),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(color: const Color(0xFFFAFAFB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Text(labels[t] ?? t, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+              const Spacer(),
+              iconBtn(Icons.arrow_upward, i > 0 ? () => setD(() { final x = blocks.removeAt(i); blocks.insert(i - 1, x); }) : null),
+              iconBtn(Icons.arrow_downward, i < blocks.length - 1 ? () => setD(() { final x = blocks.removeAt(i); blocks.insert(i + 1, x); }) : null),
+              iconBtn(Icons.delete_outline, () => setD(() => blocks.removeAt(i)), color: _red),
+            ]),
+            const SizedBox(height: 6),
+            if (t == "text") ...[
+              TextFormField(
+                initialValue: b["v"]?.toString() ?? "",
+                maxLines: 4,
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                decoration: _dec("Metin"),
+                onChanged: (v) => b["v"] = v,
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                ...palette.map((c) {
+                  final sel = (b["color"]?.toString() ?? "#2D2D3A") == c;
+                  return GestureDetector(
+                    onTap: () => setD(() => b["color"] = c),
+                    child: Container(
+                      width: 22, height: 22,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(color: Color(int.parse("FF${c.substring(1)}", radix: 16)), shape: BoxShape.circle, border: Border.all(color: sel ? _text : Colors.transparent, width: 2)),
+                    ),
+                  );
+                }),
+                const Spacer(),
+                GestureDetector(
+                  onTap: () => setD(() => b["bold"] = !(b["bold"] == true)),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: b["bold"] == true ? _primary : Colors.white, borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE2E2E6))),
+                    child: Icon(Icons.format_bold, size: 18, color: b["bold"] == true ? Colors.white : _light),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE2E2E6))),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<double>(
+                    isExpanded: true,
+                    value: sizes.values.contains((b["size"] as num?)?.toDouble()) ? (b["size"] as num).toDouble() : 15.0,
+                    items: sizes.entries.map((e) => DropdownMenuItem(value: e.value, child: Text("Yazı boyutu: ${e.key}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text)))).toList(),
+                    onChanged: (v) => setD(() => b["size"] = v ?? 15.0),
+                  ),
+                ),
+              ),
+            ] else if (t == "image") ...[
+              PhotoPickerField(value: b["v"]?.toString() ?? "", label: "Fotoğraf", height: 110, onChanged: (v) => setD(() => b["v"] = v ?? "")),
+              const SizedBox(height: 6),
+              Row(children: [
+                const Text("Genişlik", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                Expanded(
+                  child: Slider(
+                    value: (((b["w"] as num?)?.toDouble() ?? 100).clamp(30, 100)),
+                    min: 30, max: 100, divisions: 14, activeColor: _primary,
+                    label: "%${((b["w"] as num?)?.toDouble() ?? 100).round()}",
+                    onChanged: (v) => setD(() => b["w"] = v.round()),
+                  ),
+                ),
+                Text("%${((b["w"] as num?)?.toDouble() ?? 100).round()}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text)),
+              ]),
+            ] else ...[
+              TextFormField(
+                initialValue: b["v"]?.toString() ?? "",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                decoration: _dec(t == "youtube" ? "YouTube linki (https://youtu.be/...)" : "Video (.mp4) linki"),
+                onChanged: (v) => b["v"] = v,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    Widget addBtn(String label, IconData ic, VoidCallback onTap) => OutlinedButton.icon(
+          onPressed: onTap,
+          icon: Icon(ic, size: 16, color: _primary),
+          label: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+          style: OutlinedButton.styleFrom(side: BorderSide(color: _primary.withOpacity(0.4)), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...List.generate(blocks.length, blockCard),
+        const SizedBox(height: 4),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          addBtn("Metin", Icons.text_fields, () => setD(() => blocks.add({"_k": newKey(), "t": "text", "v": "", "color": "#2D2D3A", "size": 15.0, "bold": false}))),
+          addBtn("Fotoğraf", Icons.image_outlined, () => setD(() => blocks.add({"_k": newKey(), "t": "image", "v": "", "w": 100}))),
+          addBtn("YouTube", Icons.smart_display_outlined, () => setD(() => blocks.add({"_k": newKey(), "t": "youtube", "v": ""}))),
+          addBtn("Video", Icons.movie_outlined, () => setD(() => blocks.add({"_k": newKey(), "t": "video", "v": ""}))),
+        ]),
+      ],
+    );
   }
 
   // ---------- categories manager ----------
@@ -1268,6 +1431,24 @@ class _AdminScreenState extends State<AdminScreen> {
         controller: _newRecipeUnit,
         hint: "Örn. su bardağı",
         onSave: (next) => globalAdminConfig["recipeUnits"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Formül Mama Adları",
+        subtitle: "Takvim beslenme takibinde seçilebilecek mama markaları",
+        options: formulaNameOptions,
+        controller: _newFormulaName,
+        hint: "Örn. Aptamil",
+        onSave: (next) => globalAdminConfig["formulaNames"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Mama Ölçü Birimleri",
+        subtitle: "Beslenme miktarı yanında çıkacak birimler (ml, ölçek, dakika…)",
+        options: feedingUnitOptions,
+        controller: _newFeedingUnit,
+        hint: "Örn. ml",
+        onSave: (next) => globalAdminConfig["feedingUnits"] = next,
       ),
     ]);
   }

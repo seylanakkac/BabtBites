@@ -34,6 +34,17 @@ final Map<String, List<Map<String, dynamic>>> globalBabyMeds = {};
 /// }
 final Map<String, Map<String, dynamic>> globalDailyLogs = {};
 
+/// Kullanıcının kendi eklediği formül mama adları (admin listesine ek olarak
+/// beslenme takibi açılır menüsünde görünür). Kullanıcı verisi olarak senkronlanır.
+final List<String> globalUserFormulaNames = [];
+
+/// A (baby, day) feeding list — emzirme/formül kayıtları. Mutable.
+/// Entry shape: {"type":"emzirme"|"formul", "formula":String, "amount":num, "unit":String, "time":"HH:mm"}
+List<Map<String, dynamic>> feedsFor(String babyId, String dateKey) {
+  final log = dailyLog(babyId, dateKey);
+  return (log["feeds"] as List).cast<Map<String, dynamic>>();
+}
+
 /// All supplement/med definitions for a baby (mutable list, created if absent).
 List<Map<String, dynamic>> medsFor(String babyId) =>
     globalBabyMeds.putIfAbsent(babyId, () => []);
@@ -51,6 +62,7 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
       "taken": <String, dynamic>{},
       "mood": "", // "uzgun" | "normal" | "mutlu" — baby's general mood that day
       "note": "", // mother's free-text note for the day
+      "feeds": <Map<String, dynamic>>[], // emzirme/formül kayıtları
     };
     forBaby[dateKey] = log;
     return log;
@@ -72,6 +84,11 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
   log["taken"] ??= <String, dynamic>{};
   log["mood"] ??= "";
   log["note"] ??= "";
+  if (log["feeds"] == null) {
+    log["feeds"] = <Map<String, dynamic>>[];
+  } else {
+    log["feeds"] = (log["feeds"] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
   return log;
 }
 

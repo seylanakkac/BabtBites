@@ -344,6 +344,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // ---------- build ----------
   @override
   Widget build(BuildContext context) {
+    // Üst portal çubuğu (her sayfada) için bebek/favori köprüsünü güncel tut.
+    webTopBar
+      ..babies = _babies
+      ..activeBaby = _activeBaby
+      ..onSelectBaby = _setActiveBaby
+      ..onOpenFavorites = _openFavorites
+      ..profileItems = [
+        {"label": "BabyBites+", "icon": Icons.workspace_premium, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)))},
+        {"label": "Büyüme Grafiği", "icon": Icons.show_chart, "premium": !globalIsPremium, "onTap": () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
+        {"label": "Gelişim & Diş Takvimi", "icon": Icons.event_note_outlined, "premium": !globalIsPremium, "onTap": () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
+        {"label": "Gelişim Raporu", "icon": Icons.description_outlined, "premium": !globalIsPremium, "onTap": () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))))},
+        {"label": "Başarımlar", "icon": Icons.emoji_events_outlined, "premium": false, "onTap": _showAchievements},
+        {"label": "Tüm Profil", "icon": Icons.person_outline, "premium": false, "onTap": () => setState(() => _currentIndex = 4)},
+        {"label": "Kullanım Koşulları", "icon": Icons.description_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(title: "Kullanım Koşulları", assetPath: "legal/kullanim-kosullari.md")))},
+        {"label": "Gizlilik Politikası", "icon": Icons.privacy_tip_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(title: "Gizlilik Politikası", assetPath: "legal/gizlilik-politikasi.md")))},
+        {"label": "Çıkış Yap", "icon": Icons.logout, "premium": false, "danger": true, "onTap": _logout},
+      ];
     Widget body;
     switch (_currentIndex) {
       case 1:
@@ -576,10 +593,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Text("%$pct", style: const TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.w800, color: _primary)),
                   const Text("ilerleme", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
                 ]),
-                const SizedBox(width: 14),
-                _notifBell(),
-                const SizedBox(width: 4),
-                _babyChip(),
               ],
             ),
           ),
@@ -2532,6 +2545,178 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ).then((_) => searchCtrl.dispose());
   }
 
+  // ---------- feeding (emzirme / formül mama) ----------
+  Widget _feedTile(Map f, VoidCallback onDelete) {
+    final isFormula = f["type"] == "formul";
+    final formula = (f["formula"] ?? "").toString().trim();
+    final title = isFormula ? (formula.isNotEmpty ? "Mama: $formula" : "Formül Mama") : "Emzirme";
+    final amount = (f["amount"] ?? "").toString().trim();
+    final unit = (f["unit"] ?? "").toString().trim();
+    final time = (f["time"] ?? "").toString().trim();
+    final parts = <String>[];
+    if (amount.isNotEmpty) parts.add("$amount $unit".trim());
+    if (time.isNotEmpty) parts.add(time);
+    final sub = parts.join(" • ");
+    final color = isFormula ? const Color(0xFF7A5CFF) : const Color(0xFFEC4899);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
+      child: Row(
+        children: [
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle), child: Icon(isFormula ? Icons.local_drink : Icons.child_friendly, color: color, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                if (sub.isNotEmpty) ...[const SizedBox(height: 2), Text(sub, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))],
+              ],
+            ),
+          ),
+          GestureDetector(onTap: onDelete, child: const Icon(Icons.delete_outline, size: 20, color: _danger)),
+        ],
+      ),
+    );
+  }
+
+  void _showAddFeedDialog(List feeds) {
+    String type = "emzirme";
+    final allFormulas = <String>{...formulaNameOptions, ...globalUserFormulaNames}.toList();
+    bool customName = allFormulas.isEmpty;
+    String? selectedFormula = allFormulas.isNotEmpty ? allFormulas.first : null;
+    final customCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final units = feedingUnitOptions.isNotEmpty ? feedingUnitOptions : ["ml"];
+    String unit = units.first;
+
+    InputDecoration dec(String hint) => InputDecoration(
+          hintText: hint,
+          hintStyle: const TextStyle(color: _light, fontSize: 14),
+          filled: true,
+          fillColor: const Color(0xFFF3F3F5),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        );
+
+    Widget typeChip(String label, String value, StateSetter setD) {
+      final sel = type == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setD(() => type = value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(color: sel ? _primary : const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: sel ? Colors.white : _light))),
+          ),
+        ),
+      );
+    }
+
+    Widget dropdownBox(String value, List<String> items, ValueChanged<String> onChanged) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: items.contains(value) ? value : items.first,
+              items: items.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
+              onChanged: (v) => onChanged(v ?? value),
+            ),
+          ),
+        );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) {
+          final formulaItems = [...allFormulas, "Diğer (kendi ekle)"];
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text("Beslenme Ekle 🍼", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+            content: SizedBox(
+              width: 360,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [typeChip("Emzirme", "emzirme", setD), const SizedBox(width: 8), typeChip("Formül Mama", "formul", setD)]),
+                    if (type == "formul") ...[
+                      const SizedBox(height: 14),
+                      const Text("Mama adı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                      const SizedBox(height: 6),
+                      dropdownBox(customName ? "Diğer (kendi ekle)" : (selectedFormula ?? formulaItems.first), formulaItems, (v) {
+                        setD(() {
+                          if (v == "Diğer (kendi ekle)") {
+                            customName = true;
+                          } else {
+                            customName = false;
+                            selectedFormula = v;
+                          }
+                        });
+                      }),
+                      if (customName) ...[
+                        const SizedBox(height: 8),
+                        TextField(controller: customCtrl, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("Mama adını yazın")),
+                      ],
+                    ],
+                    const SizedBox(height: 14),
+                    const Text("Miktar", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(child: TextField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 120"))),
+                        const SizedBox(width: 10),
+                        Expanded(child: dropdownBox(unit, units, (v) => setD(() => unit = v))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+              ElevatedButton(
+                onPressed: () {
+                  String formula = "";
+                  if (type == "formul") {
+                    if (customName) {
+                      formula = customCtrl.text.trim();
+                      if (formula.isNotEmpty && !formulaNameOptions.contains(formula) && !globalUserFormulaNames.contains(formula)) {
+                        globalUserFormulaNames.add(formula);
+                      }
+                    } else {
+                      formula = selectedFormula ?? "";
+                    }
+                  }
+                  final now = DateTime.now();
+                  final time = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+                  setState(() => feeds.add({
+                        "type": type,
+                        "formula": formula,
+                        "amount": amountCtrl.text.trim(),
+                        "unit": unit,
+                        "time": time,
+                      }));
+                  _persist();
+                  Navigator.pop(ctx);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) {
+      customCtrl.dispose();
+      amountCtrl.dispose();
+    });
+  }
+
   // ---------- daily tracking (diaper / supplements / meds) ----------
   Widget _buildDailyTrackingSection() {
     final id = _activeBabyId;
@@ -2544,6 +2729,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final cisList = log["cisList"] as List;
     final kakaList = log["kakaList"] as List;
     final suCount = log["su"] as int;
+    final feeds = log["feeds"] as List;
     const cisColor = Color(0xFF2980B9);
     const kakaColor = Color(0xFF8B5E3C);
     const suColor = _green;
@@ -2641,6 +2827,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _sectionTitle("Beslenme (Emzirme / Mama) 🍼"),
+        const SizedBox(height: 10),
+        if (feeds.isEmpty)
+          emptyHint("Henüz beslenme kaydı yok. 'Ekle' ile emzirme veya mama girin.")
+        else
+          ...feeds.asMap().entries.map((e) => _feedTile(e.value as Map, () { setState(() => feeds.removeAt(e.key)); _persist(); })),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _showAddFeedDialog(feeds),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text("Beslenme Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ),
+        const SizedBox(height: 18),
         _sectionTitle("Bez Takibi 🧷"),
         const SizedBox(height: 10),
         trackerCard(
