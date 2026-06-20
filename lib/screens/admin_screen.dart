@@ -40,6 +40,8 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newRecipeUnit = TextEditingController();
   final _newFormulaName = TextEditingController();
   final _newFeedingUnit = TextEditingController();
+  final _newPromoCode = TextEditingController();
+  int _newPromoDays = 7;
   final Map<String, TextEditingController> _nt = {};
 
   @override
@@ -64,6 +66,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _newRecipeUnit.dispose();
     _newFormulaName.dispose();
     _newFeedingUnit.dispose();
+    _newPromoCode.dispose();
     for (final c in _nt.values) {
       c.dispose();
     }
@@ -217,6 +220,7 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.campaign_outlined, "Reklamlar"),
       (Icons.rate_review_outlined, "Yorumlar"),
       (Icons.menu_book_outlined, "Tarif Onayı"),
+      (Icons.verified_outlined, "Uzman Onayı"),
     ];
 
     return Scaffold(
@@ -306,6 +310,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _commentsManager();
       case 9:
         return _recipesApprovalManager();
+      case 10:
+        return _expertApprovalManager();
       default:
         return _dashboard();
     }
@@ -1450,7 +1456,82 @@ class _AdminScreenState extends State<AdminScreen> {
         hint: "Örn. ml",
         onSave: (next) => globalAdminConfig["feedingUnits"] = next,
       ),
+      const SizedBox(height: 16),
+      _promoCodeManager(),
     ]);
+  }
+
+  /// Premium promosyon kodları: kod + süre. Kullanıcı premium ekranında girer.
+  Widget _promoCodeManager() {
+    const durations = {"7 gün": 7, "1 ay": 30, "3 ay": 90, "6 ay": 180, "1 yıl": 365, "Sınırsız": -1};
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Premium Kodları", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 2),
+          const Text("Kullanıcı premium ekranında bu kodu girince seçtiğin süre kadar premium açılır.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+          const SizedBox(height: 12),
+          if (promoCodes.isEmpty)
+            const Text("Henüz kod yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: promoCodes.map((p) {
+                final code = p["code"]?.toString() ?? "";
+                final days = (p["days"] as num?)?.toInt() ?? 0;
+                return Container(
+                  padding: const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
+                  decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text("$code · ${days < 0 ? "Sınırsız" : "$days gün"}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text)),
+                    GestureDetector(
+                      onTap: () {
+                        final next = List<Map<String, dynamic>>.from(promoCodes)..removeWhere((x) => x["code"] == p["code"]);
+                        setState(() => globalAdminConfig["promoCodes"] = next);
+                        StorageService.instance.saveAdminContent();
+                      },
+                      child: const Padding(padding: EdgeInsets.symmetric(horizontal: 6), child: Icon(Icons.close, size: 14, color: _light)),
+                    ),
+                  ]),
+                );
+              }).toList(),
+            ),
+          const SizedBox(height: 12),
+          Row(children: [
+            Expanded(child: _field(_newPromoCode, "Kod", hint: "ör. ANNE7")),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _newPromoDays,
+                  items: durations.entries.map((e) => DropdownMenuItem(value: e.value, child: Text(e.key, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text)))).toList(),
+                  onChanged: (v) => setState(() => _newPromoDays = v ?? 7),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _primaryBtn("Ekle", Icons.add, () {
+              final code = _newPromoCode.text.trim().toUpperCase();
+              if (code.isEmpty) return;
+              final list = List<Map<String, dynamic>>.from(promoCodes);
+              if (list.any((p) => (p["code"]?.toString().toUpperCase() ?? "") == code)) {
+                _toast("Bu kod zaten var");
+                return;
+              }
+              list.add({"code": code, "days": _newPromoDays});
+              setState(() => globalAdminConfig["promoCodes"] = list);
+              StorageService.instance.saveAdminContent();
+              _newPromoCode.clear();
+              _toast("Kod eklendi: $code");
+            }),
+          ]),
+        ],
+      ),
+    );
   }
 
   /// A reusable card that manages an editable list of string chips backed by a
@@ -1692,6 +1773,87 @@ class _AdminScreenState extends State<AdminScreen> {
                       if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
                       if (mounted) setState(() => _pendingRecipesList!.remove(p));
                       _toast("Tarif reddedildi");
+                    },
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text("Reddet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: _red, side: const BorderSide(color: _red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        );
+      }),
+    ]);
+  }
+
+  // ---------- expert verification approval ----------
+  List<Map<String, dynamic>>? _pendingExpertList;
+
+  Future<void> _reloadPendingExperts() async {
+    final list = await SocialSync.instance.loadPendingExpertRequests();
+    if (mounted) setState(() => _pendingExpertList = list);
+  }
+
+  Widget _expertApprovalManager() {
+    if (_pendingExpertList == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pendingExpertList == null) _reloadPendingExperts();
+      });
+      return _pane([
+        _sectionHeader("Uzman Onayı", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+    final pending = _pendingExpertList!;
+    return _pane([
+      Row(children: [
+        Expanded(child: _sectionHeader("Uzman Onayı", "${pending.length} uzman etiketi talebi bekliyor")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadPendingExperts),
+      ]),
+      if (pending.isEmpty)
+        _card(child: const Text("Onay bekleyen talep yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...pending.map((p) {
+        final username = p["username"]?.toString() ?? "";
+        final type = p["type"]?.toString() ?? "";
+        final uni = p["university"]?.toString() ?? "";
+        final diploma = p["diploma"]?.toString() ?? "";
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.verified_outlined, size: 16, color: Color(0xFF2BB673)),
+                const SizedBox(width: 6),
+                Expanded(child: Text("@$username · $type", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+              ]),
+              const SizedBox(height: 6),
+              Text("Üniversite: $uni", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              Text("Diploma no: $diploma", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
+                      final uid = p["uid"]?.toString() ?? "";
+                      await SocialSync.instance.approveExpertRequest(docId, uid: uid, username: username, type: type);
+                      if (mounted) setState(() => _pendingExpertList!.remove(p));
+                      _toast("Uzman etiketi onaylandı: @$username");
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
+                      if (docId.isNotEmpty) await SocialSync.instance.rejectExpertRequest(docId);
+                      if (mounted) setState(() => _pendingExpertList!.remove(p));
+                      _toast("Talep reddedildi");
                     },
                     icon: const Icon(Icons.close, size: 18),
                     label: const Text("Reddet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),

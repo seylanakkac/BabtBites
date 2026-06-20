@@ -99,6 +99,23 @@ List<String> get feedingUnitOptions =>
     (globalAdminConfig["feedingUnits"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultFeedingUnits);
 
+/// Admin'in oluşturduğu premium promosyon kodları.
+/// Her biri: {"code": String, "days": int}. (Catalog ile herkese senkronlanır.)
+List<Map<String, dynamic>> get promoCodes =>
+    (globalAdminConfig["promoCodes"] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+    const [];
+
+/// Bir kodu (büyük/küçük harf duyarsız) bulur; varsa gün sayısını döner, yoksa null.
+int? promoCodeDays(String code) {
+  final c = code.trim().toUpperCase();
+  for (final p in promoCodes) {
+    if ((p["code"]?.toString().toUpperCase() ?? "") == c) {
+      return (p["days"] as num?)?.toInt();
+    }
+  }
+  return null;
+}
+
 List<Map<String, dynamic>> get marketLinks =>
     (globalAdminConfig["marketLinks"] as List?)
         ?.map((e) => Map<String, dynamic>.from(e as Map))
@@ -179,7 +196,10 @@ void deleteRecipe(String id) {
 }
 
 void saveArticleEdit(Article article) {
-  if (isCustomArticle(article.id)) {
+  // Yeni eklenen yazılar "ac_" önekli; bunlar (henüz listede olmasa da) CUSTOM
+  // listeye eklenir. Yalnızca built-in id'leri (a1, a2…) override'a gider.
+  final isCustom = article.id.startsWith("ac_") || isCustomArticle(article.id);
+  if (isCustom) {
     final ci = globalCustomArticles.indexWhere((a) => a.id == article.id);
     if (ci >= 0) {
       globalCustomArticles[ci] = article;

@@ -24,6 +24,35 @@ bool globalIsPremium = false;
 /// ISO date the free trial started (or null).
 String? globalTrialStart;
 
+/// Zaman-sınırlı premium'un (deneme veya promosyon kodu) bitiş tarihi (ISO).
+/// null → zaman sınırı yok. Süre dolunca bir sonraki yüklemede premium kapanır.
+String? globalPremiumUntil;
+
+/// Belirtilen gün kadar premium uygular (deneme veya promosyon kodu). Var olan
+/// süre devam ediyorsa üzerine ekler (uzatır) ve premium'u açar.
+void applyPremiumForDays(int days) {
+  final now = DateTime.now();
+  var base = now;
+  final cur = globalPremiumUntil != null ? DateTime.tryParse(globalPremiumUntil!) : null;
+  if (cur != null && cur.isAfter(now)) base = cur;
+  globalPremiumUntil = base.add(Duration(days: days)).toIso8601String();
+  globalIsPremium = true;
+}
+
+/// Yüklemede çağrılır: zaman-sınırlı premium süresi dolduysa premium'u kapatır.
+void refreshPremiumFromExpiry() {
+  final s = globalPremiumUntil;
+  if (s == null) return;
+  final until = DateTime.tryParse(s);
+  if (until == null) return;
+  if (until.isAfter(DateTime.now())) {
+    globalIsPremium = true;
+  } else {
+    globalPremiumUntil = null;
+    globalIsPremium = false;
+  }
+}
+
 /// babyId -> list of uploaded report/document files (e.g. e-Nabız PDFs).
 /// Item shape: { "name": String, "date": "yyyy-MM-dd", "dataUri": "data:application/pdf;base64,..." }
 /// Stored LOCALLY only for now (files are large); moves to Firebase Storage in Faz 4.

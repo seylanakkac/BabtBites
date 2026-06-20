@@ -10,6 +10,7 @@ import '../services/storage_service.dart';
 import '../services/social_sync.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
+import '../widgets/expert_badge.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/web_shell.dart';
@@ -403,6 +404,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                 ),
                               ),
                             ),
+                            if (expertTypeForAuthor(recipe.author) != null) ...[
+                              const SizedBox(width: 6),
+                              expertBadgeFor(recipe.author, fontSize: 10),
+                            ],
                             Text(
                               " • ${recipe.startingMonth}+ Ay",
                               style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor, fontWeight: FontWeight.w500),

@@ -57,6 +57,28 @@ UserProfile? globalMyProfile;
 /// profile; with Firebase it fills from other users' public profiles.
 final Map<String, Map<String, dynamic>> globalKnownProfiles = {};
 
+/// Talep edilebilecek uzman türleri.
+const List<String> kExpertTypes = [
+  "Doktor",
+  "Çocuk Doktoru",
+  "Hemşire",
+  "Ebe",
+  "Diyetisyen",
+  "Çocuk Gelişimi Uzmanı",
+  "Psikolog",
+];
+
+/// Admin onaylı uzmanlar: username (küçük harf) -> uzman türü.
+/// SocialSync.loadExperts() ile Firestore /experts'ten doldurulur.
+final Map<String, String> globalExperts = {};
+
+/// Bir yazarın (username) onaylı uzman türü; uzman değilse null.
+String? expertTypeForAuthor(String author) {
+  final a = author.trim().toLowerCase();
+  if (a.isEmpty) return null;
+  return globalExperts[a];
+}
+
 /// The current user's @username. Falls back to a slug of [fallbackName] (e.g.
 /// the parent name) when no profile/username has been set yet.
 String myUsername({String fallbackName = ""}) {

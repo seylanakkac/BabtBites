@@ -87,6 +87,7 @@ class StorageService {
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
   static const String _kAdFreeUntil = 'ad_free_until';
+  static const String _kPremiumUntil = 'premium_until';
   static const String _kFeatureUnlocks = 'feature_unlocks';
   static const String _kReportFiles = 'report_files';
   static const String _kUserFormulaNames = 'user_formula_names';
@@ -98,7 +99,7 @@ class StorageService {
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
-    _kReportFiles,
+    _kReportFiles, _kPremiumUntil,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
@@ -329,6 +330,8 @@ class StorageService {
       }
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
+      globalPremiumUntil = prefs.getString(_kPremiumUntil);
+      refreshPremiumFromExpiry(); // süre dolduysa premium'u kapat
       globalAdFreeUntil = prefs.getString(_kAdFreeUntil);
       final featureUnlocksRaw = prefs.getString(_kFeatureUnlocks);
       if (featureUnlocksRaw != null) {
@@ -759,6 +762,11 @@ class StorageService {
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setBool(_kPremium, globalIsPremium);
       if (globalTrialStart != null) await prefs.setString(_kTrialStart, globalTrialStart!);
+      if (globalPremiumUntil != null) {
+        await prefs.setString(_kPremiumUntil, globalPremiumUntil!);
+      } else {
+        await prefs.remove(_kPremiumUntil);
+      }
       if (globalAdFreeUntil != null) {
         await prefs.setString(_kAdFreeUntil, globalAdFreeUntil!);
       } else {
@@ -782,6 +790,11 @@ class StorageService {
         await prefs.setString(_kTrialStart, globalTrialStart!);
       } else {
         await prefs.remove(_kTrialStart);
+      }
+      if (globalPremiumUntil != null) {
+        await prefs.setString(_kPremiumUntil, globalPremiumUntil!);
+      } else {
+        await prefs.remove(_kPremiumUntil);
       }
       if (globalAdFreeUntil != null) {
         await prefs.setString(_kAdFreeUntil, globalAdFreeUntil!);
@@ -833,6 +846,7 @@ class StorageService {
     globalMilestonesDone.clear();
     globalIsPremium = false;
     globalTrialStart = null;
+    globalPremiumUntil = null;
     globalAdFreeUntil = null;
     globalFeatureUnlocks.clear();
     for (final f in globalFoodsDatabase) {

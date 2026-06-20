@@ -87,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedRecipeAge = "Tümü";
   int _explorerSubTab = 0;
   bool _onlyTriedRecipes = false;
+  bool _onlyExpertRecipes = false;
   String _foodTriedFilter = "Tümü"; // "Tümü" | "Denendi" | "Denenmedi"
   final Set<String> _pantry = {};
 
@@ -1649,7 +1650,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: Text(initial, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _primary)),
                       ),
                       const SizedBox(width: 6),
-                      Expanded(child: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFF8E8E9F)))),
+                      Expanded(
+                        child: Row(children: [
+                          Flexible(child: Text(author, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFF8E8E9F)))),
+                          if (expertTypeForAuthor(author) != null) ...[const SizedBox(width: 3), const Icon(Icons.verified, size: 14, color: Color(0xFF2BB673))],
+                        ]),
+                      ),
                       const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB300)),
                       const SizedBox(width: 2),
                       Text(recipeRatingAverage(recipe.id).toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w700, color: _text)),
@@ -1874,6 +1880,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final filteredRecipes = globalRecipesDatabase.where((recipe) {
       final matchesSearch = recipe.name.toLowerCase().contains(_recipeSearchQuery);
       if (_onlyTriedRecipes && !recipe.ingredients.any((ing) => triedNames.contains(ing))) return false;
+      if (_onlyExpertRecipes && expertTypeForAuthor(recipe.author) == null) return false;
       if (_pantry.isNotEmpty && !recipe.ingredients.any((ing) => _pantry.contains(ing))) return false;
       if (_selectedRecipeAge == "Tümü") return matchesSearch;
       int maxAge = 6;
@@ -1908,6 +1915,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(width: 10),
                   const Expanded(child: Text("Sadece denediğim gıdaları içerenler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
                   Switch(value: _onlyTriedRecipes, activeColor: _green, onChanged: (v) => setState(() => _onlyTriedRecipes = v)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified, size: 18, color: Color(0xFF2BB673)),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text("Sadece uzman içerikleri (doktor, diyetisyen…)", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyExpertRecipes, activeColor: const Color(0xFF2BB673), onChanged: (v) => setState(() => _onlyExpertRecipes = v)),
                 ],
               ),
             ),
@@ -3645,9 +3668,114 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             ),
           ),
+          const SizedBox(height: 10),
+          // Uzman etiketi durumu / talep
+          if (expertTypeForAuthor(uname) != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: const Color(0xFF2BB673).withOpacity(0.10), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                const Icon(Icons.verified, color: Color(0xFF2BB673), size: 18),
+                const SizedBox(width: 8),
+                Text("Onaylı Uzman: ${expertTypeForAuthor(uname)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E8C5A))),
+              ]),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showExpertRequestDialog(uname),
+                icon: const Icon(Icons.verified_outlined, size: 16),
+                label: const Text("Uzman Etiketi Talep Et", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 12)),
+                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2BB673), side: const BorderSide(color: Color(0xFF7FD0A6)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  void _showExpertRequestDialog(String username) {
+    String type = kExpertTypes.first;
+    final uniCtrl = TextEditingController();
+    final diplomaCtrl = TextEditingController();
+    InputDecoration dec(String h) => InputDecoration(
+          hintText: h,
+          hintStyle: const TextStyle(color: _light, fontSize: 14),
+          filled: true,
+          fillColor: const Color(0xFFF3F3F5),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        );
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Uzman Etiketi Talep Et 🎓", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Uzmanlığını doğrulamak için bilgilerini gir. Admin onayından sonra içeriklerin uzman etiketiyle görünür.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                  const SizedBox(height: 14),
+                  const Text("Uzmanlık alanı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: type,
+                        items: kExpertTypes.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
+                        onChanged: (v) => setD(() => type = v ?? type),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("Mezun olunan üniversite", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  TextField(controller: uniCtrl, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. Hacettepe Üniversitesi")),
+                  const SizedBox(height: 12),
+                  const Text("Diploma numarası", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  TextField(controller: diplomaCtrl, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("Diploma / tescil no")),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () async {
+                final uni = uniCtrl.text.trim();
+                final dip = diplomaCtrl.text.trim();
+                if (uni.isEmpty || dip.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Üniversite ve diploma numarası gerekli.")));
+                  return;
+                }
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(ctx);
+                await SocialSync.instance.submitExpertRequest(username: username, type: type, university: uni, diploma: dip);
+                nav.pop();
+                messenger.showSnackBar(const SnackBar(content: Text("Talebin alındı. Admin onayından sonra uzman etiketin verilecek. 🎓")));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2BB673), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text("Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      uniCtrl.dispose();
+      diplomaCtrl.dispose();
+    });
   }
 
   void _showEditProfileDialog() {

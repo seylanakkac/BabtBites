@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/admin_store.dart';
 import '../data/extras_store.dart';
 import '../services/rewarded_ad.dart';
 import '../services/storage_service.dart';
@@ -26,6 +27,38 @@ class _PremiumScreenState extends State<PremiumScreen> {
     ["🚫", "Reklamsız deneyim", "Kesintisiz, sade kullanım."],
     ["👶", "Sınırsız bebek profili", "Tüm çocuklarını tek hesapta yönet."],
   ];
+
+  final _promoCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _promoCtrl.dispose();
+    super.dispose();
+  }
+
+  void _redeemPromo() {
+    final code = _promoCtrl.text.trim();
+    if (code.isEmpty) return;
+    final days = promoCodeDays(code);
+    if (days == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Kod geçersiz.")));
+      return;
+    }
+    setState(() {
+      if (days < 0) {
+        // Sınırsız: süre sınırı olmadan kalıcı premium.
+        globalIsPremium = true;
+        globalPremiumUntil = null;
+      } else {
+        applyPremiumForDays(days);
+      }
+    });
+    StorageService.instance.saveExtras();
+    widget.onChanged?.call();
+    _promoCtrl.clear();
+    final msg = days < 0 ? "Sınırsız premium etkinleştirildi! 🎉" : "$days günlük premium etkinleştirildi! 🎉";
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   Future<void> _watchRewardedForAdFree() async {
     final earned = await RewardedAdService.instance.show(context);
@@ -75,7 +108,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 const SizedBox(height: 12),
                 const Text("Bebeğinin gelişimini bir üst seviyeye taşı", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
                 const SizedBox(height: 4),
-                const Text("İlk 1 ay ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                const Text("İlk 7 gün ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
               ],
             ),
           ),
@@ -115,22 +148,22 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 onPressed: () {
                   final now = DateTime.now();
                   setState(() {
-                    globalIsPremium = true;
                     globalTrialStart = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+                    applyPremiumForDays(7);
                   });
                   StorageService.instance.saveExtras();
                   widget.onChanged?.call();
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("1 aylık ücretsiz deneme başladı! 🎉")));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("7 günlük ücretsiz deneme başladı! 🎉")));
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                child: const Text("1 Ay Ücretsiz Dene", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text("7 Gün Ücretsiz Dene", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
           if (globalIsPremium) ...[
             const SizedBox(height: 10),
             Center(
               child: TextButton(
-                onPressed: () { setState(() { globalIsPremium = false; globalTrialStart = null; }); StorageService.instance.saveExtras(); widget.onChanged?.call(); },
+                onPressed: () { setState(() { globalIsPremium = false; globalTrialStart = null; globalPremiumUntil = null; }); StorageService.instance.saveExtras(); widget.onChanged?.call(); },
                 child: const Text("Aboneliği iptal et (demo)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
               ),
             ),
@@ -138,6 +171,49 @@ class _PremiumScreenState extends State<PremiumScreen> {
           // Rewarded ad: watch to earn a temporary ad-free window (only for
           // non-premium users).
           if (!globalIsPremium) ...[
+            const SizedBox(height: 16),
+            // Promosyon kodu
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: _primary.withOpacity(0.25))),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.confirmation_number_outlined, color: _primary, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(child: Text("Promosyon Kodu", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+                  ]),
+                  const SizedBox(height: 4),
+                  const Text("Elindeki kodu gir, premium otomatik açılsın.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                  const SizedBox(height: 10),
+                  Row(children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _promoCtrl,
+                        textCapitalization: TextCapitalization.characters,
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                        onSubmitted: (_) => _redeemPromo(),
+                        decoration: InputDecoration(
+                          hintText: "KOD",
+                          hintStyle: const TextStyle(color: _light, fontSize: 14),
+                          filled: true,
+                          fillColor: const Color(0xFFF3F3F5),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _redeemPromo,
+                      style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      child: const Text("Uygula", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
             const SizedBox(height: 18),
             const Row(children: [
               Expanded(child: Divider(color: Color(0xFFECEBE9))),

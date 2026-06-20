@@ -234,6 +234,82 @@ class SocialSync {
     }
   }
 
+  // ---- Expert verification (uzman doğrulama) ----
+  CollectionReference<Map<String, dynamic>> get _experts => _db.collection('experts');
+  CollectionReference<Map<String, dynamic>> get _expertReqs => _db.collection('expertRequests');
+
+  /// Onaylı uzmanları yükler → globalExperts[username] = type.
+  Future<void> loadExperts() async {
+    try {
+      final snap = await _experts.get();
+      globalExperts.clear();
+      for (final d in snap.docs) {
+        final m = d.data();
+        final u = (m['username']?.toString() ?? '').toLowerCase().trim();
+        final t = m['type']?.toString() ?? '';
+        if (u.isNotEmpty && t.isNotEmpty) globalExperts[u] = t;
+      }
+    } catch (e) {
+      debugPrint('SocialSync.loadExperts failed: $e');
+    }
+  }
+
+  /// Kullanıcı uzman etiketi talep eder (admin onayına gider).
+  Future<String?> submitExpertRequest({required String username, required String type, required String university, required String diploma}) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final ref = await _expertReqs.add({
+        'uid': uid,
+        'username': username,
+        'type': type,
+        'university': university,
+        'diploma': diploma,
+        'approved': false,
+        'ts': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.submitExpertRequest failed: $e');
+      return null;
+    }
+  }
+
+  /// Onay bekleyen uzman talepleri (admin). Her birinde '_docId'.
+  Future<List<Map<String, dynamic>>> loadPendingExpertRequests() async {
+    try {
+      final snap = await _expertReqs.where('approved', isEqualTo: false).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['_docId'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadPendingExpertRequests failed: $e');
+      return [];
+    }
+  }
+
+  /// Talebi onaylar: /experts/{uid} yazar, talebi siler, kullanıcıya bildirir.
+  Future<void> approveExpertRequest(String docId, {required String uid, required String username, required String type}) async {
+    try {
+      await _experts.doc(uid).set({'uid': uid, 'username': username, 'type': type, 'ts': FieldValue.serverTimestamp()});
+      await _expertReqs.doc(docId).delete();
+      globalExperts[username.toLowerCase().trim()] = type;
+      await sendNotification(uid, "Uzman etiketin onaylandı 🎓", "Artık '$type' uzman etiketine sahipsin. İçeriklerin uzman olarak görünecek.");
+    } catch (e) {
+      debugPrint('SocialSync.approveExpertRequest failed: $e');
+    }
+  }
+
+  Future<void> rejectExpertRequest(String docId) async {
+    try {
+      await _expertReqs.doc(docId).delete();
+    } catch (e) {
+      debugPrint('SocialSync.rejectExpertRequest failed: $e');
+    }
+  }
+
   // ---- Public profiles ----
   CollectionReference<Map<String, dynamic>> get _profiles => _db.collection('profiles');
 

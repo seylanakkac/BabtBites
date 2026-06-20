@@ -6,6 +6,7 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/social_sync.dart';
+import '../widgets/expert_badge.dart';
 import '../widgets/web_shell.dart';
 import 'recipe_detail_screen.dart';
 
@@ -102,6 +103,10 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text("@$author", style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+                if (expertTypeForAuthor(author) != null) ...[
+                  const SizedBox(height: 6),
+                  ExpertBadge(type: expertTypeForAuthor(author)!, fontSize: 12),
+                ],
                 const SizedBox(height: 4),
                 Text("${recipes.length} tarif", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _light)),
               ],

@@ -53,6 +53,8 @@ Future<void> main() async {
     await CatalogSync.instance.pull().timeout(const Duration(seconds: 10), onTimeout: () {});
     // Real cross-user recipe stats (ratings/likes/views) — public read.
     await SocialSync.instance.loadStats().timeout(const Duration(seconds: 10), onTimeout: () {});
+    // Onaylı uzmanlar (rozetler + uzman içerik filtresi için) — public read.
+    await SocialSync.instance.loadExperts().timeout(const Duration(seconds: 8), onTimeout: () {});
   }
   StorageService.instance.loadInto();
   runApp(const BabyBitesApp());
