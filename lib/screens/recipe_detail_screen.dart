@@ -11,6 +11,7 @@ import '../services/social_sync.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
+import '../widgets/web_embed.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/web_shell.dart';
@@ -1251,21 +1252,43 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
         ),
       );
 
+  static const String _siteUrl = "https://babybites.com.tr";
+
   Future<void> _shareRecipe(String platform) async {
     final r = widget.recipe;
     final text = "BabyBites'ta \"${r.name}\" tarifi 🍲 (${r.startingMonth}+ ay). Hazırlayan: ${r.author}";
     final enc = Uri.encodeComponent(text);
-    Uri? uri;
+    final encUrl = Uri.encodeComponent(_siteUrl);
+
     if (platform == "whatsapp") {
-      uri = Uri.parse("https://wa.me/?text=$enc");
-    } else if (platform == "facebook") {
-      uri = Uri.parse("https://www.facebook.com/sharer/sharer.php?u=https://babybites.app&quote=$enc");
-    } else {
-      // Instagram has no web share intent — copy text and open Instagram.
-      await Clipboard.setData(ClipboardData(text: text));
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Tarif metni kopyalandı — Instagram'da paylaşabilirsiniz."), duration: Duration(seconds: 2)));
-      uri = Uri.parse("https://www.instagram.com");
+      // WhatsApp web/app: metin + link önceden dolu açılır.
+      await _open(Uri.parse("https://wa.me/?text=$enc%20$encUrl"));
+      return;
     }
+
+    if (platform == "facebook") {
+      // Facebook sharer yalnızca URL alır (quote artık yok sayılıyor); gerçek
+      // site adresiyle link kartı paylaşılır.
+      await _open(Uri.parse("https://www.facebook.com/sharer/sharer.php?u=$encUrl"));
+      return;
+    }
+
+    // Instagram: web'den içerik paylaşım intent'i YOK. Önce native paylaşım
+    // sayfasını dene (mobil web'de Instagram dahil çıkar); olmazsa metni
+    // panoya kopyalayıp Instagram'ı aç.
+    final shared = await shareViaWebShareApi(title: "BabyBites", text: text, url: _siteUrl);
+    if (shared) return;
+    await Clipboard.setData(ClipboardData(text: "$text $_siteUrl"));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Tarif metni kopyalandı — Instagram'da yapıştırarak paylaşabilirsiniz."),
+        duration: Duration(seconds: 3),
+      ));
+    }
+    await _open(Uri.parse("https://www.instagram.com"));
+  }
+
+  Future<void> _open(Uri uri) async {
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {}

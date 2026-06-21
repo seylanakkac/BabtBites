@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// Web olmayan platformlarda Web Share API yok → her zaman false.
+Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async => false;
+
 /// Web olmayan platformlar için yer-tutucu (mobil derlemede gerçek oynatıcı
 /// ileride video_player/youtube_player ile eklenebilir).
 Widget mediaEmbed({required bool youtube, required String url, double aspectRatio = 16 / 9}) {

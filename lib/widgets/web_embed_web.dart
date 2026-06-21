@@ -5,6 +5,24 @@ import 'package:flutter/material.dart';
 
 final Set<String> _registered = {};
 
+/// Web'de native paylaşım sayfasını (Web Share API) açar. Tarayıcı desteklemiyorsa
+/// ya da kullanıcı vazgeçerse false döner (çağıran tarafta yedek davranış için).
+Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async {
+  try {
+    final dynamic nav = html.window.navigator;
+    // navigator.share yoksa (masaüstü tarayıcıların çoğu) doğrudan vazgeç.
+    if (nav.share == null) return false;
+    final data = <String, dynamic>{};
+    if (title != null && title.isNotEmpty) data['title'] = title;
+    if (text != null && text.isNotEmpty) data['text'] = text;
+    if (url != null && url.isNotEmpty) data['url'] = url;
+    await nav.share(data);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// YouTube ID'sini çeşitli URL biçimlerinden çıkarır (zaten ID ise olduğu gibi).
 String _ytId(String url) {
   final u = url.trim();
