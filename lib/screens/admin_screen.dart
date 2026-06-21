@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/admin_store.dart';
 import '../services/file_storage.dart';
+import '../services/catalog_sync.dart';
 import '../services/social_sync.dart';
 import '../data/food_database.dart';
 import '../services/storage_service.dart';
@@ -271,17 +272,24 @@ class _AdminScreenState extends State<AdminScreen> {
                     ],
                   ),
                 ),
-                trailing: Expanded(
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: IconButton(
-                        tooltip: "Çıkış",
-                        icon: const Icon(Icons.logout, color: _red),
+                // Düz öğe (Expanded DEĞİL): IntrinsicHeight + Expanded kaydirmayi
+                // bozuyordu; bu sekilde kucuk/mobil ekranda menu kayar ve Cikis'a
+                // ulasilabilir.
+                trailing: Padding(
+                  padding: const EdgeInsets.only(top: 16, bottom: 24),
+                  child: Column(
+                    children: [
+                      const Divider(height: 1, color: Color(0xFFEDEDED)),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
                         onPressed: _logout,
+                        icon: const Icon(Icons.logout, color: _red, size: 20),
+                        label: extended
+                            ? const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', color: _red, fontWeight: FontWeight.bold, fontSize: 13))
+                            : const SizedBox.shrink(),
+                        style: TextButton.styleFrom(foregroundColor: _red),
                       ),
-                    ),
+                    ],
                   ),
                 ),
                 destinations: destinations
@@ -671,9 +679,14 @@ class _AdminScreenState extends State<AdminScreen> {
                   },
                 });
                 _persistAll();
+                final err = await _runSaving(() => CatalogSync.instance.push());
                 nav.pop();
                 if (mounted) setState(() {});
-                _toast(existing == null ? "$n eklendi" : "$n güncellendi");
+                if (err != null) {
+                  _toast("Buluta kaydedilemedi: $err");
+                } else {
+                  _toast(existing == null ? "$n eklendi" : "$n güncellendi");
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
@@ -915,9 +928,14 @@ class _AdminScreenState extends State<AdminScreen> {
                   "sponsorLabel": sponsorLabel.text.trim(),
                 });
                 _persistAll();
+                final err = await _runSaving(() => CatalogSync.instance.push());
                 nav.pop();
                 if (mounted) setState(() {});
-                _toast(existing == null ? "$n eklendi" : "$n güncellendi");
+                if (err != null) {
+                  _toast("Buluta kaydedilemedi: $err");
+                } else {
+                  _toast(existing == null ? "$n eklendi" : "$n güncellendi");
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),

@@ -53,9 +53,10 @@ class CatalogSync {
   }
 
   /// Admin only: pushes the current catalog up to /catalog/* (full overwrite so
-  /// deletions propagate). No-op for non-admins.
-  Future<void> push() async {
-    if (!globalIsAdmin) return;
+  /// deletions propagate). No-op for non-admins. Returns null on success or a
+  /// short error string on failure (so the admin UI can surface it).
+  Future<String?> push() async {
+    if (!globalIsAdmin) return "Yetki yok (admin değil)";
     try {
       final all = StorageService.instance.exportCatalog();
       for (final entry in _docKeys.entries) {
@@ -63,10 +64,12 @@ class CatalogSync {
         for (final k in entry.value) {
           if (all.containsKey(k)) docData[k] = all[k];
         }
-        await _catalog.doc(entry.key).set(docData);
+        await _catalog.doc(entry.key).set(docData).timeout(const Duration(seconds: 15));
       }
+      return null;
     } catch (e) {
       debugPrint('CatalogSync.push failed: $e');
+      return e.toString();
     }
   }
 }
