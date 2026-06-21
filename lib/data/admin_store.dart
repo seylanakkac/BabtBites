@@ -138,12 +138,17 @@ bool isCustomArticle(String id) => globalCustomArticles.any((a) => a.id == id);
 void saveFoodEdit(Map<String, dynamic> json) {
   final name = json["name"];
   final idx = globalFoodsDatabase.indexWhere((f) => f.name == name);
+  // Veritabanında yoksa BU YENİ bir gıda → custom listesine yazılmalı. Aksi
+  // halde override'a gider; override'lar yalnız var olan built-in gıdalara
+  // uygulandığından yeni gıda yenilemede kaybolur.
+  final isNew = idx < 0;
   if (idx >= 0) {
     globalFoodsDatabase[idx] = Food.fromJson(json);
   } else {
     globalFoodsDatabase.add(Food.fromJson(json));
   }
-  if (isCustomFood(name)) {
+  if (isNew || isCustomFood(name)) {
+    globalFoodOverrides.remove(name); // bayat override custom kaydı gölgelemesin
     final ci = globalCustomFoods.indexWhere((m) => m["name"] == name);
     if (ci >= 0) {
       globalCustomFoods[ci] = json;
@@ -168,12 +173,16 @@ void deleteFood(String name) {
 void saveRecipeEdit(Map<String, dynamic> json) {
   final id = json["id"];
   final idx = globalRecipesDatabase.indexWhere((r) => r.id == id);
+  // Veritabanında yoksa BU YENİ bir tarif → custom listesine yazılmalı (yoksa
+  // override'a gider ve yenilemede kaybolur).
+  final isNew = idx < 0;
   if (idx >= 0) {
     globalRecipesDatabase[idx] = Recipe.fromJson(json);
   } else {
     globalRecipesDatabase.add(Recipe.fromJson(json));
   }
-  if (isCustomRecipe(id)) {
+  if (isNew || isCustomRecipe(id)) {
+    globalRecipeOverrides.remove(id); // bayat override custom kaydı gölgelemesin
     final ci = globalCustomRecipes.indexWhere((m) => m["id"] == id);
     if (ci >= 0) {
       globalCustomRecipes[ci] = json;
