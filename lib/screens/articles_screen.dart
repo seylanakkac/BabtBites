@@ -101,7 +101,7 @@ List<Widget> renderArticleBlocks(Article a) {
             alignment: Alignment.center,
             child: FractionallySizedBox(
               widthFactor: w.toDouble(),
-              child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
+              child: ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.network(secureImageUrl(url), fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
             ),
           ),
         ));

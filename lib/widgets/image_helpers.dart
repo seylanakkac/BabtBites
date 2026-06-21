@@ -12,6 +12,11 @@ const _kPrimary = Color(0xFFFF7A45);
 bool isPhotoUrl(String? url) =>
     url != null && (url.startsWith('data:') || url.startsWith('http'));
 
+/// Upgrades an insecure `http://` image URL to `https://` so it never triggers
+/// mixed-content warnings on the HTTPS web app. Leaves other values untouched.
+String secureImageUrl(String url) =>
+    url.startsWith('http://') ? 'https://${url.substring(7)}' : url;
+
 /// Renders the photo at [url] (data URI or network), or [fallback] otherwise.
 Widget photoOrFallback(
   String? url, {
@@ -28,7 +33,7 @@ Widget photoOrFallback(
           errorBuilder: (_, __, ___) => fallback);
     }
     if (url.startsWith('http')) {
-      return Image.network(url, fit: fit, width: width, height: height,
+      return Image.network(secureImageUrl(url), fit: fit, width: width, height: height,
           errorBuilder: (_, __, ___) => fallback);
     }
   } catch (_) {}

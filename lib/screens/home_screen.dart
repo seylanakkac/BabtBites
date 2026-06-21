@@ -1342,7 +1342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Web'de TheMealDB CDN fotoğrafı; yüklenemezse/404 olursa [placeholder]'a düşer.
   Widget _cdnFoodImage(String url, Widget placeholder, {BoxFit fit = BoxFit.cover}) => Image.network(
-        url,
+        secureImageUrl(url),
         fit: fit,
         width: double.infinity,
         height: double.infinity,
