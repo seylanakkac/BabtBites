@@ -83,6 +83,19 @@ class _AdminScreenState extends State<AdminScreen> {
     StorageService.instance.saveAdminContent();
   }
 
+  /// Uploads a catalog image to Storage and returns its download URL. If the
+  /// upload fails the helper returns "" (NOT the base64) and warns — storing a
+  /// big base64 blob in the shared /catalog doc would blow past Firestore's
+  /// 1 MiB/doc limit and make the whole save silently fail on reload.
+  Future<String> _uploadCatalogImage(String path, String? image) async {
+    final result = await FileStorage.instance.uploadDataUri(path, image);
+    if (result.startsWith('data:')) {
+      _toast("Fotoğraf sunucuya yüklenemedi (Storage). İçerik fotoğrafsız kaydedildi.");
+      return "";
+    }
+    return result;
+  }
+
   /// Runs [work] while showing a blocking spinner (used for photo uploads on
   /// save so the button doesn't look frozen). Always dismisses the spinner.
   Future<T> _runSaving<T>(Future<T> Function() work) async {
@@ -634,7 +647,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 final m = int.tryParse(month.text.trim()) ?? 6;
                 double pn(TextEditingController c) => double.tryParse(c.text.trim().replaceAll(',', '.')) ?? 0;
                 final nav = Navigator.of(ctx);
-                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/foods/${n.hashCode}.jpg", image));
+                final imgUrl = await _runSaving(() => _uploadCatalogImage("catalog/foods/${n.hashCode}.jpg", image));
                 saveFoodEdit({
                   "name": n,
                   "emoji": existing?["emoji"]?.toString() ?? "🍽️",
@@ -881,7 +894,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 final nav = Navigator.of(ctx);
                 final rid = existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}";
-                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/recipes/$rid.jpg", image));
+                final imgUrl = await _runSaving(() => _uploadCatalogImage("catalog/recipes/$rid.jpg", image));
                 saveRecipeEdit({
                   "id": rid,
                   "name": n,
@@ -1080,7 +1093,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 final nav = Navigator.of(ctx);
                 final aid = existing?.id ?? "ac_${DateTime.now().millisecondsSinceEpoch}";
-                final imgUrl = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/articles/$aid.jpg", image));
+                final imgUrl = await _runSaving(() => _uploadCatalogImage("catalog/articles/$aid.jpg", image));
                 // Blokları temizle: editör anahtarını at, yüklenen foto data-URI'lerini Storage'a yükle, boş blokları ele.
                 final cleanBlocks = <Map<String, dynamic>>[];
                 for (var i = 0; i < blocks.length; i++) {
@@ -1089,7 +1102,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   if (b["t"] == "image") {
                     final v = b["v"]?.toString() ?? "";
                     if (v.startsWith("data:")) {
-                      b["v"] = await _runSaving(() => FileStorage.instance.uploadDataUri("catalog/articles/$aid/b$i.jpg", v));
+                      b["v"] = await _runSaving(() => _uploadCatalogImage("catalog/articles/$aid/b$i.jpg", v));
                     }
                   }
                   if ((b["v"]?.toString() ?? "").trim().isEmpty) continue;
