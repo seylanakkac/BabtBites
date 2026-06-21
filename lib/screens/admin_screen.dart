@@ -230,7 +230,12 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             Container(
               color: Colors.white,
-              child: NavigationRail(
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: NavigationRail(
                 extended: extended,
                 minExtendedWidth: 210,
                 backgroundColor: Colors.white,
@@ -269,6 +274,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 destinations: destinations
                     .map((d) => NavigationRailDestination(icon: Icon(d.$1), label: Text(d.$2)))
                     .toList(),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             const VerticalDivider(width: 1, thickness: 1, color: Color(0xFFEDEDED)),
