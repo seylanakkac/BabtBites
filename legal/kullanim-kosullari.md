@@ -5,7 +5,7 @@
 
 > Lütfen bu Kullanım Koşullarını ("Koşullar") dikkatlice okuyun. BabyBites uygulamasını ("Uygulama") indirerek, erişerek veya kullanarak bu Koşulları **kabul etmiş** olursunuz. Kabul etmiyorsanız Uygulama'yı kullanmayın.
 
-Bu Koşullar, **[Şirket/Geliştirici Adı]** ("Geliştirici", "biz") ile Uygulama'yı kullanan kişi ("Kullanıcı", "siz") arasında bağlayıcı bir sözleşmedir.
+Bu Koşullar, **Seylan Akkaç** ("Geliştirici", "biz") ile Uygulama'yı kullanan kişi ("Kullanıcı", "siz") arasında bağlayıcı bir sözleşmedir.
 
 ---
 
@@ -35,7 +35,7 @@ Aşağıdakileri yapamazsınız:
 
 ## 4. Fikri Mülkiyet ve Fikirlerin Korunması
 
-- Uygulama'nın **tüm fikri mülkiyet hakları**; tasarımı, arayüzü, "BabyBites" adı ve logosu, metinleri, içerik yapısı, özgün konsepti, akışı, veri modeli, kodu ve tüm bileşenleri **münhasıran [Şirket/Geliştirici Adı]'na aittir** ve telif hakkı, marka ve ilgili mevzuatla korunur.
+- Uygulama'nın **tüm fikri mülkiyet hakları**; tasarımı, arayüzü, "BabyBites" adı ve logosu, metinleri, içerik yapısı, özgün konsepti, akışı, veri modeli, kodu ve tüm bileşenleri **münhasıran Seylan Akkaç'a aittir** ve telif hakkı, marka ve ilgili mevzuatla korunur.
 - Bu Koşullar size **hiçbir mülkiyet hakkı devretmez**; yalnızca sınırlı bir kullanım lisansı verir.
 - Uygulama'nın özgün fikir, konsept, tasarım ve "görünüm ve hissini" (look & feel) izinsiz kopyalamak, taklit etmek veya benzer bir ürün geliştirmek için kullanmak kesinlikle yasaktır.
 - **Geri bildirim/öneri:** Uygulama hakkında bize ilettiğiniz öneri, fikir veya geri bildirimler için Geliştirici'ye, bunları herhangi bir bedel ödemeksizin ve sınırsız şekilde kullanma, uygulama ve geliştirme hakkı tanırsınız. Bu, sizin kendi yasal haklarınızı ortadan kaldırmaz ancak iletilen fikirler üzerinde ek bir talep doğurmaz.
@@ -106,9 +106,9 @@ Uygulama'yı Apple App Store veya Google Play üzerinden edindiyseniz, ilgili ma
 
 ## 14. İletişim
 
-- **Geliştirici:** [Şirket/Geliştirici Adı]
-- **E-posta:** [iletişim e-posta adresi]
-- **Adres:** [varsa açık adres]
+- **Geliştirici:** Seylan Akkaç
+- **E-posta:** seylanakkac@gmail.com
+- **Adres:** Mithatpaşa Mah. 199. Sok. No:7 Konak/İzmir
 
 ---
 
