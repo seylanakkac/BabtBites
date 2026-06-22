@@ -30,6 +30,7 @@ class _AdminScreenState extends State<AdminScreen> {
   int _section = 0;
 
   final _foodSearch = TextEditingController();
+  bool _onlyPendingFoods = false;
   final _recipeSearch = TextEditingController();
   final _articleSearch = TextEditingController();
   final _newFoodCat = TextEditingController();
@@ -427,6 +428,8 @@ class _AdminScreenState extends State<AdminScreen> {
     required bool isCustom,
     required VoidCallback onEdit,
     required VoidCallback onDelete,
+    bool pending = false,
+    VoidCallback? onApprove,
   }) =>
       Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -453,13 +456,28 @@ class _AdminScreenState extends State<AdminScreen> {
                         decoration: BoxDecoration(color: (isCustom ? _primary : _light).withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
                         child: Text(isCustom ? "Özel" : "Yerleşik", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: isCustom ? _primary : _light)),
                       ),
-                      const SizedBox(width: 8),
+                      if (pending) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(color: const Color(0xFFFFC107).withOpacity(0.18), borderRadius: BorderRadius.circular(8)),
+                          child: const Text("⏳ Onay bekliyor", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFB26A00))),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Flexible(child: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
                     ],
                   ),
                 ],
               ),
             ),
+            if (pending && onApprove != null)
+              IconButton(
+                tooltip: "Uzman onayını ver",
+                icon: const Icon(Icons.verified_outlined, color: _green, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                onPressed: onApprove,
+              ),
             IconButton(
               icon: const Icon(Icons.edit_outlined, color: _primary, size: 19),
               padding: EdgeInsets.zero,
@@ -496,12 +514,65 @@ class _AdminScreenState extends State<AdminScreen> {
       );
 
   // ---------- foods manager ----------
+  /// Bir gıdanın "uzman onayı bekliyor" işaretini kaldırır.
+  /// Persist/sync çağıranın sorumluluğunda (toplu işlemde tek seferde yapılır).
+  void _approveFood(Food f) {
+    setFoodReviewApproved(f.name, true);
+  }
+
   Widget _foodsManager() {
     final q = _foodSearch.text.trim().toLowerCase();
-    final foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
+    final pendingCount = globalFoodsDatabase.where(effectiveFoodNeedsReview).length;
+    var foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
+    if (_onlyPendingFoods) foods = foods.where(effectiveFoodNeedsReview).toList();
     return _pane([
-      _sectionHeader("Gıdalar", "${globalFoodsDatabase.length} gıda • düzenle, sil veya yeni ekle",
+      _sectionHeader("Gıdalar", "${globalFoodsDatabase.length} gıda • $pendingCount uzman onayı bekliyor",
           action: _primaryBtn("Yeni Gıda", Icons.add, () => _foodDialog(null))),
+      // Uzman onayı filtresi + toplu onay
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () => setState(() => _onlyPendingFoods = !_onlyPendingFoods),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: _onlyPendingFoods ? const Color(0xFFFFC107).withOpacity(0.15) : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _onlyPendingFoods ? const Color(0xFFFFC107) : const Color(0xFFE2E2E6)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(_onlyPendingFoods ? Icons.check_box : Icons.check_box_outline_blank, size: 18, color: const Color(0xFFB26A00)),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text("Sadece onay bekleyenler ($pendingCount)", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (pendingCount > 0) ...[
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () => _confirmDelete("⚠️ ${_onlyPendingFoods ? foods.length : pendingCount} gıdanın uzman onayını TOPLU vermek", () {
+                  final list = (_onlyPendingFoods ? foods : globalFoodsDatabase.where(effectiveFoodNeedsReview).toList());
+                  for (final f in list.toList()) {
+                    _approveFood(f);
+                  }
+                  _persistAll();
+                  setState(() {});
+                  _toast("${list.length} gıda onaylandı");
+                }),
+                icon: const Icon(Icons.done_all, size: 16),
+                label: const Text("Tümünü Onayla", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ],
+          ],
+        ),
+      ),
       _searchBar(_foodSearch, "Gıda ara...", (_) => setState(() {})),
       ...foods.map((f) => _itemCard(
             leading: isPhotoUrl(f.imageUrl)
@@ -510,6 +581,13 @@ class _AdminScreenState extends State<AdminScreen> {
             title: f.name,
             subtitle: "${f.category} • ${f.startingMonth}+ ay • Alerji: ${f.allergyRisk}",
             isCustom: isCustomFood(f.name),
+            pending: effectiveFoodNeedsReview(f),
+            onApprove: () {
+              _approveFood(f);
+              _persistAll();
+              setState(() {});
+              _toast("${f.name} onaylandı");
+            },
             onEdit: () => _foodDialog(f.toJson()),
             onDelete: () => _confirmDelete("'${f.name}' gıdası", () {
               deleteFood(f.name);

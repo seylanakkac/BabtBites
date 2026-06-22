@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/food_database.dart';
+import '../data/admin_store.dart';
 import '../data/tracking_store.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
@@ -514,7 +515,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
                         const SizedBox(height: 24),
 
                         // Uzman onayı bekleyen (toplu eklenmiş) gıdalar için uyarı.
-                        if (food.needsReview)
+                        if (effectiveFoodNeedsReview(food))
                           Padding(
                             padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
                             child: Container(

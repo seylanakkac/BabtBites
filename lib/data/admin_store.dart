@@ -56,6 +56,27 @@ final Set<String> globalDeletedArticles = {};
 // ---- Editable app config (empty until customised) ----
 final Map<String, dynamic> globalAdminConfig = {};
 
+// ---- Uzman onayı (needsReview) yönetimi ----
+// Onaylanan gıda adları globalAdminConfig'te tutulur (override'ları şişirmez,
+// kod güncellemelerini gölgelemez). /catalog/config ile herkese senkronlanır.
+List<String> get reviewedFoodNames =>
+    ((globalAdminConfig["reviewedFoods"] as List?) ?? const []).map((e) => e.toString()).toList();
+
+bool isFoodReviewApproved(String name) => reviewedFoodNames.contains(name);
+
+/// Gıda hâlâ uzman onayı bekliyor mu? (kod işaretli VE admin onaylamamış)
+bool effectiveFoodNeedsReview(Food f) => f.needsReview && !isFoodReviewApproved(f.name);
+
+void setFoodReviewApproved(String name, bool approved) {
+  final set = reviewedFoodNames.toSet();
+  if (approved) {
+    set.add(name);
+  } else {
+    set.remove(name);
+  }
+  globalAdminConfig["reviewedFoods"] = set.toList();
+}
+
 // ---- Config accessors (fall back to defaults) ----
 List<String> get foodCategories =>
     (globalAdminConfig["foodCategories"] as List?)?.map((e) => e.toString()).toList() ??
