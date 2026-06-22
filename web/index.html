@@ -46,13 +46,9 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!-- Firebase JS SDK'sını (firebase_core_web 2.24.1 -> 11.9.1) elle yukle.
-       Boylece otomatik enjeksiyonun release/static build'de basarisiz olmasi
-       (FirebaseCoreHostApi.initializeCore channel-error / [core/no-app]) onlenir. -->
-  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/11.9.1/firebase-storage.js"></script>
+  <!-- Firebase JS SDK'sini firebase_core_web otomatik enjekte eder (deploy'da
+       calisiyor). Elle <script> ile yuklemeyin: gstatic firebase-app.js bir ES
+       module'dur, klasik script olarak "Unexpected token export" hatasi verir. -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
