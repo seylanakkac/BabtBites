@@ -108,7 +108,7 @@ String chokingRiskFor(Food food) {
   if (food.chokingRisk.isNotEmpty) return food.chokingRisk;
   final t = kFoodChoking[foodKey(food.name)];
   if (t != null) return t[0];
-  return "Düşük";
+  return "Orta"; // veri yoksa fail-safe: düşük değil orta (gözetim gerekir)
 }
 
 /// Boğulma riskine karşı güvenli sunum açıklaması.

@@ -1238,6 +1238,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return m.isNotEmpty ? m.first.allergyRisk : "Düşük";
   }
 
+  /// Gıdanın başlangıç ayı; bulunamazsa 6.
+  int _foodStartingMonth(String food) {
+    final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == food.toLowerCase()).toList();
+    return m.isNotEmpty ? m.first.startingMonth : 6;
+  }
+
   void _autoFillWeeklyMenu() {
     _gatedFeature("Örnek Menü Oluştur", rewardKey: "auto_menu", action: _showMenuConfigDialog);
   }
@@ -1384,8 +1390,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final base = ["Avokado", "Muz", "Elma", "Armut", "Balkabağı", "Havuç", "Patates", "Tatlı Patates", "Brokoli", "Kabak", "Karnabahar", "Şeftali", "Kayısı", "Bezelye"];
       final focusFoods = focus == "Dengeli" ? const <String>[] : (_focusTastingFoods[focus] ?? const []);
       final seen = <String>{};
-      final foods = [...focusFoods, ...base].where((f) => seen.add(f.toLowerCase()) && !_foodNameHasAllergen(f, allergens)).toList();
-      final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      // Yaşa uygun + alerjensiz tek gıdalar (tadım da yaşı aşan gıda vermemeli).
+      final foods = [...focusFoods, ...base].where((f) => seen.add(f.toLowerCase()) && !_foodNameHasAllergen(f, allergens) && _foodStartingMonth(f) <= maxAge).toList();
+      final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"].where((f) => !_foodNameHasAllergen(f, allergens) && _foodStartingMonth(f) <= maxAge).toList();
       final list = foods.isEmpty ? ["Avokado"] : foods;
       // 3 gün kuralı SADECE alerji seviyesi Orta/Yüksek gıdalarda; Düşük olanlar
       // günlük dönebilir.
@@ -4558,7 +4565,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text),
               ),
               const SizedBox(height: 6),
-              const Text("İlk 1 ay ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+              const Text("İlk 7 gün ücretsiz, sonra ayda 199 TL. İstediğin zaman iptal et.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,

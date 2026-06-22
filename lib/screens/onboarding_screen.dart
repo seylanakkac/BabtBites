@@ -193,25 +193,22 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.of(context).pop();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Colors.transparent,
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new,
-                          size: 20,
-                          color: textColor,
+                  // Geri oku yalnızca geri gidilecek bir ekran varsa görünür
+                  // (ilk açılışta splash pushReplacement ile geldiği için boş).
+                  if (Navigator.of(context).canPop())
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: const BoxDecoration(color: Colors.transparent),
+                          child: const Icon(Icons.arrow_back_ios_new, size: 20, color: textColor),
                         ),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    const SizedBox(width: 44),
                   // Steps Indicator (Orange, Grey, Grey)
                   Row(
                     children: [

@@ -223,6 +223,17 @@ class _AdminScreenState extends State<AdminScreen> {
   // ---------- shell ----------
   @override
   Widget build(BuildContext context) {
+    // Güvenlik: admin paneli yalnızca admin e-postasıyla giriş yapana açılır
+    // (mevcut oturumdan doğrulanır; istemci-tarafı yetkisiz erişimi engeller).
+    if (!isAdminEmail(FirebaseAuth.instance.currentUser?.email)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.of(context).pushReplacementNamed('/home');
+      });
+      return const Scaffold(
+        backgroundColor: _bg,
+        body: Center(child: Text("Bu sayfaya erişim yetkiniz yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light))),
+      );
+    }
     final extended = MediaQuery.of(context).size.width > 1080;
     const destinations = [
       (Icons.dashboard_outlined, "Genel Bakış"),
