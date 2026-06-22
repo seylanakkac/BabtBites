@@ -358,21 +358,17 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
     return result;
   }
 
-  // Map Recipe to claymation visual plate assets
+  // Yerleşik tabak görselleri kaldırıldı: yalnızca yüklenen gerçek fotoğraf,
+  // yoksa nötr yer-tutucu.
   Widget _getRecipeImage(Recipe recipe) {
-    final name = recipe.name.toLowerCase();
-    String path = "assets/images/puree_plate.png";
-    if (name.contains("omlet") || name.contains("omleti")) {
-      path = "assets/images/omelet_plate.png";
-    } else if (name.contains("somon") || name.contains("balık") || name.contains("mezgit") || name.contains("levrek")) {
-      path = "assets/images/salmon_plate.png";
-    } else if (name.contains("lapa") || name.contains("lapası") || name.contains("muhallebi") || name.contains("yulaf")) {
-      path = "assets/images/porridge_plate.png";
-    }
-    final asset = Image.asset(path, fit: BoxFit.cover);
+    final placeholder = Container(
+      color: const Color(0xFFFDF0E9),
+      alignment: Alignment.center,
+      child: Icon(Icons.restaurant_menu, size: 30, color: const Color(0xFFFF7A45).withOpacity(0.30)),
+    );
     return isPhotoUrl(recipe.imageUrl)
-        ? photoOrFallback(recipe.imageUrl, fallback: asset, fit: BoxFit.cover)
-        : asset;
+        ? photoOrFallback(recipe.imageUrl, fallback: placeholder, fit: BoxFit.cover)
+        : placeholder;
   }
 
   @override

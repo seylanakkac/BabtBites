@@ -323,19 +323,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _getRecipeImage(Recipe recipe) {
-    final name = recipe.name.toLowerCase();
-    String path = "assets/images/puree_plate.png";
-    if (name.contains("omlet")) {
-      path = "assets/images/omelet_plate.png";
-    } else if (name.contains("somon") || name.contains("balık") || name.contains("mezgit") || name.contains("levrek")) {
-      path = "assets/images/salmon_plate.png";
-    } else if (name.contains("lapa") || name.contains("muhallebi") || name.contains("yulaf")) {
-      path = "assets/images/porridge_plate.png";
-    }
-    final asset = Image.asset(path, fit: BoxFit.cover);
+    // Yerleşik tabak görselleri kaldırıldı: yalnızca yüklenen gerçek fotoğraf
+    // gösterilir, yoksa nötr yer-tutucu (admin AI görseli ekleyince görünür).
+    final placeholder = Container(
+      color: const Color(0xFFFDF0E9),
+      alignment: Alignment.center,
+      child: Icon(Icons.restaurant_menu, size: 44, color: _primary.withOpacity(0.30)),
+    );
     return isPhotoUrl(recipe.imageUrl)
-        ? photoOrFallback(recipe.imageUrl, fallback: asset, fit: BoxFit.cover)
-        : asset;
+        ? photoOrFallback(recipe.imageUrl, fallback: placeholder, fit: BoxFit.cover)
+        : placeholder;
   }
 
   void _onChildChanged() {

@@ -1226,7 +1226,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "15 dk",
       startingMonth: 6,
       kcal: 85,
-      imageUrl: "assets/images/puree_plate.png",
+      imageUrl: "",
       ingredients: ["Balkabağı", "Havuç", "Zeytinyağı"],
       ingredientAmounts: ["100 gr", "1 adet orta boy", "1 tatlı kaşığı"],
       steps: [
@@ -1243,7 +1243,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "10 dk",
       startingMonth: 8,
       kcal: 120,
-      imageUrl: "assets/images/omelet_plate.png",
+      imageUrl: "",
       ingredients: ["Yumurta Sarısı", "Brokoli", "Lor Peyniri", "Tereyağı"],
       ingredientAmounts: ["1 adet", "2-3 küçük çiçek", "1 yemek kaşığı", "1 çay kaşığı"],
       steps: [
@@ -1260,7 +1260,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "5 dk",
       startingMonth: 6,
       kcal: 145,
-      imageUrl: "assets/images/puree_plate.png",
+      imageUrl: "",
       ingredients: ["Avokado", "Muz", "Ihlamur Çayı"],
       ingredientAmounts: ["1/2 adet olgun", "1/2 adet", "1 yemek kaşığı"],
       steps: [
@@ -1277,7 +1277,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "25 dk",
       startingMonth: 8,
       kcal: 165,
-      imageUrl: "assets/images/salmon_plate.png",
+      imageUrl: "",
       ingredients: ["Somon", "Patates", "Havuç", "Zeytinyağı"],
       ingredientAmounts: ["50 gr kılçıksız fileto", "1 küçük adet", "1/2 adet", "1 tatlı kaşığı"],
       steps: [
@@ -1294,7 +1294,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "12 dk",
       startingMonth: 9,
       kcal: 110,
-      imageUrl: "assets/images/omelet_plate.png",
+      imageUrl: "",
       ingredients: ["Yumurta Sarısı", "Ispanak", "Labne", "Zeytinyağı"],
       ingredientAmounts: ["1 adet", "4-5 yaprak", "1 tatlı kaşığı", "1 çay kaşığı"],
       steps: [
@@ -1324,7 +1324,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "${10 + (recipeCounter % 3) * 5} dk",
         startingMonth: 6,
         kcal: 60.0 + (recipeCounter % 5) * 15,
-        imageUrl: "assets/images/puree_plate.png",
+        imageUrl: "",
         ingredients: [veg1, veg2, "Zeytinyağı"],
         ingredientAmounts: ["50 gr", "50 gr", "1 tatlı kaşığı"],
         steps: [
@@ -1349,7 +1349,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "5 dk",
         startingMonth: 6,
         kcal: 70.0 + (recipeCounter % 4) * 20,
-        imageUrl: "assets/images/puree_plate.png",
+        imageUrl: "",
         ingredients: [f1, f2],
         ingredientAmounts: ["1/2 adet", "1/2 adet"],
         steps: [
@@ -1375,7 +1375,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "15 dk",
         startingMonth: startingM,
         kcal: 110.0 + (recipeCounter % 6) * 15,
-        imageUrl: "assets/images/porridge_plate.png",
+        imageUrl: "",
         ingredients: [g, f, "Anne Sütü"],
         ingredientAmounts: ["2 yemek kaşığı", "1/2 adet", "3 yemek kaşığı"],
         steps: [
@@ -1401,7 +1401,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "10 dk",
         startingMonth: 8,
         kcal: 115.0 + (recipeCounter % 4) * 10,
-        imageUrl: "assets/images/omelet_plate.png",
+        imageUrl: "",
         ingredients: ["Yumurta Sarısı", v, c, "Tereyağı"],
         ingredientAmounts: ["1 adet", "2 yemek kaşığı ince kıyılmış", "1 tatlı kaşığı", "1 çay kaşığı"],
         steps: [
@@ -1427,7 +1427,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "25 dk",
         startingMonth: 8,
         kcal: 140.0 + (recipeCounter % 5) * 15,
-        imageUrl: "assets/images/puree_plate.png",
+        imageUrl: "",
         ingredients: [p, sv, "İrmik", "Zeytinyağı"],
         ingredientAmounts: ["30 gr kıyılmış", "1/2 adet", "1 tatlı kaşığı", "1 tatlı kaşığı"],
         steps: [
@@ -1453,7 +1453,7 @@ List<Recipe> _generateAllRecipes() {
         prepTime: "20 dk",
         startingMonth: 9,
         kcal: 130.0 + (recipeCounter % 4) * 20,
-        imageUrl: "assets/images/salmon_plate.png",
+        imageUrl: "",
         ingredients: [f, fv, "Dereotu", "Zeytinyağı"],
         ingredientAmounts: ["40 gr fileto", "1/2 adet", "3-4 dal", "1 tatlı kaşığı"],
         steps: [
@@ -1475,7 +1475,7 @@ List<Recipe> _generateAllRecipes() {
       prepTime: "15 dk",
       startingMonth: 9,
       kcal: 125,
-      imageUrl: "assets/images/puree_plate.png",
+      imageUrl: "",
       ingredients: ["Kabak", "Havuç", "Tereyağı"],
       ingredientAmounts: ["2 yemek kaşığı rendelenmiş", "2 yemek kaşığı rendelenmiş", "1 tatlı kaşığı"],
       steps: [
@@ -1532,7 +1532,7 @@ List<Recipe> _generateAllRecipes() {
     ),
     Recipe(
       id: "kofte4", name: "Fırında Somon Köftesi", category: "Bebek Köfteleri",
-      prepTime: "30 dk", startingMonth: 9, kcal: 150, imageUrl: "assets/images/salmon_plate.png",
+      prepTime: "30 dk", startingMonth: 9, kcal: 150, imageUrl: "",
       ingredients: ["Somon", "Patates", "Dereotu", "Yumurta Sarısı"],
       ingredientAmounts: ["80 gr", "1/2 adet", "1 tutam", "1 adet"],
       steps: [
@@ -1710,7 +1710,7 @@ List<Recipe> _generateAllRecipes() {
     Recipe(id: "kahvalti2", name: "Yumurta Sarısı Püresi", category: "Bebek Kahvaltısı", prepTime: "12 dk", startingMonth: 6, kcal: 90, imageUrl: "", ingredients: ["Yumurta Sarısı", "Tereyağı"], ingredientAmounts: ["1 adet", "1 çay kaşığı"], steps: ["Yumurtayı tam haşlayın.", "Sarısını ayırıp çatalla ezin.", "Az tereyağı/anne sütü ile yumuşatıp sunun."], allergyWarning: "Yumurta ve süt ürünü içerir."),
     Recipe(id: "kahvalti3", name: "Avokadolu Tam Buğday Ekmeği", category: "Bebek Kahvaltısı", prepTime: "8 dk", startingMonth: 8, kcal: 130, imageUrl: "", ingredients: ["Avokado", "Tam Buğday Unu"], ingredientAmounts: ["1/4 adet", "1 dilim ekmek"], steps: ["Olgun avokadoyu ezin.", "Hafif kızartılmış tam buğday ekmeğine ince sürün.", "Küçük parçalara bölüp sunun."], allergyWarning: "Glüten içerir."),
     Recipe(id: "kahvalti4", name: "Lor Peynirli Meyve Kasesi", category: "Bebek Kahvaltısı", prepTime: "5 dk", startingMonth: 8, kcal: 95, imageUrl: "", ingredients: ["Lor Peyniri", "Armut", "Yulaf"], ingredientAmounts: ["2 yemek kaşığı", "1/2 adet", "1 yemek kaşığı"], steps: ["Armudu rendeleyin/ince doğrayın.", "Lor ve toz yulafla karıştırın.", "Kaşıkla sunun."], allergyWarning: "Süt ürünü içerir."),
-    Recipe(id: "kahvalti5", name: "Sebzeli Bebek Omleti", category: "Bebek Kahvaltısı", prepTime: "12 dk", startingMonth: 8, kcal: 120, imageUrl: "assets/images/omelet_plate.png", ingredients: ["Yumurta Sarısı", "Kabak", "Lor Peyniri", "Tereyağı"], ingredientAmounts: ["1 adet", "1/4 adet", "1 yemek kaşığı", "1 çay kaşığı"], steps: ["Kabağı rendeleyip suyunu sıkın.", "Yumurta sarısı ve lorla çırpın.", "Tereyağında kısık ateşte iyice pişirin.", "Ilındıktan sonra parmak gıda olarak sunun."], allergyWarning: "Yumurta ve süt ürünü içerir."),
+    Recipe(id: "kahvalti5", name: "Sebzeli Bebek Omleti", category: "Bebek Kahvaltısı", prepTime: "12 dk", startingMonth: 8, kcal: 120, imageUrl: "", ingredients: ["Yumurta Sarısı", "Kabak", "Lor Peyniri", "Tereyağı"], ingredientAmounts: ["1 adet", "1/4 adet", "1 yemek kaşığı", "1 çay kaşığı"], steps: ["Kabağı rendeleyip suyunu sıkın.", "Yumurta sarısı ve lorla çırpın.", "Tereyağında kısık ateşte iyice pişirin.", "Ilındıktan sonra parmak gıda olarak sunun."], allergyWarning: "Yumurta ve süt ürünü içerir."),
     Recipe(id: "kahvalti6", name: "Tahinli Pekmezli Ekmek", category: "Bebek Kahvaltısı", prepTime: "5 dk", startingMonth: 9, kcal: 140, imageUrl: "", ingredients: ["Tahin", "Pekmez", "Tam Buğday Unu"], ingredientAmounts: ["1 tatlı kaşığı", "1 tatlı kaşığı", "1 dilim ekmek"], steps: ["Tahin ve pekmezi karıştırın.", "Ekmeğe ince sürün.", "Küçük parçalara bölüp sunun."], allergyWarning: "Susam (tahin) ve glüten içerir."),
     Recipe(id: "kahvalti7", name: "Yoğurtlu Yaban Mersinli Kase", category: "Bebek Kahvaltısı", prepTime: "5 dk", startingMonth: 8, kcal: 90, imageUrl: "", ingredients: ["Yoğurt", "Yaban Mersini", "Yulaf"], ingredientAmounts: ["3 yemek kaşığı", "1 avuç", "1 yemek kaşığı"], steps: ["Yaban mersinlerini ezin.", "Yoğurt ve toz yulafla karıştırın.", "Kaşıkla sunun."], allergyWarning: "Süt ürünü içerir."),
     Recipe(id: "kahvalti8", name: "Elmalı Tarçınlı Yulaf", category: "Bebek Kahvaltısı", prepTime: "12 dk", startingMonth: 6, kcal: 115, imageUrl: "", ingredients: ["Yulaf", "Elma", "Tarçın"], ingredientAmounts: ["3 yemek kaşığı", "1/2 adet", "1 tutam"], steps: ["Elmayı rendeleyin.", "Yulafı suyla pişirip elmayı ekleyin.", "Bir tutam tarçınla ılık sunun."], allergyWarning: "—"),
