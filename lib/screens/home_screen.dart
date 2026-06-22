@@ -1113,45 +1113,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  IconData _seasonCatIcon(String cat) {
-    switch (cat) {
-      case "Sebze":
-        return Icons.eco;
-      case "Meyve":
-        return Icons.local_florist;
-      case "Otlar":
-        return Icons.grass;
-      default:
-        return Icons.set_meal;
-    }
-  }
-
   Widget _seasonalGridCard(SeasonalItem it, String cat) {
-    Food? f;
-    for (final cand in globalFoodsDatabase) {
-      if (cand.name.toLowerCase() == it.name.toLowerCase()) {
-        f = cand;
-        break;
-      }
-    }
-    final hasPhoto = f != null && isPhotoUrl(f.imageUrl);
     final tint = _seasonCatTint(cat);
-    final placeholder = Container(
+    // Her zaman emoji — ortalı ve büyük (web dahil; --web-renderer html ile
+    // renkli emoji görünür).
+    final visual = Container(
       color: tint,
       alignment: Alignment.center,
-      child: Icon(_seasonCatIcon(cat), size: 40, color: _seasonCatAccent(cat).withOpacity(0.55)),
+      child: Text(it.emoji, style: const TextStyle(fontSize: 44)),
     );
-    Widget framed(Widget img) => Container(color: tint, padding: const EdgeInsets.all(8), child: img);
-    Widget visual;
-    if (hasPhoto) {
-      visual = framed(photoOrFallback(f.imageUrl, fallback: placeholder, fit: BoxFit.contain));
-    } else if (kIsWeb) {
-      // Web'de emoji yok → CDN fotoğrafı (ortalı), yoksa kategori ikonu.
-      final url = cdnFoodPhotoUrl(it.name);
-      visual = url != null ? framed(_cdnFoodImage(url, placeholder, fit: BoxFit.contain)) : placeholder;
-    } else {
-      visual = Container(color: tint, alignment: Alignment.center, child: Text(it.emoji, style: const TextStyle(fontSize: 30)));
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1319,51 +1289,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return tags.take(2).join("/");
   }
 
-  /// Kategoriye göre sade yer-tutucu ikon (web'de emoji yerine; foto yoksa).
-  IconData _foodCatIcon(String c) {
-    switch (c) {
-      case "Sebze":
-        return Icons.eco;
-      case "Meyve":
-        return Icons.local_florist;
-      case "Tahıl":
-        return Icons.grain;
-      case "Et":
-        return Icons.egg_alt;
-      case "Balık":
-        return Icons.set_meal;
-      default:
-        return Icons.restaurant;
-    }
-  }
-
-  Widget _foodPlaceholderIcon(Food food, {double size = 54}) =>
-      Icon(_foodCatIcon(food.category), size: size, color: Colors.black.withOpacity(0.20));
-
-  /// Web'de TheMealDB CDN fotoğrafı; yüklenemezse/404 olursa [placeholder]'a düşer.
-  Widget _cdnFoodImage(String url, Widget placeholder, {BoxFit fit = BoxFit.cover}) => Image.network(
-        secureImageUrl(url),
-        fit: fit,
-        width: double.infinity,
-        height: double.infinity,
-        errorBuilder: (_, __, ___) => placeholder,
-        loadingBuilder: (context, child, progress) => progress == null ? child : placeholder,
-      );
-
   /// Gıda kartı görsel bandı: admin fotoğrafı → (web) CDN fotoğrafı → ikon
   /// yer-tutucu; mobilde fotoğraf yoksa emoji. Fotoğraflar tint üzerinde
   /// ORTALANIR (contain) — malzeme görseli tam görünür, kırpılmaz.
   Widget _explorerFoodVisual(Food food, Color tint) {
-    final ph = Container(color: tint, alignment: Alignment.center, child: _foodPlaceholderIcon(food, size: 36));
-    Widget framed(Widget img) => Container(color: tint, padding: const EdgeInsets.all(10), child: img);
-    if (isPhotoUrl(food.imageUrl)) {
-      return framed(photoOrFallback(food.imageUrl, fallback: ph, fit: BoxFit.contain));
-    }
-    if (kIsWeb) {
-      final url = cdnFoodPhotoUrl(food.name);
-      return url != null ? framed(_cdnFoodImage(url, ph, fit: BoxFit.contain)) : ph;
-    }
-    return Container(color: tint, alignment: Alignment.center, child: Text(food.emoji, style: const TextStyle(fontSize: 54)));
+    // Her zaman emoji — ortalı ve büyük (fotoğraf/CDN kullanılmaz).
+    return Container(
+      color: tint,
+      alignment: Alignment.center,
+      child: Text(food.emoji, style: const TextStyle(fontSize: 60)),
+    );
   }
 
   Widget _explorerFoodCard(Food food) {
