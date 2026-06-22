@@ -11,7 +11,7 @@ import '../services/social_sync.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
-import '../widgets/web_embed.dart';
+import '../widgets/recipe_story_share.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
 import '../widgets/web_shell.dart';
@@ -1273,15 +1273,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       return;
     }
 
-    // Instagram: web'den içerik paylaşım intent'i YOK. Önce native paylaşım
-    // sayfasını dene (mobil web'de Instagram dahil çıkar); olmazsa metni
-    // panoya kopyalayıp Instagram'ı aç.
-    final shared = await shareViaWebShareApi(title: "BabyBites", text: text, url: _siteUrl);
-    if (shared) return;
-    await Clipboard.setData(ClipboardData(text: "$text $_siteUrl"));
+    // Instagram: mobil web'de tarifin hikaye (9:16) görselini oluşturup Web
+    // Share API ile paylaş (Instagram hikayesine eklenebilir). Masaüstünde bu
+    // mümkün değil → metni/linki kopyalayıp Instagram'ı aç.
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    if (isMobile) {
+      await showRecipeStoryShare(context, r);
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: "$text ${recipeShareUrl(r)}"));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Tarif metni kopyalandı — Instagram'da yapıştırarak paylaşabilirsiniz."),
+        content: Text("Hikaye paylaşımı mobil tarayıcıda çalışır. Tarif linki panoya kopyalandı."),
         duration: Duration(seconds: 3),
       ));
     }

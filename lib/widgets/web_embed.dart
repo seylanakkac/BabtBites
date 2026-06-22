@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'web_embed_stub.dart' if (dart.library.html) 'web_embed_web.dart' as impl;
 
@@ -10,3 +11,7 @@ Widget mediaEmbed({required bool youtube, required String url, double aspectRati
 /// desteklenmiyorsa / web değilse / kullanıcı vazgeçerse false döner.
 Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) =>
     impl.shareViaWebShareApi(title: title, text: text, url: url);
+
+/// Web'de bir görseli (PNG byte'ları) native paylaşım sayfası ile paylaşır.
+Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) =>
+    impl.shareImageViaWebShareApi(bytes, text: text, filename: filename);

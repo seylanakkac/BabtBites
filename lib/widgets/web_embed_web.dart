@@ -1,9 +1,34 @@
 // ignore_for_file: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'dart:js_util' as js_util;
+import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 
 final Set<String> _registered = {};
+
+/// Web Share API ile bir GÖRSEL paylaşır (mobil tarayıcı → Instagram hikaye vb.).
+/// Tarayıcı dosya paylaşımını desteklemiyorsa / vazgeçilirse false döner.
+Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) async {
+  try {
+    final nav = html.window.navigator;
+    if (!js_util.hasProperty(nav, 'share')) return false;
+    final blob = html.Blob(<Object>[bytes], 'image/png');
+    final file = html.File(<Object>[blob], filename, {'type': 'image/png'});
+    final data = js_util.newObject();
+    js_util.setProperty(data, 'files', js_util.jsify(<dynamic>[file]));
+    if (text.isNotEmpty) js_util.setProperty(data, 'text', text);
+    // canShare({files}) desteklenmiyorsa (çoğu masaüstü) hiç deneme.
+    if (js_util.hasProperty(nav, 'canShare')) {
+      final ok = js_util.callMethod(nav, 'canShare', <dynamic>[data]);
+      if (ok != true) return false;
+    }
+    await js_util.promiseToFuture(js_util.callMethod(nav, 'share', <dynamic>[data]));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /// Web'de native paylaşım sayfasını (Web Share API) açar. Tarayıcı desteklemiyorsa
 /// ya da kullanıcı vazgeçerse false döner (çağıran tarafta yedek davranış için).

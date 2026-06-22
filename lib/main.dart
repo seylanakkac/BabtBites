@@ -14,6 +14,8 @@ import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/articles_screen.dart';
 import 'screens/admin_screen.dart';
+import 'screens/recipe_detail_screen.dart';
+import 'data/food_database.dart';
 import 'widgets/mobile_web_frame.dart';
 import 'services/storage_service.dart';
 
@@ -140,6 +142,24 @@ class BabyBitesApp extends StatelessWidget {
         '/articles': (context) => const ArticlesScreen(),
         '/admin': (context) => const AdminScreen(),
       },
+      // Tarif derin linki: babybites.com.tr/#/r/<id> → tarif detayını açar
+      // (paylaşılan hikaye linkinden gelenler doğrudan tarifi görür).
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '';
+        if (name.startsWith('/r/')) {
+          final id = name.substring(3);
+          final idx = globalRecipesDatabase.indexWhere((r) => r.id == id);
+          if (idx >= 0) {
+            return MaterialPageRoute(
+              builder: (_) => RecipeDetailScreen(recipe: globalRecipesDatabase[idx]),
+              settings: settings,
+            );
+          }
+        }
+        return null;
+      },
+      // Bilinmeyen/eksik route (ör. derin linkin ara segmenti) → splash'e düş.
+      onUnknownRoute: (settings) => MaterialPageRoute(builder: (_) => const SplashScreen()),
       builder: (context, child) {
         // Dar (mobil) ekranda metni biraz sıkıştır; geniş (web/masaüstü) ekranda
         // ise büyüt — masaüstünde "mobil uygulama" gibi küçük görünmesin.

@@ -1,7 +1,9 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 
 /// Web olmayan platformlarda Web Share API yok → her zaman false.
 Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async => false;
+Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) async => false;
 
 /// Web olmayan platformlar için yer-tutucu (mobil derlemede gerçek oynatıcı
 /// ileride video_player/youtube_player ile eklenebilir).
