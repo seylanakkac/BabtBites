@@ -513,6 +513,32 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
                         
                         const SizedBox(height: 24),
 
+                        // Uzman onayı bekleyen (toplu eklenmiş) gıdalar için uyarı.
+                        if (food.needsReview)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF4E5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFFC107).withOpacity(0.5)),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.info_outline, size: 18, color: Color(0xFFB26A00)),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      "Bu gıdanın besin ve güvenlik bilgileri uzman onayı bekliyor. Kesin bilgi olarak kullanmadan önce bir uzmana danışın.",
+                                      style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xFFB26A00), fontWeight: FontWeight.w600, height: 1.3),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
                         // Allergy and Month Info row
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24.0),
