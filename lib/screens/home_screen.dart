@@ -1193,6 +1193,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     "Soya": ["soya", "edamame", "tofu"],
   };
 
+  // Besin odağı → o besinden zengin gıda/anahtar kelimeler.
+  static const Map<String, List<String>> _nutrientRichFoods = {
+    "Demir": ["karaciğer", "ciğer", "kıyma", "dana", "kuzu", "et", "mercimek", "nohut", "fasulye", "ıspanak", "pazı", "yumurta", "pekmez", "tahin", "kuru kayısı", "kuru üzüm", "susam", "yulaf", "köfte"],
+    "B12": ["karaciğer", "ciğer", "kıyma", "dana", "kuzu", "tavuk", "hindi", "balık", "somon", "yumurta", "peynir", "yoğurt", "süt", "köfte"],
+    "Kalsiyum": ["yoğurt", "peynir", "süt", "lor", "süzme", "kefir", "tahin", "susam", "brokoli", "pazı", "muhallebi"],
+    "Çinko": ["et", "kıyma", "karaciğer", "dana", "kuzu", "yumurta", "nohut", "mercimek", "kabak çekirdeği", "tahin", "yulaf"],
+  };
+  static const List<String> _nutrientFocuses = ["Dengeli", "Demir", "B12", "Kalsiyum", "Çinko"];
+  static const Map<String, List<String>> _focusTastingFoods = {
+    "Demir": ["Yumurta Sarısı", "Kırmızı Mercimek", "Ispanak", "Nohut", "Kuru Kayısı"],
+    "B12": ["Yumurta Sarısı", "Tavuk Göğsü", "Somon", "Yoğurt"],
+    "Kalsiyum": ["Yoğurt", "Lor Peyniri", "Süzme Peynir", "Brokoli"],
+    "Çinko": ["Yumurta Sarısı", "Nohut", "Kırmızı Mercimek"],
+  };
+
+  int _nutrientScore(Recipe r, String focus) {
+    final kws = _nutrientRichFoods[focus] ?? const [];
+    if (kws.isEmpty) return 0;
+    final hay = "${r.ingredients.join(" ")} ${r.name}".toLowerCase();
+    return kws.where(hay.contains).length;
+  }
+
   int _ageDays(String? dob) {
     final d = _parseDob(dob);
     if (d == null) return 0;
@@ -1228,6 +1250,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       tierLabel = "9 ay+: 3 ana + 2 ara öğün";
     }
     bool tasting = triedCount < 4 || months < 6 || ageDays < 200;
+    bool balancedPlate = true;
+    String focus = "Dengeli";
     final allergens = <String>{};
     showDialog(
       context: context,
@@ -1260,7 +1284,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   subtitle: const Text("Tek gıda tadımlarıyla başlat (3 gün kuralı)", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
                   onChanged: (v) => setD(() => tasting = v),
                 ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: balancedPlate,
+                  activeColor: _primary,
+                  title: const Text("Dengeli tabak", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                  subtitle: const Text("Her ana öğüne protein + sebze/meyve dengesi ekler", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                  onChanged: (v) => setD(() => balancedPlate = v),
+                ),
                 const SizedBox(height: 4),
+                const Text("Besin odağı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _nutrientFocuses.map((f) {
+                    final sel = focus == f;
+                    return GestureDetector(
+                      onTap: () => setD(() => focus = f),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(color: sel ? _green : const Color(0xFFF1F1F4), borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? _green : const Color(0xFFE2E2E6))),
+                        child: Text(f == "Dengeli" ? f : "$f ağırlıklı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
                 const Text("Bilinen alerjenler (hariç tutulur)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
                 const SizedBox(height: 6),
                 Wrap(
@@ -1287,7 +1336,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                _generateSampleMenu(tasting: tasting, allergens: allergens);
+                _generateSampleMenu(tasting: tasting, allergens: allergens, focus: focus, balancedPlate: balancedPlate);
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: const Text("Menüyü Oluştur", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
@@ -1298,7 +1347,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _generateSampleMenu({required bool tasting, required Set<String> allergens}) {
+  void _generateSampleMenu({required bool tasting, required Set<String> allergens, String focus = "Dengeli", bool balancedPlate = true}) {
     final dob = _activeBaby?["dob"]?.toString();
     final ageDays = _ageDays(dob);
     final months = _ageMonths(dob);
@@ -1326,52 +1375,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     String msg;
     if (tasting) {
-      final firstFoods = ["Avokado", "Muz", "Elma", "Armut", "Balkabağı", "Havuç", "Patates", "Tatlı Patates", "Brokoli", "Kabak", "Karnabahar", "Şeftali", "Kayısı", "Bezelye"]
-          .where((f) => !_foodNameHasAllergen(f, allergens)).toList();
-      final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"]
-          .where((f) => !_foodNameHasAllergen(f, allergens)).toList();
-      final foods = firstFoods.isEmpty ? ["Avokado"] : firstFoods;
+      final base = ["Avokado", "Muz", "Elma", "Armut", "Balkabağı", "Havuç", "Patates", "Tatlı Patates", "Brokoli", "Kabak", "Karnabahar", "Şeftali", "Kayısı", "Bezelye"];
+      final focusFoods = focus == "Dengeli" ? const <String>[] : (_focusTastingFoods[focus] ?? const []);
+      final seen = <String>{};
+      final foods = [...focusFoods, ...base].where((f) => seen.add(f.toLowerCase()) && !_foodNameHasAllergen(f, allergens)).toList();
+      final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final list = foods.isEmpty ? ["Avokado"] : foods;
       for (var di = 0; di < days.length; di++) {
         final day = days[di];
-        // Yeni gıda her 3 günde bir (3 gün kuralı)
-        final food = foods[(di ~/ 3) % foods.length];
+        final food = list[(di ~/ 3) % list.length]; // 3 gün kuralı
         _weeklyPlan[day]![mains.first] = ["$food (tadım)"];
         if (snacks.isNotEmpty && fruits.isNotEmpty) {
           _weeklyPlan[day]![snacks.first] = ["${fruits[di % fruits.length]} (tadım)"];
         }
       }
-      msg = "Tadım menüsü oluşturuldu (tek gıda, 3 gün kuralı).";
+      msg = focus == "Dengeli" ? "Tadım menüsü oluşturuldu (tek gıda, 3 gün kuralı)." : "$focus odaklı tadım menüsü oluşturuldu.";
     } else {
       bool ok(Recipe r) => r.startingMonth <= maxAge && !allergens.any((a) => _recipeHasAllergen(r, a));
-      List<Recipe> inCats(List<String> cats) =>
-          globalRecipesDatabase.where((r) => ok(r) && cats.contains(effectiveRecipeCategory(r))).toList();
+      // Besin odağına göre sırala (zengin tarifler önce)
+      List<Recipe> focusSort(List<Recipe> pool) {
+        if (focus == "Dengeli") return pool;
+        final scored = [...pool]..sort((a, b) => _nutrientScore(b, focus).compareTo(_nutrientScore(a, focus)));
+        final rich = scored.where((r) => _nutrientScore(r, focus) > 0).toList();
+        return rich.isNotEmpty ? rich : scored;
+      }
+      List<Recipe> inCats(List<String> cats) => focusSort(globalRecipesDatabase.where((r) => ok(r) && cats.contains(effectiveRecipeCategory(r))).toList());
       final breakfast = inCats(["Bebek Kahvaltısı"]);
       final mainPool = inCats(["Bebek Çorbaları", "Bebek Köfteleri"]);
       final snackPool = inCats(["Bebek Püreleri", "Bebek Bisküvileri", "Bebek Muhallebisi ve Mama Tarifleri"]);
-      final anyPool = globalRecipesDatabase.where(ok).toList();
+      final anyPool = focusSort(globalRecipesDatabase.where(ok).toList());
+      if (anyPool.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Seçilen alerjenler çıkarılınca uygun tarif kalmadı.")));
+        return;
+      }
       String pick(List<Recipe> pool, int i) {
         final p = pool.isNotEmpty ? pool : anyPool;
         return p.isEmpty ? "" : p[i % p.length].name;
       }
 
-      if (anyPool.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Seçilen alerjenler çıkarılınca uygun tarif kalmadı.")));
-        return;
-      }
-      int bi = months, mi = months + 1, si = months + 2;
+      // Dengeli tabak yan öğeleri (gruplar: sebze / meyve / süt) — her ana öğünde döner.
+      final vegSides = ["Brokoli", "Havuç", "Kabak", "Bezelye", "Ispanak"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final fruitSides = ["Muz", "Elma", "Armut", "Avokado"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final dairySides = ["Yoğurt"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final sideGroups = [vegSides, fruitSides, dairySides].where((g) => g.isNotEmpty).toList();
+
+      int bi = months, mi = months + 1, si = months + 2, sg = 0;
       for (final day in days) {
         for (final slot in mains) {
-          final n = slot == "Kahvaltı"
-              ? pick(breakfast.isNotEmpty ? breakfast : snackPool, bi++)
-              : pick(mainPool, mi++);
-          if (n.isNotEmpty) _weeklyPlan[day]![slot] = [n];
+          final n = slot == "Kahvaltı" ? pick(breakfast.isNotEmpty ? breakfast : snackPool, bi++) : pick(mainPool, mi++);
+          if (n.isNotEmpty) {
+            final items = <String>[n];
+            if (balancedPlate && sideGroups.isNotEmpty) {
+              final g = sideGroups[sg % sideGroups.length];
+              items.add(g[sg % g.length]);
+              sg++;
+            }
+            _weeklyPlan[day]![slot] = items;
+          }
         }
         for (final slot in snacks) {
           final n = pick(snackPool, si++);
           if (n.isNotEmpty) _weeklyPlan[day]![slot] = [n];
         }
       }
-      msg = "Yaşa uygun örnek menü oluşturuldu${allergens.isEmpty ? "" : " (alerjenler hariç)"}.";
+      final extras = <String>[];
+      if (focus != "Dengeli") extras.add("$focus ağırlıklı");
+      if (balancedPlate) extras.add("dengeli tabak");
+      if (allergens.isNotEmpty) extras.add("alerjenler hariç");
+      msg = "Yaşa uygun örnek menü oluşturuldu${extras.isEmpty ? "" : " (${extras.join(", ")})"}.";
     }
     _persist();
     setState(() {});
