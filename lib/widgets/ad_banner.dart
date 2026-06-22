@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/extras_store.dart';
+import '../config/ads_config.dart';
+import 'web_ads.dart';
 
 /// A revenue ad slot, shown only to NON-premium users.
 ///
@@ -24,6 +26,15 @@ class SideAdBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (globalIsPremium || adFreeActive()) return const SizedBox.shrink();
+
+    // AdSense yapılandırılmışsa gerçek dikey reklamı göster.
+    if (adsConfigured && kAdsenseSideSlot.isNotEmpty) {
+      return Container(
+        width: width,
+        margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        child: adsenseAd(client: kAdsenseClient, slot: kAdsenseSideSlot, width: width, height: 600),
+      );
+    }
 
     const primary = Color(0xFFFF7A45);
     const light = Color(0xFFA8A8B3);
@@ -112,6 +123,23 @@ class AdBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     // Ad-free for premium subscribers OR during a rewarded ad-free window.
     if (globalIsPremium || adFreeActive()) return const SizedBox.shrink();
+
+    // AdSense yapılandırılmışsa gerçek yatay banner reklamı göster.
+    if (adsConfigured && kAdsenseBannerSlot.isNotEmpty) {
+      return Container(
+        margin: margin,
+        height: 90,
+        alignment: Alignment.center,
+        child: LayoutBuilder(
+          builder: (context, c) => adsenseAd(
+            client: kAdsenseClient,
+            slot: kAdsenseBannerSlot,
+            width: c.maxWidth.isFinite ? c.maxWidth : 320,
+            height: 90,
+          ),
+        ),
+      );
+    }
 
     const primary = Color(0xFFFF7A45);
     const light = Color(0xFFA8A8B3);
