@@ -2651,6 +2651,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Menüdeki bir öğeye tıklanınca: eşleşen tarif varsa tarif detayına, yoksa
+  /// (tadım/yan öğe) eşleşen gıda detayına gider.
+  void _openMealItem(String name) {
+    final clean = name.replaceAll(RegExp(r'\s*\(tadım\)\s*$'), '').trim();
+    final recipe = globalRecipesDatabase.where((r) => r.name == name || r.name == clean).toList();
+    if (recipe.isNotEmpty) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: recipe.first, onStateChanged: _onChildChanged)));
+      return;
+    }
+    final food = globalFoodsDatabase.where((f) => f.name.toLowerCase() == clean.toLowerCase()).toList();
+    if (food.isNotEmpty) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => FoodDetailScreen(food: food.first, babyId: _activeBabyId, onStateChanged: _onChildChanged)));
+    }
+  }
+
   Widget _planMealCard(String slot) {
     final items = _weeklyPlan[_selectedDay]?[slot] ?? [];
     return Container(
@@ -2680,7 +2695,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                        Flexible(
+                          child: GestureDetector(
+                            onTap: () => _openMealItem(name),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _primary))),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.chevron_right, size: 16, color: _primary),
+                              ],
+                            ),
+                          ),
+                        ),
                         const SizedBox(width: 6),
                         GestureDetector(
                           onTap: () { _weeklyPlan[_selectedDay]?[slot]?.remove(name); _persist(); setState(() {}); },
