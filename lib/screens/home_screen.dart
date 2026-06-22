@@ -388,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final double contentMax = wideTab ? 1160 : 760;
       // Yan reklam şeritleri (yeterince genişse, reklamsız değilse). Ana sayfa
       // kendi sağ rayına sahip olduğundan orada dış şeritleri göstermeyiz.
-      final bool showSideAds = screenW >= 1320 && _currentIndex != 0 && !(globalIsPremium || adFreeActive());
+      final bool showSideAds = screenW >= 1320 && _currentIndex != 0 && !adFreeActive();
       return Scaffold(
         backgroundColor: _bg,
         body: SafeArea(
@@ -533,7 +533,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const SizedBox(height: 8),
             const Text("BabyBites+", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 4),
-            Text("Reklamsız, sınırsız yedek, gelişim raporu ve otomatik haftalık menü.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.white.withOpacity(0.92), height: 1.4)),
+            Text("Büyüme grafiği, gelişim raporu, sınırsız yedek ve otomatik haftalık menü.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.white.withOpacity(0.92), height: 1.4)),
             const SizedBox(height: 12),
             Container(
               width: double.infinity,
@@ -562,7 +562,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         break;
       }
     }
-    final adFree = globalIsPremium || adFreeActive();
+    final adFree = adFreeActive();
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),

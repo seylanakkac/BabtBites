@@ -285,7 +285,7 @@ Widget webPageShell(BuildContext context, {int selectedIndex = -1, double maxWid
   return LayoutBuilder(
     builder: (context, c) {
       if (c.maxWidth < 900) return child;
-      final showAds = c.maxWidth >= 1320 && !(globalIsPremium || adFreeActive());
+      final showAds = c.maxWidth >= 1320 && !adFreeActive();
       return Scaffold(
         backgroundColor: const Color(0xFFFAF9F6),
         body: SafeArea(

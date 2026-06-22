@@ -3,21 +3,12 @@ import '../data/extras_store.dart';
 import '../config/ads_config.dart';
 import 'web_ads.dart';
 
-/// A revenue ad slot, shown only to NON-premium users.
+/// A revenue ad slot. Reklamlar TÜM kullanıcılara gösterilir (premium dahil);
+/// yalnızca ödüllü "1 gün reklamsız" penceresi (adFreeActive) sırasında gizlenir.
 ///
-/// Today this renders a styled placeholder so the placement is visible while we
-/// test on web (Google AdMob does NOT support Flutter web). On the Android/iOS
-/// build, replace the placeholder body with a real `google_mobile_ads`
-/// `BannerAd` widget — the placement, sizing and premium-gating stay the same:
-///
-///   final ad = BannerAd(adUnitId: ..., size: AdSize.banner, request: AdRequest(),
-///                        listener: BannerAdListener())..load();
-///   return SizedBox(height: ad.size.height, child: AdWidget(ad: ad));
-///
-/// BabyBites+ subscribers never see ads (the "reklamsız" perk).
-/// Dikey "skyscraper" reklam yuvası — yalnızca geniş ekranda (web/masaüstü),
-/// içeriğin sol/sağ boşluklarında gösterilir. AdBanner ile aynı premium/ödüllü
-/// gizleme kuralını uygular. Mobil derlemede gerçek `BannerAd` ile değiştirilir.
+/// Web'de gerçek reklam AdSense ile (ads_config.dart slot'ları dolunca) gelir;
+/// boşken stilize "Reklam alanı" yer-tutucusu gösterilir.
+/// Dikey "skyscraper" reklam yuvası — yalnızca geniş ekranda (web/masaüstü).
 class SideAdBox extends StatelessWidget {
   final double width;
   final VoidCallback? onUpgrade;
@@ -25,7 +16,7 @@ class SideAdBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (globalIsPremium || adFreeActive()) return const SizedBox.shrink();
+    if (adFreeActive()) return const SizedBox.shrink();
 
     // AdSense yapılandırılmışsa gerçek dikey reklamı göster.
     if (adsConfigured && kAdsenseSideSlot.isNotEmpty) {
@@ -36,7 +27,6 @@ class SideAdBox extends StatelessWidget {
       );
     }
 
-    const primary = Color(0xFFFF7A45);
     const light = Color(0xFFA8A8B3);
 
     return Container(
@@ -79,29 +69,6 @@ class SideAdBox extends StatelessWidget {
               ),
             ),
           ),
-          // Reklamsız yapma (BabyBites+) yönlendirmesi.
-          GestureDetector(
-            onTap: onUpgrade,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              decoration: BoxDecoration(
-                color: primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.workspace_premium, size: 14, color: primary),
-                  SizedBox(width: 4),
-                  Text(
-                    "Reklamsız",
-                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: primary),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -121,8 +88,9 @@ class AdBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ad-free for premium subscribers OR during a rewarded ad-free window.
-    if (globalIsPremium || adFreeActive()) return const SizedBox.shrink();
+    // Reklamlar premium dahil herkese gösterilir; yalnızca ödüllü reklamsız
+    // pencere sırasında gizlenir.
+    if (adFreeActive()) return const SizedBox.shrink();
 
     // AdSense yapılandırılmışsa gerçek yatay banner reklamı göster.
     if (adsConfigured && kAdsenseBannerSlot.isNotEmpty) {
@@ -141,7 +109,6 @@ class AdBanner extends StatelessWidget {
       );
     }
 
-    const primary = Color(0xFFFF7A45);
     const light = Color(0xFFA8A8B3);
 
     return Container(
@@ -175,29 +142,7 @@ class AdBanner extends StatelessWidget {
               style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: light),
             ),
           ),
-          // Upsell: remove ads with BabyBites+.
-          GestureDetector(
-            onTap: onUpgrade,
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: primary.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.workspace_premium, size: 14, color: primary),
-                  SizedBox(width: 4),
-                  Text(
-                    "Reklamsız",
-                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: primary),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
     );
