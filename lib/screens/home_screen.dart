@@ -1232,6 +1232,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return allergens.any((a) => (_allergenKeywords[a] ?? const []).any(low.contains));
   }
 
+  /// Gıdanın alerji seviyesi (Düşük/Orta/Yüksek); bulunamazsa "Düşük".
+  String _allergyRiskOf(String food) {
+    final m = globalFoodsDatabase.where((f) => f.name.toLowerCase() == food.toLowerCase()).toList();
+    return m.isNotEmpty ? m.first.allergyRisk : "Düşük";
+  }
+
   void _autoFillWeeklyMenu() {
     _gatedFeature("Örnek Menü Oluştur", rewardKey: "auto_menu", action: _showMenuConfigDialog);
   }
@@ -1381,9 +1387,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final foods = [...focusFoods, ...base].where((f) => seen.add(f.toLowerCase()) && !_foodNameHasAllergen(f, allergens)).toList();
       final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"].where((f) => !_foodNameHasAllergen(f, allergens)).toList();
       final list = foods.isEmpty ? ["Avokado"] : foods;
+      // 3 gün kuralı SADECE alerji seviyesi Orta/Yüksek gıdalarda; Düşük olanlar
+      // günlük dönebilir.
+      final seq = <String>[];
+      var fi = 0;
+      while (seq.length < days.length && fi < list.length * 4) {
+        final food = list[fi % list.length];
+        final risk = _allergyRiskOf(food);
+        final hold = (risk == "Orta" || risk == "Yüksek") ? 3 : 1;
+        for (var k = 0; k < hold && seq.length < days.length; k++) {
+          seq.add(food);
+        }
+        fi++;
+      }
       for (var di = 0; di < days.length; di++) {
         final day = days[di];
-        final food = list[(di ~/ 3) % list.length]; // 3 gün kuralı
+        final food = seq.isEmpty ? list[di % list.length] : seq[di % seq.length];
         _weeklyPlan[day]![mains.first] = ["$food (tadım)"];
         if (snacks.isNotEmpty && fruits.isNotEmpty) {
           _weeklyPlan[day]![snacks.first] = ["${fruits[di % fruits.length]} (tadım)"];
