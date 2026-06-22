@@ -12,9 +12,9 @@
 ///    numarasını (ör. 1234567890) aşağıya yaz.
 /// 4. AdSense'in verdiği doğrulama <script>'ini web/index.html <head>'ine ekle
 ///    (site doğrulaması için) — index.html'de bunun için işaretli yer var.
-const String kAdsenseClient = ""; // ör. "ca-pub-1234567890123456"
-const String kAdsenseBannerSlot = ""; // yatay banner reklam birimi data-ad-slot
-const String kAdsenseSideSlot = ""; // dikey skyscraper reklam birimi data-ad-slot
+const String kAdsenseClient = "ca-pub-4036323836264136"; // yayıncı kimliği
+const String kAdsenseBannerSlot = ""; // yatay banner reklam birimi data-ad-slot (onay sonrası doldur)
+const String kAdsenseSideSlot = ""; // dikey skyscraper reklam birimi data-ad-slot (onay sonrası doldur)
 
 /// AdSense kimliği girilmiş mi?
 bool get adsConfigured => kAdsenseClient.isNotEmpty;

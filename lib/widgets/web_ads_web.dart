@@ -11,6 +11,9 @@ final Set<String> _registered = {};
 void _ensureScript(String client) {
   if (_scriptInjected || client.isEmpty) return;
   _scriptInjected = true;
+  // index.html zaten yüklüyorsa tekrar ekleme (çift adsbygoogle.js hata verir).
+  final existing = html.document.querySelectorAll('script[src*="adsbygoogle.js"]');
+  if (existing.isNotEmpty) return;
   final s = html.ScriptElement()
     ..async = true
     ..src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=$client'
