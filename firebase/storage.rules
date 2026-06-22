@@ -11,15 +11,23 @@ service firebase.storage {
         request.auth.token.email in ['seylanakkac@gmail.com', 'admin@babybites.com'];
     }
 
-    // Kullanıcı dosyaları (rapor PDF'leri vb.): yalnızca sahibi.
-    match /users/{uid}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    // Yükleme boyut/tip sınırı (silmede request.resource null olur → izin verilir).
+    function okUpload(maxBytes, typeRegex) {
+      return request.resource == null
+        || (request.resource.size < maxBytes && request.resource.contentType.matches(typeRegex));
     }
 
-    // Katalog görselleri: herkes okur, sadece admin yazar.
+    // Kullanıcı dosyaları (rapor PDF'leri, yorum fotoğrafı): yalnızca sahibi, ≤10MB, görsel/pdf.
+    match /users/{uid}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && okUpload(10 * 1024 * 1024, 'image/.*|application/pdf');
+    }
+
+    // Katalog görselleri: herkes okur, sadece admin yazar; ≤10MB, sadece görsel.
     match /catalog/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow write: if isAdmin() && okUpload(10 * 1024 * 1024, 'image/.*');
     }
   }
 }

@@ -1606,6 +1606,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         child: Icon(reacted ? Icons.warning_amber_rounded : Icons.check_circle, color: reacted ? _danger : _green, size: 18),
                       ),
                     ),
+                  // Yüksek boğulma riski rozeti (sol alt)
+                  if (chokingRiskFor(food) == "Yüksek")
+                    Positioned(
+                      bottom: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: _danger.withOpacity(0.92), borderRadius: BorderRadius.circular(20)),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.warning_amber_rounded, size: 11, color: Colors.white),
+                          SizedBox(width: 3),
+                          Text("Boğulma", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+                        ]),
+                      ),
+                    ),
+                  // Uzman onayı bekliyor (sağ alt)
+                  if (effectiveFoodNeedsReview(food))
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(color: const Color(0xFFFFC107).withOpacity(0.92), borderRadius: BorderRadius.circular(20)),
+                        child: const Text("⏳ onay", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF7A4D00))),
+                      ),
+                    ),
                 ],
               ),
             ),

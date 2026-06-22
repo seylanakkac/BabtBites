@@ -59,13 +59,17 @@ class CatalogSync {
     if (!globalIsAdmin) return "Yetki yok (admin değil)";
     try {
       final all = StorageService.instance.exportCatalog();
+      // Tüm katalog dokümanlarını ATOMİK yaz (hep ya da hiç) — kısmi yazma
+      // tutarsızlığını (ör. yarısı yazılıp diğeri başarısız) önler.
+      final batch = FirebaseFirestore.instance.batch();
       for (final entry in _docKeys.entries) {
         final docData = <String, dynamic>{};
         for (final k in entry.value) {
           if (all.containsKey(k)) docData[k] = all[k];
         }
-        await _catalog.doc(entry.key).set(docData).timeout(const Duration(seconds: 15));
+        batch.set(_catalog.doc(entry.key), docData);
       }
+      await batch.commit().timeout(const Duration(seconds: 20));
       return null;
     } catch (e) {
       debugPrint('CatalogSync.push failed: $e');

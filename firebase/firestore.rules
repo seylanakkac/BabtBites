@@ -42,7 +42,10 @@ service cloud.firestore {
       allow read: if true;
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.approved == false;
+        && request.resource.data.approved == false
+        // Boyut sınırı: dev base64/metin ile Firestore'u zehirlemeyi önler.
+        && (!('text' in request.resource.data) || request.resource.data.text.size() < 2000)
+        && (!('photo' in request.resource.data) || request.resource.data.photo.size() < 2000);
       allow update, delete: if isAdmin()
         || (request.auth != null && resource.data.uid == request.auth.uid);
     }
