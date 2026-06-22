@@ -1182,36 +1182,200 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _autoFillWeeklyMenu() {
-    _gatedFeature("Otomatik Haftalık Menü", rewardKey: "auto_menu", action: _doAutoFillWeeklyMenu);
+  // Alerjen → tarif malzemesi/ad anahtar kelimeleri (alerjen menüsünden hariç tutmak için).
+  static const Map<String, List<String>> _allergenKeywords = {
+    "Yumurta": ["yumurta"],
+    "Süt ürünü": ["süt", "peynir", "yoğurt", "tereyağı", "kefir", "lor", "labne", "kaymak", "krema", "ayran", "muhallebi", "mozzarella", "ricotta", "cheddar", "hellim", "skyr"],
+    "Gluten": ["buğday", "bulgur", "makarna", "ekmek", "irmik", "arpa", "çavdar", "şehriye", "erişte", "galeta", "lavaş", "kuskus", "yarma", "siyez", "firik"],
+    "Balık/Deniz ürünü": ["balık", "somon", "hamsi", "sardalya", "levrek", "çipura", "mezgit", "uskumru", "palamut", "karides", "midye", "ahtapot", "kalamar", "istiridye", "yengeç", "istakoz", "sübye", "deniz tarağı", "kefal", "sazan"],
+    "Kuruyemiş": ["ceviz", "badem", "fındık", "antep", "fıstık", "kaju", "çam fıstığı", "pekan", "makadamya", "brezilya"],
+    "Susam": ["susam", "tahin"],
+    "Soya": ["soya", "edamame", "tofu"],
+  };
+
+  int _ageDays(String? dob) {
+    final d = _parseDob(dob);
+    if (d == null) return 0;
+    return DateTime.now().difference(d).inDays;
   }
 
-  void _doAutoFillWeeklyMenu() {
-    final months = _ageMonths(_activeBaby?["dob"]?.toString());
-    final maxAge = months < 6 ? 6 : months;
-    final eligible = globalRecipesDatabase.where((r) => r.startingMonth <= maxAge).toList();
-    if (eligible.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Uygun tarif bulunamadı.")));
-      return;
+  bool _recipeHasAllergen(Recipe r, String allergen) {
+    final kws = _allergenKeywords[allergen] ?? const [];
+    final hay = "${r.ingredients.join(" ")} ${r.name} ${r.allergyWarning}".toLowerCase();
+    return kws.any(hay.contains);
+  }
+
+  bool _foodNameHasAllergen(String food, Set<String> allergens) {
+    final low = food.toLowerCase();
+    return allergens.any((a) => (_allergenKeywords[a] ?? const []).any(low.contains));
+  }
+
+  void _autoFillWeeklyMenu() {
+    _gatedFeature("Örnek Menü Oluştur", rewardKey: "auto_menu", action: _showMenuConfigDialog);
+  }
+
+  void _showMenuConfigDialog() {
+    final dob = _activeBaby?["dob"]?.toString();
+    final ageDays = _ageDays(dob);
+    final months = _ageMonths(dob);
+    final triedCount = triedFoodNames(_activeBabyId).length;
+    String tierLabel;
+    if (ageDays < 197) {
+      tierLabel = "6 ay: 1 ana + 1 ara öğün";
+    } else if (ageDays < 274) {
+      tierLabel = "6,5–9 ay: 2 ana + 1 ara öğün";
+    } else {
+      tierLabel = "9 ay+: 3 ana + 2 ara öğün";
     }
-    const mainSlots = ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği"];
+    bool tasting = triedCount < 4 || months < 6 || ageDays < 200;
+    final allergens = <String>{};
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Örnek Menü Oluştur", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 17, color: _text)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+                  child: Row(children: [
+                    const Icon(Icons.cake_outlined, size: 18, color: _primary),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text("Yaşa göre plan: $tierLabel", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                  ]),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: tasting,
+                  activeColor: _primary,
+                  title: const Text("Ek gıdaya yeni başladı", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                  subtitle: const Text("Tek gıda tadımlarıyla başlat (3 gün kuralı)", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                  onChanged: (v) => setD(() => tasting = v),
+                ),
+                const SizedBox(height: 4),
+                const Text("Bilinen alerjenler (hariç tutulur)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _allergenKeywords.keys.map((a) {
+                    final sel = allergens.contains(a);
+                    return GestureDetector(
+                      onTap: () => setD(() => sel ? allergens.remove(a) : allergens.add(a)),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(color: sel ? _danger : const Color(0xFFF1F1F4), borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? _danger : const Color(0xFFE2E2E6))),
+                        child: Text(a, style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 6),
+                const Text("Not: Bu menü örnektir; bebeğinizin doktoruna danışın.", style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _light)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _generateSampleMenu(tasting: tasting, allergens: allergens);
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text("Menüyü Oluştur", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _generateSampleMenu({required bool tasting, required Set<String> allergens}) {
+    final dob = _activeBaby?["dob"]?.toString();
+    final ageDays = _ageDays(dob);
+    final months = _ageMonths(dob);
+    final maxAge = months < 6 ? 6 : months;
     final days = _getWeeklyDays().map((d) => d["key"]!).toList();
-    int idx = months; // vary start by age so it isn't identical each baby
-    int filled = 0;
+
+    // Yaşa göre öğün yapısı
+    List<String> mains;
+    List<String> snacks;
+    if (ageDays < 197) {
+      mains = ["Öğle Yemeği"];
+      snacks = ["1. Ara Öğün"];
+    } else if (ageDays < 274) {
+      mains = ["Kahvaltı", "Öğle Yemeği"];
+      snacks = ["1. Ara Öğün"];
+    } else {
+      mains = ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği"];
+      snacks = ["1. Ara Öğün", "2. Ara Öğün"];
+    }
+
+    // Haftanın tüm slotlarını temizle (örnek menü baştan oluşturulur)
     for (final day in days) {
-      _weeklyPlan.putIfAbsent(day, () => {for (final s in _mealSlots) s: <String>[]});
-      for (final slot in mainSlots) {
-        _weeklyPlan[day]!.putIfAbsent(slot, () => <String>[]);
-        if ((_weeklyPlan[day]![slot] ?? []).isEmpty) {
-          _weeklyPlan[day]![slot] = [eligible[idx % eligible.length].name];
-          filled++;
+      _weeklyPlan[day] = {for (final s in _mealSlots) s: <String>[]};
+    }
+
+    String msg;
+    if (tasting) {
+      final firstFoods = ["Avokado", "Muz", "Elma", "Armut", "Balkabağı", "Havuç", "Patates", "Tatlı Patates", "Brokoli", "Kabak", "Karnabahar", "Şeftali", "Kayısı", "Bezelye"]
+          .where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final fruits = ["Muz", "Elma", "Armut", "Şeftali", "Avokado"]
+          .where((f) => !_foodNameHasAllergen(f, allergens)).toList();
+      final foods = firstFoods.isEmpty ? ["Avokado"] : firstFoods;
+      for (var di = 0; di < days.length; di++) {
+        final day = days[di];
+        // Yeni gıda her 3 günde bir (3 gün kuralı)
+        final food = foods[(di ~/ 3) % foods.length];
+        _weeklyPlan[day]![mains.first] = ["$food (tadım)"];
+        if (snacks.isNotEmpty && fruits.isNotEmpty) {
+          _weeklyPlan[day]![snacks.first] = ["${fruits[di % fruits.length]} (tadım)"];
         }
-        idx++;
       }
+      msg = "Tadım menüsü oluşturuldu (tek gıda, 3 gün kuralı).";
+    } else {
+      bool ok(Recipe r) => r.startingMonth <= maxAge && !allergens.any((a) => _recipeHasAllergen(r, a));
+      List<Recipe> inCats(List<String> cats) =>
+          globalRecipesDatabase.where((r) => ok(r) && cats.contains(effectiveRecipeCategory(r))).toList();
+      final breakfast = inCats(["Bebek Kahvaltısı"]);
+      final mainPool = inCats(["Bebek Çorbaları", "Bebek Köfteleri"]);
+      final snackPool = inCats(["Bebek Püreleri", "Bebek Bisküvileri", "Bebek Muhallebisi ve Mama Tarifleri"]);
+      final anyPool = globalRecipesDatabase.where(ok).toList();
+      String pick(List<Recipe> pool, int i) {
+        final p = pool.isNotEmpty ? pool : anyPool;
+        return p.isEmpty ? "" : p[i % p.length].name;
+      }
+
+      if (anyPool.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Seçilen alerjenler çıkarılınca uygun tarif kalmadı.")));
+        return;
+      }
+      int bi = months, mi = months + 1, si = months + 2;
+      for (final day in days) {
+        for (final slot in mains) {
+          final n = slot == "Kahvaltı"
+              ? pick(breakfast.isNotEmpty ? breakfast : snackPool, bi++)
+              : pick(mainPool, mi++);
+          if (n.isNotEmpty) _weeklyPlan[day]![slot] = [n];
+        }
+        for (final slot in snacks) {
+          final n = pick(snackPool, si++);
+          if (n.isNotEmpty) _weeklyPlan[day]![slot] = [n];
+        }
+      }
+      msg = "Yaşa uygun örnek menü oluşturuldu${allergens.isEmpty ? "" : " (alerjenler hariç)"}.";
     }
     _persist();
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(filled > 0 ? "Boş öğünler otomatik dolduruldu ($filled öğün)." : "Tüm öğünler zaten dolu.")));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 3)));
   }
 
   void _addWeekIngredientsToCart() {
