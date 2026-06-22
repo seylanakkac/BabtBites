@@ -1,7 +1,7 @@
 # BabyBites — Gizlilik Politikası
 
-**Son güncelleme:** 14 Haziran 2026
-**Yürürlük tarihi:** 14 Haziran 2026
+**Son güncelleme:** 22 Haziran 2026
+**Yürürlük tarihi:** 22 Haziran 2026
 
 > Bu politika, BabyBites mobil/web uygulamasının ("Uygulama") kullanıcı verilerini nasıl işlediğini açıklar. Uygulamayı kullanarak bu politikayı okuduğunuzu ve kabul ettiğinizi beyan edersiniz.
 
@@ -11,10 +11,11 @@
 
 ## 1. Özet (Hızlı Bakış)
 
-- BabyBites'ın verileriniz **yalnızca kendi cihazınızda** saklanır.
-- Verileriniz **sunucularımıza veya üçüncü taraflara aktarılmaz, satılmaz, kiralanmaz**.
-- Reklam ağı, takip pikseli veya üçüncü taraf analitik SDK'sı **kullanılmaz**.
-- Uygulamayı sildiğinizde veya tarayıcı verilerini temizlediğinizde verileriniz cihazınızdan **silinir**.
+- Verileriniz öncelikle **kendi cihazınızda** saklanır; hesap açtığınızda ve bulut yedeği/senkronizasyon kullandığınızda **Google Firebase** altyapısında (sunucuda) da tutulur.
+- Verileriniz **satılmaz, kiralanmaz**; yalnızca hizmeti sağlamak için kullandığımız işleyicilerle (Google Firebase) ve aşağıda açıklanan reklam hizmetiyle paylaşılır.
+- **Web sürümünde**, premium olmayan kullanıcılara **Google AdSense** reklamları gösterilebilir; AdSense **çerez** kullanır (bkz. madde 5).
+- **BabyBites+ (premium)** aboneleri ve reklamsız ödülü aktif olanlar reklam **görmez**.
+- Hesabınızı/verilerinizi silebilir, tarayıcı verilerini temizleyebilirsiniz.
 - BabyBites bir **bilgilendirme aracıdır; tıbbi tavsiye vermez**.
 
 ---
@@ -38,33 +39,51 @@ Uygulama'yı kullanırken **sizin girdiğiniz** veriler işlenir. Bunlar şunlar
 **d) Cihaz izinleri**
 - **Fotoğraf/galeri erişimi:** Yalnızca bir gıda/tarif/içerik için fotoğraf seçtiğinizde kullanılır. Seçtiğiniz fotoğraf cihazınızda saklanır; tarafımıza gönderilmez.
 
-**Toplamadığımız veriler:** Konum, kişiler, mikrofon, kamera (canlı), reklam kimliği, hassas finansal bilgiler veya benzeri veriler **toplanmaz**.
+**e) Hesap ve teknik veriler**
+- Hesap oluşturduğunuzda **e-posta adresiniz** (Google Firebase Authentication ile) işlenir.
+- Reklam ve hizmet sağlama sırasında IP adresi, cihaz/tarayıcı türü ve çerez tanımlayıcıları gibi teknik veriler ilgili hizmet sağlayıcılar (Google) tarafından işlenebilir.
+
+**Toplamadığımız veriler:** Konum (GPS), kişiler, mikrofon, canlı kamera, hassas finansal bilgiler **tarafımızca toplanmaz**.
 
 ---
 
 ## 3. Verileri Nerede ve Nasıl Saklıyoruz?
 
-- Tüm veriler, cihazınızın yerel depolama alanında (mobilde uygulama deposu, web'de tarayıcı `localStorage`) saklanır.
-- Veriler **şifrelenmemiş düz biçimde cihazınızda** tutulur; cihaz güvenliğiniz (ekran kilidi vb.) verilerinizin korunmasında önemlidir.
-- Tarafımıza ait herhangi bir sunucuya **otomatik veri aktarımı yapılmaz**.
-
-> **Bulut özellikleri (gelecek):** İleride hesap/senkronizasyon (ör. Firebase) gibi bulut tabanlı özellikler eklenirse, bu politika güncellenecek; verilerin nereye aktarıldığı, saklandığı ve nasıl silineceği açıkça belirtilecek ve gerekli açık rızanız alınacaktır.
+- Veriler öncelikle cihazınızın yerel depolama alanında (mobilde uygulama deposu, web'de tarayıcı `localStorage`) saklanır.
+- **Hesap açtığınızda ve bulut yedeği/senkronizasyon ile içerik (foto) yükleme özelliklerini kullandığınızda**, ilgili veriler **Google Firebase** (Authentication / Firestore / Cloud Storage) altyapısında işlenir ve saklanır. Firebase, Google'ın veri merkezlerinde barındırılır.
+- Cihazınızda tutulan yerel veriler şifrelenmemiş biçimdedir; cihaz güvenliğiniz (ekran kilidi vb.) önemlidir.
+- Firebase tarafında veriler, Google'ın güvenlik altyapısı ve erişim kurallarımız (yalnızca kendi verinize erişim) ile korunur.
 
 ---
 
 ## 4. Verileri Hangi Amaçla İşliyoruz?
 
 - Beslenme takibi, hatırlatma, öğün planı ve içerik gösterimi gibi **uygulamanın temel işlevlerini sunmak** için.
-- Verileriniz **profil oluşturma, pazarlama, profilleme veya reklam** amacıyla işlenmez.
+- Hesap oluşturma ve bulut yedeği/senkronizasyon için (Firebase).
+- **Web sürümünde** premium olmayan kullanıcılara **reklam gösterimi** için (Google AdSense; bkz. madde 5).
+- Girdiğiniz beslenme/sağlık verilerini **size reklam göstermek için kullanmayız**; reklam çerezleri Google tarafından genel reklam gösterimi için işlenir.
 
-İşleme hukuki dayanağı (KVKK m.5 / GDPR m.6): Uygulama işlevlerini sağlamaya yönelik **sözleşmenin ifası** ve cihazınızda yerel işleme için **açık rızanız**.
+İşleme hukuki dayanağı (KVKK m.5 / GDPR m.6): Uygulama işlevlerini sağlamaya yönelik **sözleşmenin ifası**; bulut özellikleri ve reklam çerezleri için **açık rızanız**.
 
 ---
 
-## 5. Veri Paylaşımı
+## 5. Veri Paylaşımı, Çerezler ve Reklamlar
 
-- Verileriniz **hiçbir üçüncü tarafla paylaşılmaz, satılmaz veya kiralanmaz**.
-- Uygulama içindeki "Marketten Sipariş Ver" gibi alanlardaki bağlantılara dokunduğunuzda, cihazınızın tarayıcısında **harici bir web sitesi** açılır. Bu sitelerin gizlilik uygulamalarından BabyBites sorumlu değildir; ilgili sitenin kendi gizlilik politikası geçerlidir.
+- Verileriniz **satılmaz veya kiralanmaz**. Verileriniz yalnızca hizmeti sağlamak için kullandığımız aşağıdaki hizmet sağlayıcılarıyla (veri işleyenler) paylaşılır:
+
+**a) Google Firebase (Authentication, Firestore, Storage)**
+Hesap oluşturma, bulut yedeği/senkronizasyon ve içerik (gıda/tarif fotoğrafları) saklama için kullanılır. İlgili veriler Google'ın sunucularında işlenir/saklanır. Bkz. Google Gizlilik Politikası: https://policies.google.com/privacy
+
+**b) Google AdSense (yalnızca web, reklamlar)**
+Web sürümünde premium olmayan kullanıcılara reklam gösterimi için Google AdSense kullanılır. AdSense ve iş ortakları, reklamları kişiselleştirmek ve ölçmek için **çerezler** ve benzeri tanımlayıcılar kullanabilir; bu kapsamda IP adresi ve tarayıcı bilgileri Google tarafından işlenir.
+- Reklam kişiselleştirme tercihlerinizi yönetebilirsiniz: https://adssettings.google.com
+- Google'ın reklam veri kullanımı: https://policies.google.com/technologies/ads
+- **BabyBites+ (premium)** aboneleri ve reklamsız ödülü aktif olan kullanıcılara reklam **gösterilmez** ve bu kapsamda reklam çerezi yüklenmez.
+
+**c) Harici bağlantılar**
+Uygulama içindeki "Marketten Sipariş Ver" gibi alanlardaki bağlantılara dokunduğunuzda, cihazınızın tarayıcısında **harici bir web sitesi** açılır. Bu sitelerin gizlilik uygulamalarından BabyBites sorumlu değildir; ilgili sitenin kendi gizlilik politikası geçerlidir.
+
+**Çerezler:** Web sürümünde, oturum/işlev için gerekli çerezler ile (premium olmayan kullanıcılarda) yukarıda açıklanan reklam çerezleri kullanılabilir. Tarayıcı ayarlarınızdan çerezleri yönetebilir/silebilirsiniz; ancak bazı işlevler etkilenebilir.
 
 ---
 
