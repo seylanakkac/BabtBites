@@ -743,6 +743,8 @@ class _AdminScreenState extends State<AdminScreen> {
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
     final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
     bool sponsored = existing?["sponsored"] == true;
+    String category = existing?["category"]?.toString() ?? "Diğer";
+    if (!kRecipeCategories.contains(category)) category = "Diğer";
 
     // Structured ingredient list: name (from foods or custom) + quantity + unit.
     final ingredients = <String>[];
@@ -816,6 +818,19 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ]),
                   _field(author, "Hazırlayan", hint: "babykitchenwithege"),
+                  const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Kategori", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6))),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: category,
+                        isExpanded: true,
+                        items: kRecipeCategories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
+                        onChanged: (v) => setD(() => category = v ?? "Diğer"),
+                      ),
+                    ),
+                  ),
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   if (ingredients.isEmpty)
                     const Padding(padding: EdgeInsets.only(bottom: 6), child: Text("Henüz malzeme yok. Aşağıdan gıdalardan ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
@@ -911,6 +926,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 saveRecipeEdit({
                   "id": rid,
                   "name": n,
+                  "category": category,
                   "prepTime": prep.text.trim().isEmpty ? "15 dk" : prep.text.trim(),
                   "startingMonth": int.tryParse(month.text.trim()) ?? 6,
                   "kcal": double.tryParse(kcal.text.trim().replaceAll(',', '.')) ?? 0,

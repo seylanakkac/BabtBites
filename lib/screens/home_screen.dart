@@ -85,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _recipeSearchQuery = "";
   String _selectedCategory = "Tümü";
   String _selectedRecipeAge = "Tümü";
+  String _selectedRecipeCategory = "Tümü";
   int _explorerSubTab = 0;
   bool _onlyTriedRecipes = false;
   bool _onlyExpertRecipes = false;
@@ -1816,6 +1817,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final matchesSearch = recipe.name.toLowerCase().contains(_recipeSearchQuery);
       if (_onlyTriedRecipes && !recipe.ingredients.any((ing) => triedNames.contains(ing))) return false;
       if (_onlyExpertRecipes && expertTypeForAuthor(recipe.author) == null) return false;
+      if (_selectedRecipeCategory != "Tümü" && effectiveRecipeCategory(recipe) != _selectedRecipeCategory) return false;
       if (_pantry.isNotEmpty && !recipe.ingredients.any((ing) => _pantry.contains(ing))) return false;
       if (_selectedRecipeAge == "Tümü") return matchesSearch;
       int maxAge = 6;
@@ -1905,6 +1907,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       decoration: BoxDecoration(color: sel ? _primary : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.8))),
                       child: Center(child: Text(age, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: sel ? FontWeight.bold : FontWeight.w500, color: sel ? Colors.white : _text))),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, 6),
+            child: Align(alignment: Alignment.centerLeft, child: Text("Kategoriler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
+          ),
+          SizedBox(
+            height: 38,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              children: ["Tümü", ...kRecipeCategories].map((cat) {
+                final sel = _selectedRecipeCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedRecipeCategory = cat),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(color: sel ? _green : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.8))),
+                      child: Center(child: Text(cat, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: sel ? FontWeight.bold : FontWeight.w500, color: sel ? Colors.white : _text))),
                     ),
                   ),
                 );
@@ -3873,6 +3901,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final kcalCtrl = TextEditingController();
     final allergyCtrl = TextEditingController();
     int startMonth = 6;
+    String category = "Diğer";
     String? photo;
     final units = recipeUnitOptions;
     final defaultUnit = units.isNotEmpty ? units.first : "adet";
@@ -3923,6 +3952,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             isExpanded: true,
                             items: const [6, 8, 9, 12].map((m) => DropdownMenuItem(value: m, child: Text("$m+ Ay", style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
                             onChanged: (v) => setSheet(() => startMonth = v ?? 6),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InputDecorator(
+                        decoration: dec("Kategori"),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: category,
+                            isExpanded: true,
+                            items: kRecipeCategories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
+                            onChanged: (v) => setSheet(() => category = v ?? "Diğer"),
                           ),
                         ),
                       ),
@@ -4070,6 +4111,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       await SocialSync.instance.submitRecipe({
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
+                        "category": category,
                         "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
                         "startingMonth": startMonth,
                         "kcal": finalKcal,

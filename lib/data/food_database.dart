@@ -134,6 +134,7 @@ class Recipe {
   final String author; // recipe creator shown as "Hazırlayan: ..."
   final bool sponsored; // admin-flagged sponsored content
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
+  final String category; // tarif kategorisi (kRecipeCategories), boş = "Diğer"
 
   Recipe({
     required this.id,
@@ -149,6 +150,7 @@ class Recipe {
     this.author = "babykitchenwithege",
     this.sponsored = false,
     this.sponsorLabel = "",
+    this.category = "Diğer",
   });
 
   Map<String, dynamic> toJson() => {
@@ -165,6 +167,7 @@ class Recipe {
         "author": author,
         "sponsored": sponsored,
         "sponsorLabel": sponsorLabel,
+        "category": category,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -181,8 +184,40 @@ class Recipe {
         author: j["author"]?.toString() ?? "babykitchenwithege",
         sponsored: j["sponsored"] == true,
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
+        category: j["category"]?.toString() ?? "Diğer",
       );
 }
+
+/// Tarifin etkin kategorisi: admin/kullanıcı bir kategori atadıysa onu kullanır;
+/// "Diğer" ise ada bakarak makul bir kategori çıkarır (mevcut tarifler için).
+String effectiveRecipeCategory(Recipe r) {
+  if (r.category.isNotEmpty && r.category != "Diğer") return r.category;
+  final n = r.name.toLowerCase();
+  if (n.contains("çorba")) return "Bebek Çorbaları";
+  if (n.contains("köfte")) return "Bebek Köfteleri";
+  if (n.contains("muhallebi") || n.contains("mama") || n.contains("puding")) return "Bebek Muhallebisi ve Mama Tarifleri";
+  if (n.contains("bisküvi") || n.contains("kurabiye") || n.contains("kraker")) return "Bebek Bisküvileri";
+  if (n.contains("pankek") || n.contains("krep") || n.contains("gözleme")) return "Bebek Pankek Tarifleri";
+  if (n.contains("ekmek") || n.contains("kek") || n.contains("muffin")) return "Bebek Ekmekleri";
+  if (n.contains("çay")) return "Bebek Çayları";
+  if (n.contains("kahvalt") || n.contains("omlet") || n.contains("yulaf")) return "Bebek Kahvaltısı";
+  if (n.contains("püre") || n.contains("ezme")) return "Bebek Püreleri";
+  return "Diğer";
+}
+
+/// Tarif kategorileri (admin/kullanıcı tarifleri için).
+const List<String> kRecipeCategories = [
+  "Bebek Püreleri",
+  "Bebek Çorbaları",
+  "Bebek Köfteleri",
+  "Bebek Kahvaltısı",
+  "Bebek Muhallebisi ve Mama Tarifleri",
+  "Bebek Bisküvileri",
+  "Bebek Pankek Tarifleri",
+  "Bebek Ekmekleri",
+  "Bebek Çayları",
+  "Diğer",
+];
 
 /// Admin-added foods/recipes (raw JSON), merged into the databases on startup.
 final List<Map<String, dynamic>> globalCustomFoods = [];
@@ -870,7 +905,7 @@ final List<Food> globalFoodsDatabase = [
   Food(name: "Hindi But", emoji: "🍗", category: "Et", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "Kemiksiz, iyi pişmiş; didiklenir/püre.", 9: "Suyuyla yumuşatılmış didik parçalar.", 12: "Küçük doğranmış parçalar."}, nutritionValues: {"Enerji": 170, "Protein": 28.0, "Sağlıklı Yağ": 6.0, "Demir": 1.4}, chokingRisk: "Orta", chokingNote: "Kemiksiz; didiklenir, suyuyla nemli verilir.", needsReview: true),
   Food(name: "Ton Balığı", emoji: "🐟", category: "Balık", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "Kılçığı ayıklanıp ezilir; az ve seyrek.", 9: "Ezilmiş, sebzeyle karıştırılmış.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 132, "Protein": 28.0, "Sağlıklı Yağ": 1.0, "Demir": 1.3}, chokingRisk: "Orta", chokingNote: "Cıva nedeniyle az/seyrek; kılçık ayıklanır.", needsReview: true),
   Food(name: "Uskumru", emoji: "🐟", category: "Balık", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "Kılçıkları dikkatle ayıklanıp ezilir.", 9: "Ezilmiş, sebzeyle.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 205, "Protein": 19.0, "Sağlıklı Yağ": 13.9, "Demir": 1.6}, chokingRisk: "Orta", chokingNote: "Tüm kılçıklar dikkatle ayıklanır.", needsReview: true),
-  Food(name: "Karides", emoji: "🦐", category: "Balık", startingMonth: 9, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "İyice pişirilip çok ince doğranır (alerjen).", 12: "İnce doğranmış olarak."}, nutritionValues: {"Enerji": 99, "Protein": 24.0, "Sağlıklı Yağ": 0.3, "Demir": 0.5}, chokingRisk: "Orta", chokingNote: "Alerjen; iyice pişirilip çok ince doğranır.", needsReview: true),
+  Food(name: "Karides", emoji: "🦐", category: "Balık", startingMonth: 24, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "İyice pişirilip çok ince doğranır (alerjen).", 12: "İnce doğranmış olarak."}, nutritionValues: {"Enerji": 99, "Protein": 24.0, "Sağlıklı Yağ": 0.3, "Demir": 0.5}, chokingRisk: "Orta", chokingNote: "Alerjen; iyice pişirilip çok ince doğranır.", needsReview: true),
   Food(name: "Yer Fıstığı", emoji: "🥜", category: "Diğer", startingMonth: 6, allergyRisk: "Yüksek", presentationStyles: {6: "Sulandırılmış yer fıstığı ezmesi (erken tanıştırma).", 9: "Yoğurda/pürelere karıştırılmış ezme.", 12: "İnce sürülmüş ezme; bütün fıstık verilmez."}, nutritionValues: {"Enerji": 567, "Protein": 25.8, "Sağlıklı Yağ": 49.2, "Demir": 4.6}, chokingRisk: "Yüksek", chokingNote: "Bütün/parça ASLA — yalnız sulandırılmış ezme.", needsReview: true),
   Food(name: "Antep Fıstığı", emoji: "🥜", category: "Diğer", startingMonth: 8, allergyRisk: "Yüksek", presentationStyles: {6: "Bütün verilmez.", 9: "Toz/ezme olarak çok az.", 12: "İnce ezme olarak."}, nutritionValues: {"Enerji": 560, "Protein": 20.0, "Sağlıklı Yağ": 45.0, "Demir": 3.9}, chokingRisk: "Yüksek", chokingNote: "Bütün VERİLMEZ; toz/ezme.", needsReview: true),
   Food(name: "Kaju", emoji: "🥜", category: "Diğer", startingMonth: 8, allergyRisk: "Yüksek", presentationStyles: {6: "Bütün verilmez.", 9: "Ezme/toz olarak çok az.", 12: "İnce ezme olarak."}, nutritionValues: {"Enerji": 553, "Protein": 18.0, "Sağlıklı Yağ": 44.0, "Demir": 6.7}, chokingRisk: "Yüksek", chokingNote: "Bütün VERİLMEZ; ezme/toz.", needsReview: true),
@@ -912,12 +947,12 @@ final List<Food> globalFoodsDatabase = [
   Food(name: "Kabak Çiçeği", emoji: "🌼", category: "Sebze", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "İçi temizlenip pişirilir; ezilir.", 9: "Pişmiş ince doğranmış.", 12: "Zeytinyağlı/pişmiş olarak."}, nutritionValues: {"Enerji": 27, "Protein": 3.0, "Sağlıklı Yağ": 0.4, "Demir": 0.9}, chokingRisk: "Düşük", chokingNote: "Pişirilip yumuşatılır.", needsReview: true),
   Food(name: "Acur", emoji: "🥒", category: "Sebze", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "Soyulmuş kalın çubuk (diş kaşıma).", 9: "Soyulmuş küçük parçalar.", 12: "Küçük doğranmış."}, nutritionValues: {"Enerji": 14, "Protein": 0.6, "Sağlıklı Yağ": 0.1, "Demir": 0.3}, chokingRisk: "Orta", chokingNote: "Soyulur; yuvarlak dilim verilmez.", needsReview: true),
   Food(name: "Frenk Soğanı", emoji: "🌿", category: "Sebze", startingMonth: 8, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "İnce kıyılıp yemeğe karıştırılır.", 12: "İnce kıyılmış olarak."}, nutritionValues: {"Enerji": 30, "Protein": 3.3, "Sağlıklı Yağ": 0.7, "Demir": 1.6}, chokingRisk: "Düşük", chokingNote: "İnce kıyılır.", needsReview: true),
-  Food(name: "Bakla", emoji: "🫛", category: "Sebze", startingMonth: 8, allergyRisk: "Orta", presentationStyles: {6: "Önerilmez.", 9: "Kabuğu soyulup pişirilir; ezilir.", 12: "Pişmiş, kabuğu alınmış taneler."}, nutritionValues: {"Enerji": 88, "Protein": 7.9, "Sağlıklı Yağ": 0.7, "Demir": 1.9}, chokingRisk: "Orta", chokingNote: "Dış kabuk soyulur, ezilir. Favizm öyküsü varsa doktora danışın.", needsReview: true),
+  Food(name: "Bakla", emoji: "🫛", category: "Sebze", startingMonth: 24, allergyRisk: "Orta", presentationStyles: {6: "Önerilmez.", 9: "Kabuğu soyulup pişirilir; ezilir.", 12: "Pişmiş, kabuğu alınmış taneler."}, nutritionValues: {"Enerji": 88, "Protein": 7.9, "Sağlıklı Yağ": 0.7, "Demir": 1.9}, chokingRisk: "Orta", chokingNote: "Dış kabuk soyulur, ezilir. Favizm öyküsü varsa doktora danışın.", needsReview: true),
   Food(name: "Su Teresi", emoji: "🌿", category: "Sebze", startingMonth: 9, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "İnce kıyılıp yemeğe karıştırılır.", 12: "İnce kıyılmış."}, nutritionValues: {"Enerji": 11, "Protein": 2.3, "Sağlıklı Yağ": 0.1, "Demir": 0.2}, chokingRisk: "Düşük", chokingNote: "İnce kıyılır.", needsReview: true),
   Food(name: "Brokoli Filizi", emoji: "🥦", category: "Sebze", startingMonth: 8, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "İnce kıyılıp pişmiş yemeğe karıştırılır.", 12: "Yemeğe karıştırılmış."}, nutritionValues: {"Enerji": 35, "Protein": 3.0, "Sağlıklı Yağ": 0.5, "Demir": 1.0}, chokingRisk: "Düşük", chokingNote: "İnce kıyılır.", needsReview: true),
   // Et / Balık / Protein
   Food(name: "Palamut", emoji: "🐟", category: "Balık", startingMonth: 8, allergyRisk: "Orta", presentationStyles: {6: "Önerilmez.", 9: "Kılçığı ayıklanıp iyi pişirilir; ezilir.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 168, "Protein": 23.0, "Sağlıklı Yağ": 8.0, "Demir": 1.3}, chokingRisk: "Orta", chokingNote: "Tüm kılçıklar dikkatle ayıklanır.", needsReview: true),
-  Food(name: "Midye", emoji: "🦪", category: "Balık", startingMonth: 9, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "İyice pişirilip çok ince doğranır (alerjen).", 12: "İnce doğranmış."}, nutritionValues: {"Enerji": 86, "Protein": 12.0, "Sağlıklı Yağ": 2.2, "Demir": 3.9}, chokingRisk: "Orta", chokingNote: "Alerjen; iyice pişirilip çok ince doğranır.", needsReview: true),
+  Food(name: "Midye", emoji: "🦪", category: "Balık", startingMonth: 24, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "İyice pişirilip çok ince doğranır (alerjen).", 12: "İnce doğranmış."}, nutritionValues: {"Enerji": 86, "Protein": 12.0, "Sağlıklı Yağ": 2.2, "Demir": 3.9}, chokingRisk: "Orta", chokingNote: "Alerjen; iyice pişirilip çok ince doğranır.", needsReview: true),
   Food(name: "Dana Ciğeri", emoji: "🥩", category: "Et", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "İyi pişmiş, püre (demir/A vitamini; haftada 1).", 9: "Ezilmiş, sebzeyle.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 135, "Protein": 20.0, "Sağlıklı Yağ": 3.6, "Demir": 6.5}, chokingRisk: "Orta", chokingNote: "İyi pişirilip ezilir; A vitamini yüksek, haftada 1-2 kez.", needsReview: true),
   Food(name: "Tavuk Ciğeri", emoji: "🍗", category: "Et", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "İyi pişmiş, püre (demir kaynağı).", 9: "Ezilmiş, sebzeyle.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 167, "Protein": 24.0, "Sağlıklı Yağ": 6.5, "Demir": 9.0}, chokingRisk: "Orta", chokingNote: "İyi pişirilip ezilir; A vitamini yüksek, haftada 1-2 kez.", needsReview: true),
   Food(name: "Hindi Kıyma", emoji: "🍖", category: "Et", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "İyi pişmiş, nemli; ezilir.", 9: "Köfte/ufalanmış nemli parçalar.", 12: "Küçük köfteler."}, nutritionValues: {"Enerji": 170, "Protein": 27.0, "Sağlıklı Yağ": 7.0, "Demir": 1.4}, chokingRisk: "Orta", chokingNote: "Kuru kalmaması için suyuyla; ufalanır.", needsReview: true),
@@ -1073,7 +1108,6 @@ final List<Food> globalFoodsDatabase = [
   Food(name: "Esmer Pirinç", emoji: "🍚", category: "Tahıl", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "İyice pişirilip lapa.", 9: "Yumuşak pişmiş, sebzeyle.", 12: "Pilav kıvamında."}, nutritionValues: {"Enerji": 370, "Protein": 7.9, "Sağlıklı Yağ": 2.9, "Demir": 1.5}, chokingRisk: "Düşük", chokingNote: "İyice pişirilir; arsenik için tahıl çeşitlendirilir.", needsReview: true),
   Food(name: "Sorgum", emoji: "🌾", category: "Tahıl", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "İyice pişirilip lapa.", 9: "Yumuşak lapa, sebzeyle.", 12: "Pilav kıvamında."}, nutritionValues: {"Enerji": 329, "Protein": 11.0, "Sağlıklı Yağ": 3.5, "Demir": 4.4}, chokingRisk: "Düşük", chokingNote: "İyice pişirilip yumuşatılır.", needsReview: true),
   // Yağlar / Baharatlar
-  Food(name: "Kanola Yağı", emoji: "🫗", category: "Diğer", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "Pişmiş yemeğe birkaç damla.", 9: "Yemeğe az.", 12: "Sıvı yağ olarak az."}, nutritionValues: {"Enerji": 884, "Protein": 0.0, "Sağlıklı Yağ": 100.0, "Demir": 0.0}, chokingRisk: "Düşük", chokingNote: "Sıvı yağ; az miktar.", needsReview: true),
   Food(name: "Mısır Yağı", emoji: "🫗", category: "Diğer", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "Pişmiş yemeğe birkaç damla.", 9: "Yemeğe az.", 12: "Sıvı yağ olarak az."}, nutritionValues: {"Enerji": 884, "Protein": 0.0, "Sağlıklı Yağ": 100.0, "Demir": 0.0}, chokingRisk: "Düşük", chokingNote: "Sıvı yağ; az miktar.", needsReview: true),
   Food(name: "Karanfil", emoji: "🌿", category: "Diğer", startingMonth: 8, allergyRisk: "Düşük", presentationStyles: {6: "Bütün verilmez.", 9: "Öğütülmüş çok az, yemeğe.", 12: "Az miktar (öğütülmüş)."}, nutritionValues: {"Enerji": 274, "Protein": 6.0, "Sağlıklı Yağ": 13.0, "Demir": 11.8}, chokingRisk: "Yüksek", chokingNote: "Bütün karanfil VERİLMEZ (boğulma); öğütülmüş, az.", needsReview: true),
   Food(name: "Safran", emoji: "🌿", category: "Diğer", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "Birkaç tel; renk/aroma için.", 9: "Pilav/tatlıda birkaç tel.", 12: "Az miktar."}, nutritionValues: {"Enerji": 310, "Protein": 11.0, "Sağlıklı Yağ": 6.0, "Demir": 11.0}, chokingRisk: "Düşük", chokingNote: "Birkaç tel; çok az miktar.", needsReview: true),
@@ -1108,7 +1142,7 @@ final List<Food> globalFoodsDatabase = [
   Food(name: "Kolyoz", emoji: "🐟", category: "Balık", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "Kılçığı ayıklanıp ezilir.", 9: "Ezilmiş, sebzeyle.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 158, "Protein": 19.0, "Sağlıklı Yağ": 9.0, "Demir": 1.6}, chokingRisk: "Orta", chokingNote: "Kılçıkları dikkatle ayıklanır.", needsReview: true),
   Food(name: "Karagöz Balığı", emoji: "🐟", category: "Balık", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "Kılçığı ayıklanıp ezilir.", 9: "Ezilmiş, sebzeyle.", 12: "Küçük parçalar."}, nutritionValues: {"Enerji": 96, "Protein": 20.0, "Sağlıklı Yağ": 1.5, "Demir": 0.5}, chokingRisk: "Orta", chokingNote: "Kılçıkları dikkatle ayıklanır.", needsReview: true),
   Food(name: "Ahtapot", emoji: "🐙", category: "Balık", startingMonth: 12, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "Önerilmez.", 12: "İyice pişirilip çok ince doğranır (sert + alerjen)."}, nutritionValues: {"Enerji": 82, "Protein": 15.0, "Sağlıklı Yağ": 1.0, "Demir": 5.3}, chokingRisk: "Yüksek", chokingNote: "Lastiksi/sert; alerjen — 12 ay+, çok ince doğranır.", needsReview: true),
-  Food(name: "Deniz Tarağı", emoji: "🦪", category: "Balık", startingMonth: 12, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "Önerilmez.", 12: "İyice pişirilip çok ince doğranır (alerjen)."}, nutritionValues: {"Enerji": 86, "Protein": 15.0, "Sağlıklı Yağ": 1.0, "Demir": 14.0}, chokingRisk: "Orta", chokingNote: "Çiğ ASLA; alerjen — 12 ay+, iyi pişmiş, ince doğranmış.", needsReview: true),
+  Food(name: "Deniz Tarağı", emoji: "🦪", category: "Balık", startingMonth: 24, allergyRisk: "Yüksek", presentationStyles: {6: "Önerilmez.", 9: "Önerilmez.", 12: "İyice pişirilip çok ince doğranır (alerjen)."}, nutritionValues: {"Enerji": 86, "Protein": 15.0, "Sağlıklı Yağ": 1.0, "Demir": 14.0}, chokingRisk: "Orta", chokingNote: "Çiğ ASLA; alerjen — 12 ay+, iyi pişmiş, ince doğranmış.", needsReview: true),
   Food(name: "Keçi Sütü", emoji: "🥛", category: "Diğer", startingMonth: 12, allergyRisk: "Orta", presentationStyles: {6: "İçecek olarak verilmez; yemekte az.", 9: "İçecek olarak verilmez.", 12: "12 aydan sonra içecek olarak."}, nutritionValues: {"Enerji": 69, "Protein": 3.6, "Sağlıklı Yağ": 4.1, "Demir": 0.1}, chokingRisk: "Düşük", chokingNote: "1 yaşından önce ana içecek olarak verilmez.", needsReview: true),
   Food(name: "Koyun Sütü", emoji: "🥛", category: "Diğer", startingMonth: 12, allergyRisk: "Orta", presentationStyles: {6: "İçecek olarak verilmez; yemekte az.", 9: "İçecek olarak verilmez.", 12: "12 aydan sonra içecek olarak."}, nutritionValues: {"Enerji": 108, "Protein": 5.4, "Sağlıklı Yağ": 7.0, "Demir": 0.1}, chokingRisk: "Düşük", chokingNote: "1 yaşından önce ana içecek olarak verilmez.", needsReview: true),
   Food(name: "Hellim", emoji: "🧀", category: "Diğer", startingMonth: 9, allergyRisk: "Orta", presentationStyles: {6: "Önerilmez.", 9: "Tuzu giderilip (haşlama) küçük yumuşak parça.", 12: "Az tuzlu, küçük parça."}, nutritionValues: {"Enerji": 321, "Protein": 22.0, "Sağlıklı Yağ": 25.0, "Demir": 0.4}, chokingRisk: "Orta", chokingNote: "Çok tuzlu; haşlanarak tuzu azaltılır, küçük parça.", needsReview: true),
@@ -1176,6 +1210,11 @@ final List<Food> globalFoodsDatabase = [
   Food(name: "Hurma Ezmesi", emoji: "🫘", category: "Diğer", startingMonth: 9, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "Doğal tatlandırıcı; az miktar, sürme.", 12: "Tatlılarda az miktar."}, nutritionValues: {"Enerji": 280, "Protein": 2.5, "Sağlıklı Yağ": 0.4, "Demir": 1.0}, chokingRisk: "Orta", chokingNote: "Yapışkan; ince sürülür, az miktar (doğal şeker yüksek).", needsReview: true),
   Food(name: "Nar Ekşisi", emoji: "🫗", category: "Diğer", startingMonth: 9, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "Ekşilik için yemeğe birkaç damla.", 12: "Az miktar."}, nutritionValues: {"Enerji": 280, "Protein": 1.5, "Sağlıklı Yağ": 0.0, "Demir": 1.5}, chokingRisk: "Düşük", chokingNote: "Şekersiz/katkısız olanı; az miktar.", needsReview: true),
   Food(name: "Besin Mayası", emoji: "🌿", category: "Diğer", startingMonth: 8, allergyRisk: "Düşük", presentationStyles: {6: "Önerilmez.", 9: "Yemeğe/püreye az miktar serpilir (B12 kaynağı).", 12: "Yemeklere serpiştirilmiş."}, nutritionValues: {"Enerji": 325, "Protein": 50.0, "Sağlıklı Yağ": 4.5, "Demir": 5.0}, chokingRisk: "Düşük", chokingNote: "Pul/toz; yemeğe serpilir.", needsReview: true),
+
+  // ===== Ek tahıllar (talep üzerine) — standart veri + needsReview =====
+  Food(name: "Siyez Bulguru", emoji: "🌾", category: "Tahıl", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "İyice pişirilip yumuşak lapa/püre (gluten).", 9: "Yumuşak pişmiş, sebzeyle.", 12: "Pilav kıvamında."}, nutritionValues: {"Enerji": 340, "Protein": 12.0, "Sağlıklı Yağ": 2.0, "Demir": 3.5}, chokingRisk: "Düşük", chokingNote: "İyice pişirilip yumuşatılır.", needsReview: true),
+  Food(name: "Firik Bulguru", emoji: "🌾", category: "Tahıl", startingMonth: 6, allergyRisk: "Orta", presentationStyles: {6: "İyice pişirilip yumuşak lapa/püre (gluten).", 9: "Yumuşak pişmiş, sebzeyle.", 12: "Pilav kıvamında."}, nutritionValues: {"Enerji": 352, "Protein": 14.0, "Sağlıklı Yağ": 2.7, "Demir": 4.5}, chokingRisk: "Düşük", chokingNote: "İyice pişirilip yumuşatılır.", needsReview: true),
+  Food(name: "Basmati Pirinç", emoji: "🍚", category: "Tahıl", startingMonth: 6, allergyRisk: "Düşük", presentationStyles: {6: "İyice pişirilip yumuşak lapa/püre.", 9: "Yumuşak pişmiş, sebzeyle.", 12: "Pilav kıvamında."}, nutritionValues: {"Enerji": 360, "Protein": 7.5, "Sağlıklı Yağ": 0.6, "Demir": 0.5}, chokingRisk: "Düşük", chokingNote: "İyice pişirilip yumuşatılır; arsenik için tahıl çeşitlendirilir.", needsReview: true),
 ];
 
 // Mock Baby Recipes Database
