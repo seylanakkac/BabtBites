@@ -30,11 +30,12 @@ const List<String> kDefaultRecipeUnits = ["adet", "gr", "kg", "ml", "lt", "su ba
 const List<String> kDefaultFormulaNames = ["Aptamil", "Bebelac", "HiPP", "SMA", "Hero Baby", "Milupa", "Similac", "Nan"];
 // Feeding amount units (formula ml/scoop, breastfeeding minutes…).
 const List<String> kDefaultFeedingUnits = ["ml", "ölçek", "dakika", "şişe"];
-// "Marketten Sipariş Ver" promo/ad cards on the cart screen.
+// "İndirim Fırsatları" affiliate/promo cards on the cart screen.
+// discount: opsiyonel rozet (ör. "%40"); subtitle: opsiyonel alt başlık.
 const List<Map<String, dynamic>> kDefaultMarketLinks = [
-  {"name": "Trendyol Go", "url": "https://www.trendyolgo.com", "imageUrl": ""},
-  {"name": "Hepsiexpress", "url": "https://www.hepsiburada.com/hepsiexpress", "imageUrl": ""},
-  {"name": "Getir Büyük", "url": "https://getir.com", "imageUrl": ""},
+  {"name": "Trendyol Go", "url": "https://www.trendyolgo.com", "imageUrl": "", "discount": "", "subtitle": "Markete hızlı teslimat"},
+  {"name": "Getir Büyük", "url": "https://getir.com", "imageUrl": "", "discount": "", "subtitle": "Bebek ürünlerinde fırsatlar"},
+  {"name": "Hepsiexpress", "url": "https://www.hepsiburada.com/hepsiexpress", "imageUrl": "", "discount": "", "subtitle": "Market & bebek alışverişi"},
 ];
 // Flat map (key -> double) so the admin editor can show one field per value.
 const Map<String, double> kDefaultNutritionTargets = {

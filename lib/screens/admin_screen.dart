@@ -2017,7 +2017,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _marketLinksManager() {
     final links = marketLinks;
     return _pane([
-      _sectionHeader("Reklamlar / Marketler", "Sepet ekranındaki 'Marketten Sipariş Ver' kartları",
+      _sectionHeader("İndirim Fırsatları", "Sepet ekranındaki indirim / affiliate kartları",
           action: _primaryBtn("Yeni", Icons.add, () => _marketLinkDialog(null))),
       if (links.isEmpty)
         _card(child: const Text("Henüz reklam kartı yok. 'Yeni' ile ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
@@ -2061,6 +2061,8 @@ class _AdminScreenState extends State<AdminScreen> {
     final existing = index != null ? marketLinks[index] : null;
     final name = TextEditingController(text: existing?["name"]?.toString() ?? "");
     final url = TextEditingController(text: existing?["url"]?.toString() ?? "");
+    final discount = TextEditingController(text: existing?["discount"]?.toString() ?? "");
+    final subtitle = TextEditingController(text: existing?["subtitle"]?.toString() ?? "");
     String image = existing?["imageUrl"]?.toString() ?? "";
     showDialog(
       context: context,
@@ -2068,7 +2070,7 @@ class _AdminScreenState extends State<AdminScreen> {
         builder: (ctx, setD) => AlertDialog(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(index == null ? "Yeni Reklam" : "Reklamı Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          title: Text(index == null ? "Yeni Fırsat" : "Fırsatı Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
           content: SizedBox(
             width: 380,
             child: SingleChildScrollView(
@@ -2077,6 +2079,8 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(height: 14),
                 _field(name, "Ad", hint: "Örn. Getir Büyük"),
                 _field(url, "Bağlantı (URL)", hint: "https://..."),
+                _field(discount, "İndirim rozeti (opsiyonel)", hint: "Örn. %40"),
+                _field(subtitle, "Alt başlık (opsiyonel)", hint: "Örn. Bebek ürünlerinde fırsat"),
               ]),
             ),
           ),
@@ -2089,7 +2093,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _toast("Ad girin");
                   return;
                 }
-                final data = {"name": n, "url": url.text.trim(), "imageUrl": image};
+                final data = {"name": n, "url": url.text.trim(), "imageUrl": image, "discount": discount.text.trim(), "subtitle": subtitle.text.trim()};
                 final next = List<Map<String, dynamic>>.from(marketLinks);
                 if (index != null) {
                   next[index] = data;
@@ -2099,7 +2103,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 setState(() => globalAdminConfig["marketLinks"] = next);
                 StorageService.instance.saveAdminContent();
                 Navigator.pop(ctx);
-                _toast(index == null ? "Reklam eklendi" : "Güncellendi");
+                _toast(index == null ? "Fırsat eklendi" : "Güncellendi");
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
@@ -2110,6 +2114,8 @@ class _AdminScreenState extends State<AdminScreen> {
     ).then((_) {
       name.dispose();
       url.dispose();
+      discount.dispose();
+      subtitle.dispose();
     });
   }
 

@@ -3516,12 +3516,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ...bought.map((i) => _cartItemRow(i, checked: true)),
         ],
         const SizedBox(height: 26),
-        // Marketten Sipariş Ver (admin-managed ad cards)
+        // İndirim Fırsatları (admin-yönetimli affiliate kartları)
         if (links.isNotEmpty) ...[
-          bigTitle("Marketten Sipariş Ver"),
+          bigTitle("İndirim Fırsatları"),
           const SizedBox(height: 12),
           SizedBox(
-            height: 150,
+            height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: links.length,
@@ -3667,37 +3667,68 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final name = link["name"]?.toString() ?? "";
     final url = link["url"]?.toString() ?? "";
     final img = link["imageUrl"]?.toString() ?? "";
+    final discount = link["discount"]?.toString() ?? "";
+    final subtitle = link["subtitle"]?.toString() ?? "";
     return Container(
-      width: 160,
+      width: 168,
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 70,
+            height: 66,
             width: double.infinity,
-            child: isPhotoUrl(img)
-                ? photoOrFallback(img, fallback: const SizedBox())
-                : Container(
-                    decoration: BoxDecoration(gradient: LinearGradient(colors: [_primary.withOpacity(0.18), const Color(0xFF7A5CFF).withOpacity(0.18)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
-                    child: const Center(child: Icon(Icons.storefront, color: Colors.white, size: 28)),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                isPhotoUrl(img)
+                    ? photoOrFallback(img, fallback: const SizedBox())
+                    : Container(
+                        decoration: BoxDecoration(gradient: LinearGradient(colors: [_primary.withOpacity(0.18), const Color(0xFF7A5CFF).withOpacity(0.18)], begin: Alignment.topLeft, end: Alignment.bottomRight)),
+                        child: const Center(child: Icon(Icons.local_offer, color: Colors.white, size: 26)),
+                      ),
+                // Şeffaflık: bu bir reklam/affiliate kartı.
+                Positioned(
+                  top: 6,
+                  left: 6,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.42), borderRadius: BorderRadius.circular(6)),
+                    child: const Text("Sponsorlu", style: TextStyle(fontFamily: 'Inter', fontSize: 8.5, fontWeight: FontWeight.w600, color: Colors.white)),
                   ),
+                ),
+                if (discount.isNotEmpty)
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(color: _danger, borderRadius: BorderRadius.circular(8)),
+                      child: Text(discount, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                    ),
+                  ),
+              ],
+            ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                ],
                 const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   height: 32,
-                  child: OutlinedButton(
+                  child: ElevatedButton(
                     onPressed: () => _openMarketUrl(url),
-                    style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                    child: const Text("Git", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    child: const Text("İndirimi Gör", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
