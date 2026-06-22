@@ -16,6 +16,18 @@
   -->
   <base href="$FLUTTER_BASE_HREF">
 
+  <!-- HTTP -> HTTPS zorla: http'de "Guvenli degil" cikar ve Firebase/Firestore
+       duzgun calismaz (katalog senkronu basarisiz -> guncellemeler gorunmez). -->
+  <script>
+    (function () {
+      if (location.protocol === 'http:' &&
+          location.hostname !== 'localhost' &&
+          location.hostname !== '127.0.0.1') {
+        location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+      }
+    })();
+  </script>
+
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="BabyBites — bebeğiniz için ek gıda rehberi, tarifler ve beslenme takibi.">
