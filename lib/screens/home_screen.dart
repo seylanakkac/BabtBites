@@ -539,7 +539,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 9),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-              child: const Text("İlk ay ücretsiz", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
+              child: const Text("İlk 7 gün ücretsiz", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
             ),
           ],
         ),
