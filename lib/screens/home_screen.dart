@@ -3865,8 +3865,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 22),
-        Row(
-          children: const [
+        const Row(
+          children: [
             Icon(Icons.auto_awesome, size: 18, color: _primary),
             SizedBox(width: 6),
             Text("Kullanıcılardan Yeni Tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
