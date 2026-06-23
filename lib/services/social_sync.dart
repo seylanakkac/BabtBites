@@ -325,6 +325,17 @@ class SocialSync {
     }
   }
 
+  /// Tüm public profilleri getirir (admin listesi için; en çok [limit]).
+  Future<List<Map<String, dynamic>>> loadAllProfiles({int limit = 300}) async {
+    try {
+      final snap = await _profiles.limit(limit).get();
+      return snap.docs.map((d) => {...d.data(), 'uid': d.id}).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadAllProfiles failed: $e');
+      return [];
+    }
+  }
+
   /// Saves the current user's public profile at /profiles/{uid}.
   Future<void> saveProfile(Map<String, dynamic> json) async {
     final uid = _uid;

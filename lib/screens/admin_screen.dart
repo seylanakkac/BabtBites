@@ -9,6 +9,7 @@ import '../data/food_database.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
+import 'user_profile_screen.dart';
 
 /// Full-screen professional admin area (only reached via the admin account).
 /// Left navigation rail + content panes: dashboard, content managers (foods /
@@ -399,7 +400,6 @@ class _AdminScreenState extends State<AdminScreen> {
       );
 
   Widget _dashboard() {
-    final babyCount = StorageService.instance.loadBabies()?.length ?? 0;
     final totalViews = globalRecipesDatabase.fold<int>(0, (s, r) => s + recipeViewCount(r.id));
     final totalLikes = globalRecipesDatabase.fold<int>(0, (s, r) => s + recipeLikeCount(r.id));
     final pendingFoods = globalFoodsDatabase.where(effectiveFoodNeedsReview).length;
@@ -411,7 +411,6 @@ class _AdminScreenState extends State<AdminScreen> {
         _statCard("${globalCustomArticles.length}", "Özel Yazı", const Color(0xFF2980B9), Icons.article_outlined),
         _statCard("${globalCustomFoods.length}", "Özel Gıda", const Color(0xFF8B5E3C), Icons.add_box_outlined),
         _statCard("${globalCustomRecipes.length}", "Özel Tarif", const Color(0xFFD4AC0D), Icons.add_box_outlined),
-        _statCard("$babyCount", "Kayıtlı Bebek", _red, Icons.child_care),
       ]),
       const SizedBox(height: 16),
       // Etkileşim (tüm kullanıcılar) + moderasyon + profil
@@ -421,14 +420,18 @@ class _AdminScreenState extends State<AdminScreen> {
         _statCard("${pendingRecipeCount()}", "Onay Bekleyen Tarif", const Color(0xFFE67E22), Icons.pending_actions),
         _statCard("${pendingCommentCount()}", "Onay Bekleyen Yorum", const Color(0xFF8E44AD), Icons.mode_comment_outlined),
         _statCard("$pendingFoods", "Uzman Onayı Bekleyen", const Color(0xFFC0392B), Icons.verified_outlined),
-        // Kayıtlı public profil — kullanıcı sayısına yaklaşık proxy (async).
-        FutureBuilder<int?>(
-          future: SocialSync.instance.profileCount(),
-          builder: (ctx, snap) => _statCard(
-            snap.connectionState == ConnectionState.waiting ? "…" : (snap.data?.toString() ?? "—"),
-            "Kayıtlı Profil",
-            const Color(0xFF16A085),
-            Icons.people_outline,
+        // Kayıtlı public profil — tıklayınca liste açılır.
+        InkWell(
+          onTap: _showProfilesDialog,
+          borderRadius: BorderRadius.circular(16),
+          child: FutureBuilder<int?>(
+            future: SocialSync.instance.profileCount(),
+            builder: (ctx, snap) => _statCard(
+              snap.connectionState == ConnectionState.waiting ? "…" : (snap.data?.toString() ?? "—"),
+              "Kayıtlı Profil →",
+              const Color(0xFF16A085),
+              Icons.people_outline,
+            ),
           ),
         ),
       ]),
@@ -467,6 +470,68 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ]);
+  }
+
+  /// Kayıtlı public profilleri (kullanıcı adı + sosyal hesap sayısı) listeler.
+  void _showProfilesDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Kayıtlı Profiller", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: SizedBox(
+          width: 420,
+          height: 460,
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: SocialSync.instance.loadAllProfiles(),
+            builder: (c, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final list = snap.data ?? [];
+              if (list.isEmpty) {
+                return const Center(child: Text("Henüz public profil oluşturulmamış.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)));
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("${list.length} profil • toplam kayıtlı kullanıcı için Firebase Console → Authentication", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: list.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (c2, i) {
+                        final p = list[i];
+                        final uname = p["username"]?.toString() ?? "";
+                        final socials = (p["socials"] as Map?) ?? {};
+                        final linked = socials.values.where((v) => (v?.toString() ?? "").trim().isNotEmpty).length;
+                        final following = (p["following"] as List?)?.length ?? 0;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(backgroundColor: _primary.withOpacity(0.15), child: Text(uname.isNotEmpty ? uname[0].toUpperCase() : "?", style: const TextStyle(color: _primary, fontWeight: FontWeight.bold))),
+                          title: Text("@$uname", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                          subtitle: Text("$linked sosyal hesap • $following takip", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                          trailing: const Icon(Icons.open_in_new, size: 18, color: _primary),
+                          onTap: uname.isEmpty
+                              ? null
+                              : () {
+                                  Navigator.pop(ctx);
+                                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => UserProfileScreen(author: uname)));
+                                },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', color: _light)))],
+      ),
+    );
   }
 
   // ---------- generic list item ----------
