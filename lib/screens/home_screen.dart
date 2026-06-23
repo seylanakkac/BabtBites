@@ -669,12 +669,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         );
                       },
                     ),
-                    _discountSection("home"),
                   ],
                 ),
               ),
               const SizedBox(width: 24),
-              // Sağ ray: premium + haftalık menü + reklam
+              // Sağ ray: premium + haftalık menü + indirimler + reklam
               SizedBox(
                 width: 280,
                 child: Column(
@@ -700,6 +699,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                     ),
                     const SizedBox(height: 14),
+                    _discountRail(),
                     if (!adFree) const SizedBox(height: 360, child: SideAdBox(width: 252)),
                   ],
                 ),
@@ -3866,6 +3866,86 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ],
+    );
+  }
+
+  /// Sağ rayda dikey, kompakt "İndirim Fırsatları" listesi (ana sayfa, geniş ekran).
+  Widget _discountRail() {
+    final links = marketLinksFor("home");
+    if (links.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.local_offer_outlined, size: 16, color: _primary),
+            SizedBox(width: 6),
+            Text("İndirim Fırsatları", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...links.map(_marketRailCard),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  /// Yan raya uygun tam-genişlik kompakt indirim kartı.
+  Widget _marketRailCard(Map<String, dynamic> link) {
+    final name = link["name"]?.toString() ?? "";
+    final url = link["url"]?.toString() ?? "";
+    final img = link["imageUrl"]?.toString() ?? "";
+    final discount = link["discount"]?.toString() ?? "";
+    final subtitle = link["subtitle"]?.toString() ?? "";
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), gradient: LinearGradient(colors: [_primary.withOpacity(0.18), const Color(0xFF7A5CFF).withOpacity(0.18)])),
+                child: isPhotoUrl(img) ? photoOrFallback(img, fallback: const Icon(Icons.local_offer, color: Colors.white, size: 18)) : const Icon(Icons.local_offer, color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: _text))),
+                        if (discount.isNotEmpty)
+                          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _danger, borderRadius: BorderRadius.circular(6)), child: Text(discount, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white))),
+                      ],
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: _light)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 30,
+            child: ElevatedButton(
+              onPressed: () => _openMarketUrl(url),
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: EdgeInsets.zero, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
+              child: const Text("İndirimi Gör", style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
