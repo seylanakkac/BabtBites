@@ -434,10 +434,10 @@ class _AdminScreenState extends State<AdminScreen> {
       ]),
       const SizedBox(height: 16),
       _card(
-        child: Row(
+        child: const Row(
           children: [
-            const Icon(Icons.insights_outlined, color: _primary, size: 22),
-            const SizedBox(width: 12),
+            Icon(Icons.insights_outlined, color: _primary, size: 22),
+            SizedBox(width: 12),
             Expanded(
               child: Text(
                 "Toplam kayıtlı kullanıcı sayısı ve trafik/davranış raporları Firebase Console → Authentication ve Google Analytics (GA4) üzerindedir. Buradaki sayılar uygulama içi içerik ve etkileşim verileridir.",
