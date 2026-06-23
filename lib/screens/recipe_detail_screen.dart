@@ -8,6 +8,7 @@ import '../data/recipe_social_store.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/social_sync.dart';
+import '../services/analytics.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
@@ -119,6 +120,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     // Count a view for this recipe (local + real cross-user).
     addRecipeView(widget.recipe.id);
     SocialSync.instance.addView(widget.recipe.id);
+    Analytics.instance.log('view_recipe', {'recipe': widget.recipe.name});
     // Load real cross-user comments (approved + this user's own pending).
     SocialSync.instance.loadComments(widget.recipe.id).then((_) {
       if (mounted) setState(() {});

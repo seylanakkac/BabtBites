@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/food_database.dart';
 import '../data/admin_store.dart';
 import '../data/tracking_store.dart';
+import '../services/analytics.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
@@ -129,6 +130,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
       });
       removeRetryReminder(widget.babyId, food.name);
       widget.onStateChanged?.call();
+      Analytics.instance.log('food_tried', {'method': 'single'});
       _toast("${food.name} sorunsuz olarak işaretlendi ✅");
       return;
     }

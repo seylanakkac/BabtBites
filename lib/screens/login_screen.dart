@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/cloud_sync.dart';
 import '../services/storage_service.dart';
+import '../services/analytics.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Bring this user's cloud data down (or seed it on first use).
       await CloudSync.instance.pull();
       if (!mounted) return;
+      Analytics.instance.log(isNewUser ? 'sign_up' : 'login', {'method': 'email'});
       _routeAfterAuth(isNewUser);
     } on FirebaseAuthException catch (e) {
       if (mounted) _showError(_authErrorTr(e.code));
@@ -85,6 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _applyAdmin(email);
       await CloudSync.instance.pull();
       if (!mounted) return;
+      Analytics.instance.log(isNew ? 'sign_up' : 'login', {'method': 'google'});
       _routeAfterAuth(isNew);
     } on FirebaseAuthException catch (e) {
       if (e.code == "popup-closed-by-user" ||

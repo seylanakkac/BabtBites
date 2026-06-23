@@ -6,6 +6,7 @@ import '../data/admin_store.dart';
 import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
+import '../services/analytics.dart';
 import '../services/file_storage.dart';
 import 'notifications_screen.dart';
 import '../data/extras_store.dart';
@@ -1589,6 +1590,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     _onChildChanged();
     _persist();
+    Analytics.instance.log('food_tried_bulk', {'count': count});
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("$count gıda sorunsuz denendi olarak işaretlendi ✅")),
     );
@@ -3878,6 +3880,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _openMarketUrl(String url) async {
     if (url.trim().isEmpty) return;
+    Analytics.instance.log('select_discount');
     final normalized = url.startsWith('http') ? url : 'https://$url';
     final uri = Uri.tryParse(normalized);
     if (uri == null) return;
@@ -4709,6 +4712,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Opens BabyBites+ (used by ad banners' "Reklamsız" upsell).
   void _openPremium() {
+    Analytics.instance.log('view_premium');
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)));
   }
