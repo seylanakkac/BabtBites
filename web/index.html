@@ -67,10 +67,22 @@
         Sorun sürerse Safari/tarayıcınızı güncelleyin ya da Chrome ile deneyin.
       </div>
       <button id="bb-reload" style="background:#FF7A45; color:#fff; border:none; border-radius:12px; padding:12px 22px; font-size:15px; font-weight:700;">Yenile</button>
+      <div id="bb-detail" style="margin-top:18px; font-size:11px; line-height:1.4; color:#B0AEA8; word-break:break-word;"></div>
     </div>
   </div>
   <script>
     (function () {
+      // Boot sirasinda olusan ilk hatayi sessizce yakala (yalniz uygulama hic
+      // acilmazsa yedek ekranda gosterilir -> etkilenen kullanici ekran goruntusu
+      // alip iletebilir, teshis kesinlesir).
+      var bbErr = '';
+      function note(msg) { if (!bbErr && msg) bbErr = String(msg).slice(0, 300); }
+      window.addEventListener('error', function (e) {
+        note((e && e.message ? e.message : 'error') + (e && e.filename ? ' @ ' + e.filename.split('/').pop() + ':' + e.lineno : ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) {
+        note('promise: ' + (e && e.reason ? (e.reason.message || e.reason) : 'rejection'));
+      });
       function booted() {
         return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host');
       }
@@ -94,6 +106,8 @@
       // reload YOK, kullaniciya birakildi -> sonsuz dongu riski olmaz).
       setTimeout(function () {
         if (!booted()) {
+          var d = document.getElementById('bb-detail');
+          if (d) d.textContent = (bbErr ? ('Hata: ' + bbErr + '  •  ') : '') + navigator.userAgent;
           var el = document.getElementById('bb-fallback');
           if (el) el.style.display = 'flex';
         }
