@@ -2101,6 +2101,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final url = TextEditingController(text: existing?["url"]?.toString() ?? "");
     final discount = TextEditingController(text: existing?["discount"]?.toString() ?? "");
     final subtitle = TextEditingController(text: existing?["subtitle"]?.toString() ?? "");
+    final pages = <String>{...((existing?["pages"] as List?)?.map((e) => e.toString()) ?? const <String>[])};
     String image = existing?["imageUrl"]?.toString() ?? "";
     showDialog(
       context: context,
@@ -2119,6 +2120,27 @@ class _AdminScreenState extends State<AdminScreen> {
                 _field(url, "Bağlantı (URL)", hint: "https://..."),
                 _field(discount, "İndirim rozeti (opsiyonel)", hint: "Örn. %40"),
                 _field(subtitle, "Alt başlık (opsiyonel)", hint: "Örn. Bebek ürünlerinde fırsat"),
+                const SizedBox(height: 4),
+                const Align(alignment: Alignment.centerLeft, child: Text("Gösterilecek sayfalar (boş = hepsi)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _light))),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    children: {"home": "Ana Sayfa", "cart": "Sepet", "calendar": "Takvim"}.entries.map((e) {
+                      final sel = pages.contains(e.key);
+                      return FilterChip(
+                        label: Text(e.value, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: sel ? Colors.white : _text)),
+                        selected: sel,
+                        showCheckmark: false,
+                        selectedColor: _primary,
+                        backgroundColor: _bg,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: sel ? _primary : const Color(0xFFE2E2E6))),
+                        onSelected: (v) => setD(() { if (v) { pages.add(e.key); } else { pages.remove(e.key); } }),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ]),
             ),
           ),
@@ -2131,7 +2153,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _toast("Ad girin");
                   return;
                 }
-                final data = {"name": n, "url": url.text.trim(), "imageUrl": image, "discount": discount.text.trim(), "subtitle": subtitle.text.trim()};
+                final data = {"name": n, "url": url.text.trim(), "imageUrl": image, "discount": discount.text.trim(), "subtitle": subtitle.text.trim(), "pages": pages.toList()};
                 final next = List<Map<String, dynamic>>.from(marketLinks);
                 if (index != null) {
                   next[index] = data;

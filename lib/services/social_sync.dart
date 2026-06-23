@@ -336,6 +336,17 @@ class SocialSync {
     }
   }
 
+  /// Takip edilen @kullanıcı adlarını buluta yansıtır (/profiles/{uid}.following).
+  Future<void> setFollowing(List<String> usernames) async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _profiles.doc(uid).set({'following': usernames, 'uid': uid}, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('SocialSync.setFollowing failed: $e');
+    }
+  }
+
   // ---- In-app notifications ----
   CollectionReference<Map<String, dynamic>> get _notifs => _db.collection('notifications');
 

@@ -6,6 +6,8 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/social_sync.dart';
+import '../services/storage_service.dart';
+import '../services/auth_gate.dart';
 import '../widgets/expert_badge.dart';
 import '../widgets/web_shell.dart';
 import 'recipe_detail_screen.dart';
@@ -67,6 +69,40 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     return webPageShell(context, maxWidth: 880, child: _shelled(context));
   }
 
+  Widget _followButton(String author) {
+    final following = isFollowing(author);
+    return SizedBox(
+      width: 200,
+      child: following
+          ? OutlinedButton.icon(
+              onPressed: () => _toggleFollow(author),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text("Takip ediliyor", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            )
+          : ElevatedButton.icon(
+              onPressed: () => _toggleFollow(author),
+              icon: const Icon(Icons.person_add_alt_1, size: 18),
+              label: const Text("Takip Et", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+    );
+  }
+
+  void _toggleFollow(String author) {
+    if (requireLogin(context)) return;
+    final u = author.trim().toLowerCase();
+    setState(() {
+      if (globalMyFollowing.contains(u)) {
+        globalMyFollowing.remove(u);
+      } else {
+        globalMyFollowing.add(u);
+      }
+    });
+    StorageService.instance.saveMyProfile();
+    SocialSync.instance.setFollowing(globalMyFollowing.toList());
+  }
+
   Widget _shelled(BuildContext context) {
     final author = widget.author;
     final profile = profileForAuthor(author);
@@ -109,6 +145,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ],
                 const SizedBox(height: 4),
                 Text("${recipes.length} tarif", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _light)),
+                // Takip Et: yalnız girişli, başkasının (profili olan) profili.
+                if (!isGuest() && profile != null && author.trim().toLowerCase() != myUsername().trim().toLowerCase()) ...[
+                  const SizedBox(height: 12),
+                  _followButton(author),
+                ],
               ],
             ),
           ),

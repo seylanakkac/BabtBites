@@ -669,6 +669,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         );
                       },
                     ),
+                    _discountSection("home"),
                   ],
                 ),
               ),
@@ -919,6 +920,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+        _discountSection("home"),
         const SizedBox(height: 20),
       ],
     );
@@ -2725,7 +2727,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (!_isDayLocked(_selectedDay)) _buildDailyTrackingSection(),
         // İndirimler (affiliate kartları — sepettekiyle aynı)
         ...(() {
-          final links = marketLinks;
+          final links = marketLinksFor("calendar");
           if (links.isEmpty) return <Widget>[];
           return <Widget>[
             const SizedBox(height: 26),
@@ -3612,7 +3614,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final pct = total == 0 ? 0.0 : taken / total;
     final toBuy = globalCartList.where((i) => !globalCartChecked.contains(i)).toList();
     final bought = globalCartList.where(globalCartChecked.contains).toList();
-    final links = marketLinks;
+    final links = marketLinksFor("cart");
 
     Widget bigTitle(String t) => Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text));
 
@@ -3835,6 +3837,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+
+  /// Belirli bir sayfa için "İndirim Fırsatları" yatay bölümü (admin kartları).
+  Widget _discountSection(String page) {
+    final links = marketLinksFor(page);
+    if (links.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        const Row(
+          children: [
+            Icon(Icons.local_offer_outlined, size: 18, color: _primary),
+            SizedBox(width: 6),
+            Text("İndirim Fırsatları", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 180,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: links.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) => _marketCard(links[i]),
+          ),
+        ),
+      ],
     );
   }
 
@@ -4150,6 +4181,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 10),
+          // Takip Ettiklerim
+          if (globalMyFollowing.isNotEmpty) ...[
+            const Divider(height: 22),
+            Text("Takip Ettiklerim (${globalMyFollowing.length})", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+            const SizedBox(height: 8),
+            ...globalMyFollowing.map((u) => InkWell(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => UserProfileScreen(author: u))),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(children: [
+                      CircleAvatar(radius: 14, backgroundColor: _primary.withOpacity(0.15), child: Text(u.isNotEmpty ? u[0].toUpperCase() : "?", style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text("@$u", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                      const Icon(Icons.chevron_right, size: 18, color: _light),
+                    ]),
+                  ),
+                )),
+            const SizedBox(height: 10),
+          ],
           // Uzman etiketi durumu / talep
           if (expertTypeForAuthor(uname) != null)
             Container(

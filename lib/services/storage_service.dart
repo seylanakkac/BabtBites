@@ -86,6 +86,7 @@ class StorageService {
   static const String _kPendingRecipes = 'pending_recipes';
   static const String _kMyProfile = 'my_profile';
   static const String _kKnownProfiles = 'known_profiles';
+  static const String _kMyFollowing = 'my_following';
   static const String _kAdFreeUntil = 'ad_free_until';
   static const String _kPremiumUntil = 'premium_until';
   static const String _kFeatureUnlocks = 'feature_unlocks';
@@ -98,7 +99,7 @@ class StorageService {
   static const List<String> _userStringKeys = [
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
-    _kSupplements, _kMyProfile, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
+    _kSupplements, _kMyProfile, _kMyFollowing, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
     _kReportFiles, _kPremiumUntil,
   ];
   static const List<String> _userStringListKeys = [
@@ -312,6 +313,12 @@ class StorageService {
         (jsonDecode(knownRaw) as Map<String, dynamic>).forEach((k, v) {
           globalKnownProfiles[k] = Map<String, dynamic>.from(v as Map);
         });
+      }
+      final followRaw = prefs.getString(_kMyFollowing);
+      if (followRaw != null) {
+        globalMyFollowing
+          ..clear()
+          ..addAll((jsonDecode(followRaw) as List).map((e) => e.toString()));
       }
 
       final growthRaw = prefs.getString(_kGrowth);
@@ -572,6 +579,7 @@ class StorageService {
         }
       }
       await prefs.setString(_kKnownProfiles, jsonEncode(globalKnownProfiles));
+      await prefs.setString(_kMyFollowing, jsonEncode(globalMyFollowing.toList()));
     } catch (e) {
       debugPrint('StorageService.saveMyProfile failed: $e');
     }

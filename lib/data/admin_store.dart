@@ -144,6 +144,13 @@ List<Map<String, dynamic>> get marketLinks =>
         .toList() ??
     kDefaultMarketLinks.map((e) => Map<String, dynamic>.from(e)).toList();
 
+/// Belirli bir sayfada gösterilecek indirim/market kartları. Kartın "pages"
+/// alanı boşsa her sayfada görünür (geriye uyumlu). page: "home"|"cart"|"calendar".
+List<Map<String, dynamic>> marketLinksFor(String page) => marketLinks.where((l) {
+      final pages = (l["pages"] as List?)?.map((e) => e.toString()).toList() ?? const <String>[];
+      return pages.isEmpty || pages.contains(page);
+    }).toList();
+
 /// A single nutrition-target constant (config override or built-in default).
 double ntv(String key) {
   final cfg = globalAdminConfig["nutritionTargets"];

@@ -981,6 +981,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   }
 
   void _showPlanMealBottomSheet(BuildContext context) {
+    if (requireLogin(context)) return;
     const primaryColor = Color(0xFFFF7A45);
     const textColor = Color(0xFF2D2D3A);
     const borderGreyColor = Color(0xFFE2E2E6);

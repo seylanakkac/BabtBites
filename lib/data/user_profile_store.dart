@@ -57,6 +57,13 @@ UserProfile? globalMyProfile;
 /// profile; with Firebase it fills from other users' public profiles.
 final Map<String, Map<String, dynamic>> globalKnownProfiles = {};
 
+/// Mevcut kullanıcının takip ettiği @kullanıcı adları (küçük harf).
+final Set<String> globalMyFollowing = {};
+
+/// Bu kullanıcıyı takip ediyor muyum?
+bool isFollowing(String username) =>
+    globalMyFollowing.contains(username.trim().toLowerCase());
+
 /// Talep edilebilecek uzman türleri.
 const List<String> kExpertTypes = [
   "Doktor",
