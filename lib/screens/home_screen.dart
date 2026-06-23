@@ -652,6 +652,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       itemCount: todaysRecipes.length,
                       itemBuilder: (context, i) => _recipeGridCard(todaysRecipes[i]),
                     ),
+                    _userRecipesSection(),
                     const SizedBox(height: 22),
                     _dashSectionHeader("Bu Mevsim Taze"),
                     const SizedBox(height: 6),
@@ -854,6 +855,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             itemBuilder: (context, index) => SizedBox(width: 250, child: _recipeGridCard(todaysRecipes[index])),
           ),
         ),
+        _userRecipesSection(),
         const SizedBox(height: 18),
         // Mevsiminde Beslenme
         _buildSeasonalSection(),
@@ -3839,6 +3841,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+
+  /// Kullanıcı tarifinin id'sindeki zaman damgası (user_<millis>).
+  int _userRecipeMillis(String id) => int.tryParse(id.replaceFirst("user_", "")) ?? 0;
+
+  /// Diğer kullanıcıların eklediği (onaylı) tarifler, en yeniden eskiye.
+  List<Recipe> _otherUsersRecipes() {
+    final me = myUsername().trim().toLowerCase();
+    final list = globalRecipesDatabase
+        .where((r) => r.id.startsWith("user_") && r.author.trim().toLowerCase() != me)
+        .toList();
+    list.sort((a, b) => _userRecipeMillis(b.id).compareTo(_userRecipeMillis(a.id)));
+    return list;
+  }
+
+  /// Ana sayfada "Kullanıcılardan Yeni Tarifler" yatay bölümü.
+  Widget _userRecipesSection() {
+    final recipes = _otherUsersRecipes();
+    if (recipes.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        Row(
+          children: const [
+            Icon(Icons.auto_awesome, size: 18, color: _primary),
+            SizedBox(width: 6),
+            Text("Kullanıcılardan Yeni Tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: recipes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => SizedBox(width: 250, child: _recipeGridCard(recipes[i])),
+          ),
+        ),
+      ],
     );
   }
 
