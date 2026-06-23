@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cloud_sync.dart';
 import '../services/storage_service.dart';
-import 'login_screen.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
 import 'admin_screen.dart';
@@ -79,7 +78,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       } catch (_) {
         user = FirebaseAuth.instance.currentUser;
       }
-      if (user == null) return const LoginScreen();
+      // Misafir gezinme: oturum yoksa login'e zorlamadan ana sayfayı aç.
+      // Hesap gerektiren alanlarda login ekranı ayrıca tetiklenir.
+      if (user == null) return const HomeScreen();
       final isAdmin = isAdminEmail(user.email);
       setAdminMode(isAdmin);
       StorageService.instance.saveIsAdmin(isAdmin);
@@ -91,9 +92,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       if (babies == null || babies.isEmpty) return const OnboardingScreen();
       return const HomeScreen();
     } catch (e) {
-      // Firebase/network unavailable → don't get stuck; go to login.
+      // Firebase/network unavailable → don't get stuck; misafir olarak ana sayfa.
       debugPrint('Splash _initialScreen failed: $e');
-      return const LoginScreen();
+      return const HomeScreen();
     }
   }
 

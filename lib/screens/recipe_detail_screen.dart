@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/social_sync.dart';
 import '../services/analytics.dart';
+import '../services/auth_gate.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
@@ -85,6 +86,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
           for (int i = 1; i <= 5; i++)
             GestureDetector(
               onTap: () async {
+                if (requireLogin(context)) return;
                 if (myRecipeRating(recipe.id) == i.toDouble()) return; // same vote → no change
                 setState(() => setRecipeRating(recipe.id, i.toDouble()));
                 StorageService.instance.saveRecipeSocial();
@@ -268,6 +270,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ),
                       ),
                       onPressed: () {
+                        if (requireLogin(context)) return;
                         setState(() {
                           if (globalFavoriteRecipes.contains(recipe.id)) {
                             globalFavoriteRecipes.remove(recipe.id);
@@ -450,6 +453,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: () {
+                                  if (requireLogin(context)) return;
                                   setState(() {
                                     if (globalFavoriteRecipes.contains(recipe.id)) {
                                       globalFavoriteRecipes.remove(recipe.id);
@@ -1300,6 +1304,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
   }
 
   Future<void> _addTriedPhoto() async {
+    if (requireLogin(context)) return;
     final uri = await pickPhotoDataUri();
     if (uri == null) return;
     setState(() {
@@ -1360,6 +1365,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             const SizedBox(width: 8),
             GestureDetector(
               onTap: () async {
+                if (requireLogin(context)) return;
                 final t = _commentController.text.trim();
                 if (t.isEmpty && !isPhotoUrl(_commentPhoto)) return;
                 final messenger = ScaffoldMessenger.of(context);

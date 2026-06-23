@@ -3,6 +3,7 @@ import '../data/food_database.dart';
 import '../data/admin_store.dart';
 import '../data/tracking_store.dart';
 import '../services/analytics.dart';
+import '../services/auth_gate.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
@@ -65,6 +66,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
   /// Records a trial outcome (sorunsuz / reaksiyon / clear) for the active baby,
   /// and on a reaction optionally schedules a retry reminder.
   Future<void> _recordTrial() async {
+    if (requireLogin(context)) return;
     final food = widget.food;
     const primaryColor = Color(0xFFFF7A45);
     const textColor = Color(0xFF2D2D3A);
@@ -425,6 +427,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
                 size: 24,
               ),
               onPressed: () {
+                if (requireLogin(context)) return;
                 final st = ensureFoodState(widget.babyId, food.name);
                 setState(() {
                   st["favorite"] = !(st["favorite"] == true);

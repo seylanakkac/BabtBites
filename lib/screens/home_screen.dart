@@ -7,6 +7,7 @@ import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
 import '../services/analytics.dart';
+import '../services/auth_gate.dart';
 import '../services/file_storage.dart';
 import 'notifications_screen.dart';
 import '../data/extras_store.dart';
@@ -365,21 +366,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         {"label": "Çıkış Yap", "icon": Icons.logout, "premium": false, "danger": true, "onTap": _logout},
       ];
     Widget body;
-    switch (_currentIndex) {
-      case 1:
-        body = _buildFoodsAndRecipesTab();
-        break;
-      case 2:
-        body = _buildCalendarTab();
-        break;
-      case 3:
-        body = _buildCartTab();
-        break;
-      case 4:
-        body = _buildProfileTab();
-        break;
-      default:
-        body = _buildHomeTab();
+    // Misafir gezinme: Ana Sayfa + Gıdalar serbest; Takvim/Sepet/Profil (kişisel)
+    // için giriş ister. Bu kapı tüm navigasyon yollarını tek yerde yakalar.
+    if (isGuest() && (_currentIndex == 2 || _currentIndex == 3 || _currentIndex == 4)) {
+      body = _guestGate();
+    } else {
+      switch (_currentIndex) {
+        case 1:
+          body = _buildFoodsAndRecipesTab();
+          break;
+        case 2:
+          body = _buildCalendarTab();
+          break;
+        case 3:
+          body = _buildCartTab();
+          break;
+        case 4:
+          body = _buildProfileTab();
+          break;
+        default:
+          body = _buildHomeTab();
+      }
     }
 
     // Geniş ekranda (web/masaüstü) yan menü + ortalanmış içerik; dar ekranda
@@ -1480,6 +1487,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _addWeekIngredientsToCart() {
+    if (requireLogin(context)) return;
     final week = _getWeeklyDays().map((d) => d["key"]!).toSet();
     int added = 0;
     for (final dayKey in week) {
@@ -1571,6 +1579,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Seçili gıdaları toplu olarak "sorunsuz denendi" işaretler.
   void _bulkMarkTried() {
+    if (requireLogin(context)) return;
     if (_selectedFoodNames.isEmpty) return;
     final iso = _todayIsoHome();
     final count = _selectedFoodNames.length;
@@ -1795,6 +1804,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _addRecipeToCart(Recipe r) {
+    if (requireLogin(context)) return;
     int added = 0;
     setState(() {
       for (final ing in r.ingredients) {
@@ -1892,7 +1902,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 16),
                   GestureDetector(
-                    onTap: () { setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); SocialSync.instance.setLike(recipe.id, !fav); _persist(); },
+                    onTap: () { if (requireLogin(context)) return; setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); SocialSync.instance.setLike(recipe.id, !fav); _persist(); },
                     child: Icon(fav ? Icons.favorite : Icons.favorite_border, color: fav ? _danger : _light, size: 20),
                   ),
                 ],
@@ -1943,7 +1953,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     top: 8,
                     right: 8,
                     child: GestureDetector(
-                      onTap: () { setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); SocialSync.instance.setLike(recipe.id, !fav); _persist(); },
+                      onTap: () { if (requireLogin(context)) return; setState(() => fav ? globalFavoriteRecipes.remove(recipe.id) : globalFavoriteRecipes.add(recipe.id)); SocialSync.instance.setLike(recipe.id, !fav); _persist(); },
                       child: Container(
                         padding: const EdgeInsets.all(5),
                         decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
@@ -4378,6 +4388,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showAddUserRecipeDialog() {
+    if (requireLogin(context)) return;
     final nameCtrl = TextEditingController();
     final prepCtrl = TextEditingController();
     final kcalCtrl = TextEditingController();
@@ -4643,7 +4654,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 await FirebaseAuth.instance.signOut();
               } catch (_) {}
               await StorageService.instance.clearUserData();
-              nav.pushNamedAndRemoveUntil('/login', (route) => false);
+              // Çıkışta login'e zorlamak yerine misafir olarak ana sayfaya dön.
+              nav.pushNamedAndRemoveUntil('/home', (route) => false);
             },
             style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: const Text("Çıkış Yap", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
@@ -4711,7 +4723,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // Opens BabyBites+ (used by ad banners' "Reklamsız" upsell).
+  /// Misafir kullanıcıya gösterilen "giriş gerekli" istem ekranı (kişisel sekmeler).
+  Widget _guestGate() {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 84,
+              height: 84,
+              decoration: BoxDecoration(color: _primary.withOpacity(0.12), shape: BoxShape.circle),
+              child: const Icon(Icons.lock_outline, color: _primary, size: 40),
+            ),
+            const SizedBox(height: 18),
+            const Text("Bu alan için giriş gerekli", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+            const SizedBox(height: 8),
+            const Text(
+              "Tarifleri ve gıdaları üyeliksiz inceleyebilirsin. Takvim, sepet ve profil gibi kişisel özellikler için ücretsiz hesap aç ya da giriş yap.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: _light, height: 1.5),
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: 240,
+              child: ElevatedButton(
+                onPressed: () => requireLogin(context),
+                style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                child: const Text("Giriş Yap / Kayıt Ol", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => setState(() => _currentIndex = 0),
+              child: const Text("Gezinmeye devam et", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _light)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _openPremium() {
+    if (requireLogin(context)) return;
     Analytics.instance.log('view_premium');
     Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)));
