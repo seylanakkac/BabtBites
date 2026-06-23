@@ -868,6 +868,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final author = TextEditingController(text: existing?["author"]?.toString() ?? "babykitchenwithege");
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
+    final video = TextEditingController(text: existing?["videoUrl"]?.toString() ?? "");
     final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
     bool sponsored = existing?["sponsored"] == true;
     String category = existing?["category"]?.toString() ?? "Diğer";
@@ -1025,6 +1026,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 8),
                   _field(steps, "Adımlar (her satır)", maxLines: 5),
                   _field(warn, "Alerji uyarısı"),
+                  _field(video, "Video linki (YouTube/Shorts, opsiyonel)", hint: "https://youtube.com/... veya youtu.be/..."),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
@@ -1069,6 +1071,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "author": author.text.trim().isEmpty ? "babykitchenwithege" : author.text.trim(),
                   "sponsored": sponsored,
                   "sponsorLabel": sponsorLabel.text.trim(),
+                  "videoUrl": video.text.trim(),
                 });
                 _persistAll();
                 final err = await _runSaving(() => CatalogSync.instance.push());

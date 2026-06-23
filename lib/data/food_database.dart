@@ -135,6 +135,7 @@ class Recipe {
   final bool sponsored; // admin-flagged sponsored content
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
   final String category; // tarif kategorisi (kRecipeCategories), boş = "Diğer"
+  final String videoUrl; // opsiyonel YouTube linki (normal veya Shorts); boş = yok
 
   Recipe({
     required this.id,
@@ -151,6 +152,7 @@ class Recipe {
     this.sponsored = false,
     this.sponsorLabel = "",
     this.category = "Diğer",
+    this.videoUrl = "",
   });
 
   Map<String, dynamic> toJson() => {
@@ -168,6 +170,7 @@ class Recipe {
         "sponsored": sponsored,
         "sponsorLabel": sponsorLabel,
         "category": category,
+        "videoUrl": videoUrl,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -185,6 +188,7 @@ class Recipe {
         sponsored: j["sponsored"] == true,
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
         category: j["category"]?.toString() ?? "Diğer",
+        videoUrl: j["videoUrl"]?.toString() ?? "",
       );
 }
 

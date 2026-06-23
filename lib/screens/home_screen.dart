@@ -4549,6 +4549,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final prepCtrl = TextEditingController();
     final kcalCtrl = TextEditingController();
     final allergyCtrl = TextEditingController();
+    final videoCtrl = TextEditingController();
     int startMonth = 6;
     String category = "Diğer";
     String? photo;
@@ -4722,6 +4723,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       }),
                       const SizedBox(height: 8),
                       TextField(controller: allergyCtrl, decoration: dec("Alerji uyarısı (isteğe bağlı)")),
+                      const SizedBox(height: 8),
+                      TextField(controller: videoCtrl, keyboardType: TextInputType.url, decoration: dec("Video linki (YouTube/Shorts, isteğe bağlı)")),
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -4769,6 +4772,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "ingredientAmounts": ingAmts,
                         "steps": stepsList,
                         "allergyWarning": allergyCtrl.text.trim(),
+                        "videoUrl": videoCtrl.text.trim(),
                         "author": author,
                         "submittedBy": author,
                         "date": date,

@@ -13,6 +13,8 @@ import '../services/auth_gate.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
+import '../widgets/youtube_util.dart';
+import '../widgets/youtube_embed.dart';
 import '../widgets/recipe_story_share.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
@@ -447,6 +449,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         // Star rating (1..5) — taps record this user's vote.
                         _buildRatingRow(recipe),
                         const SizedBox(height: 14),
+                        // Video tarif (YouTube / Shorts) — varsa göm.
+                        if (isYoutubeUrl(recipe.videoUrl)) ...[
+                          const Row(children: [
+                            Icon(Icons.play_circle_outline, size: 18, color: Color(0xFFFF7A45)),
+                            SizedBox(width: 6),
+                            Text("Video Tarif", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D2D3A))),
+                          ]),
+                          const SizedBox(height: 10),
+                          youtubeEmbed(recipe.videoUrl),
+                          const SizedBox(height: 16),
+                        ],
                         // Like + I-tried buttons
                         Row(
                           children: [
