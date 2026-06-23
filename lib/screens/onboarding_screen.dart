@@ -43,6 +43,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
+  /// Sayıyı esnek ayrıştırır: kullanıcı virgül (10,5) ya da nokta (10.5) yazsa
+  /// da kabul eder; geçersizse null.
+  double? _parseNum(String? s) {
+    if (s == null) return null;
+    final t = s.trim().replaceAll(',', '.');
+    if (t.isEmpty) return null;
+    return double.tryParse(t);
+  }
+
   // Form validator & helper to add a baby
   bool _addCurrentBabyToList() {
     setState(() {
@@ -55,8 +64,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return false;
     }
 
-    final double weight = double.tryParse(_weightController.text.trim()) ?? 8.0;
-    final double height = double.tryParse(_heightController.text.trim()) ?? 68.0;
+    final double weight = _parseNum(_weightController.text) ?? 8.0;
+    final double height = _parseNum(_heightController.text) ?? 68.0;
 
     // Add current baby to list
     final String formattedDate = _selectedDate != null 
@@ -611,7 +620,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     if (_addedBabies.isEmpty && (value == null || value.trim().isEmpty)) {
                                       return "Boy giriniz.";
                                     }
-                                    if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                    if (value != null && value.isNotEmpty && _parseNum(value) == null) {
                                       return "Geçersiz sayı.";
                                     }
                                     return null;
@@ -656,7 +665,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                     if (_addedBabies.isEmpty && (value == null || value.trim().isEmpty)) {
                                       return "Kilo giriniz.";
                                     }
-                                    if (value != null && value.isNotEmpty && double.tryParse(value) == null) {
+                                    if (value != null && value.isNotEmpty && _parseNum(value) == null) {
                                       return "Geçersiz sayı.";
                                     }
                                     return null;
