@@ -2567,6 +2567,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 18),
         if (!_isDayLocked(_selectedDay)) _buildDailyTrackingSection(),
+        // İndirimler (affiliate kartları — sepettekiyle aynı)
+        ...(() {
+          final links = marketLinks;
+          if (links.isEmpty) return <Widget>[];
+          return <Widget>[
+            const SizedBox(height: 26),
+            bigTitle("İndirimler"),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 180,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: links.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                itemBuilder: (context, i) => _marketCard(links[i]),
+              ),
+            ),
+          ];
+        }()),
         const SizedBox(height: 30),
       ],
     );
