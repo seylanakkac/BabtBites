@@ -53,5 +53,52 @@
        calisiyor). Elle <script> ile yuklemeyin: gstatic firebase-app.js bir ES
        module'dur, klasik script olarak "Unexpected token export" hatasi verir. -->
   <script src="flutter_bootstrap.js" async></script>
+
+  <!-- Boot yedek ekrani: motor (ozellikle eski iOS Safari / bayat service worker
+       / boot JS hatasi) yuklenemezse bos sayfa yerine mesaj + "Yenile" gosterir.
+       Yenile, eski service worker + onbellegi temizleyip sayfayi yeniden yukler
+       (bayat-cache kaynakli boş sayfalari kendi kendine onarir). -->
+  <div id="bb-fallback" style="display:none; position:fixed; inset:0; z-index:99999; background:#FAF9F6; color:#3A3A3A; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; align-items:center; justify-content:center; padding:24px; text-align:center;">
+    <div style="max-width:340px;">
+      <div style="font-size:40px; margin-bottom:12px;">🍼</div>
+      <div style="font-size:18px; font-weight:700; margin-bottom:8px;">Uygulama açılamadı</div>
+      <div style="font-size:14px; line-height:1.5; color:#7A7A85; margin-bottom:20px;">
+        Bağlantı veya tarayıcı önbelleği kaynaklı olabilir. Lütfen yenileyin.
+        Sorun sürerse Safari/tarayıcınızı güncelleyin ya da Chrome ile deneyin.
+      </div>
+      <button id="bb-reload" style="background:#FF7A45; color:#fff; border:none; border-radius:12px; padding:12px 22px; font-size:15px; font-weight:700;">Yenile</button>
+    </div>
+  </div>
+  <script>
+    (function () {
+      function booted() {
+        return !!document.querySelector('flutter-view, flt-glass-pane, flt-scene-host');
+      }
+      function clearCachesAndReload() {
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (rs) {
+              rs.forEach(function (r) { r.unregister(); });
+            }).catch(function () {});
+          }
+          if (window.caches && caches.keys) {
+            caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+          }
+        } catch (e) {}
+        setTimeout(function () { location.reload(); }, 500);
+      }
+      var btn = document.getElementById('bb-reload');
+      if (btn) btn.addEventListener('click', clearCachesAndReload);
+      // 18 sn icinde uygulama render olmadiysa yedek ekrani goster (yavas
+      // baglantida yanlis tetiklenmesin diye esik genis tutuldu; otomatik
+      // reload YOK, kullaniciya birakildi -> sonsuz dongu riski olmaz).
+      setTimeout(function () {
+        if (!booted()) {
+          var el = document.getElementById('bb-fallback');
+          if (el) el.style.display = 'flex';
+        }
+      }, 18000);
+    })();
+  </script>
 </body>
 </html>
