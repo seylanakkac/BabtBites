@@ -87,6 +87,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedRecipeAge = "Tümü";
   String _selectedRecipeCategory = "Tümü";
   int _explorerSubTab = 0;
+  // Gıdalarda çoklu seçim (basılı tut → seç → toplu "sorunsuz denendi").
+  bool _foodSelectMode = false;
+  final Set<String> _selectedFoodNames = {};
   bool _onlyTriedRecipes = false;
   bool _onlyExpertRecipes = false;
   String _foodTriedFilter = "Tümü"; // "Tümü" | "Denendi" | "Denenmedi"
@@ -1560,23 +1563,120 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _explorerFoodCard(Food food) {
+  String _todayIsoHome() {
+    final n = DateTime.now();
+    return "${n.year}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}";
+  }
+
+  /// Seçili gıdaları toplu olarak "sorunsuz denendi" işaretler.
+  void _bulkMarkTried() {
+    if (_selectedFoodNames.isEmpty) return;
+    final iso = _todayIsoHome();
+    final count = _selectedFoodNames.length;
+    for (final name in _selectedFoodNames) {
+      final st = ensureFoodState(_activeBabyId, name);
+      st["tried"] = true;
+      st["status"] = "sorunsuz";
+      st["triedDate"] = iso;
+      st["retryDate"] = null;
+      removeRetryReminder(_activeBabyId, name);
+      final fm = globalFoodsDatabase.where((f) => f.name == name);
+      if (fm.isNotEmpty) fm.first.tried = true;
+    }
+    setState(() {
+      _foodSelectMode = false;
+      _selectedFoodNames.clear();
+    });
+    _onChildChanged();
+    _persist();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("$count gıda sorunsuz denendi olarak işaretlendi ✅")),
+    );
+  }
+
+  /// Çoklu seçim modunda gıdalar ızgarasının üstünde görünen işlem çubuğu.
+  Widget _foodSelectBar(List<Food> visible) {
+    final allSelected = visible.isNotEmpty && visible.every((f) => _selectedFoodNames.contains(f.name));
+    return Container(
+      margin: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _primary.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: "Vazgeç",
+            icon: const Icon(Icons.close, color: _primary, size: 22),
+            onPressed: () => setState(() {
+              _foodSelectMode = false;
+              _selectedFoodNames.clear();
+            }),
+          ),
+          Expanded(
+            child: Text("${_selectedFoodNames.length} seçili",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+          ),
+          TextButton(
+            onPressed: () => setState(() {
+              if (allSelected) {
+                _selectedFoodNames.clear();
+              } else {
+                _selectedFoodNames.addAll(visible.map((f) => f.name));
+              }
+            }),
+            child: Text(allSelected ? "Hiçbiri" : "Tümünü Seç",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: _primary)),
+          ),
+          const SizedBox(width: 4),
+          ElevatedButton.icon(
+            onPressed: _selectedFoodNames.isEmpty ? null : _bulkMarkTried,
+            icon: const Icon(Icons.check_circle, size: 16),
+            label: const Text("Sorunsuz Denendi", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white, elevation: 0, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _explorerFoodCard(Food food, {bool selectable = false}) {
     final allergen = food.allergyRisk != "Düşük";
     final reacted = readFoodState(_activeBabyId, food.name)?["status"] == "reaksiyon";
     final tint = _foodTint(food);
+    final selected = _foodSelectMode && _selectedFoodNames.contains(food.name);
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
-      )),
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFEDEDF0)),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 12, offset: const Offset(0, 4))],
-        ),
-        child: Column(
+      // Basılı tut → çoklu seçim modu (yalnızca seçilebilir ızgarada).
+      onLongPress: selectable
+          ? () => setState(() {
+                _foodSelectMode = true;
+                _selectedFoodNames.add(food.name);
+              })
+          : null,
+      onTap: () {
+        if (selectable && _foodSelectMode) {
+          setState(() {
+            if (!_selectedFoodNames.remove(food.name)) _selectedFoodNames.add(food.name);
+          });
+          return;
+        }
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => FoodDetailScreen(food: food, babyId: _activeBabyId, onStateChanged: _onChildChanged),
+        ));
+      },
+      child: Stack(
+        children: [
+          Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: selected ? _primary : const Color(0xFFEDEDF0), width: selected ? 2 : 1),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.045), blurRadius: 12, offset: const Offset(0, 4))],
+            ),
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Görsel bandı (fotoğraf varsa fotoğraf, yoksa renkli zemin + büyük emoji)
@@ -1664,6 +1764,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ],
         ),
+          ),
+          if (selected)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(color: _primary.withOpacity(0.16), borderRadius: BorderRadius.circular(18)),
+                child: Center(
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
+                    child: const Icon(Icons.check, color: Colors.white, size: 22),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -2057,6 +2173,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
+          // Çoklu seçim çubuğu (basılı tutunca görünür).
+          if (_foodSelectMode) _foodSelectBar(filteredFoods),
           LayoutBuilder(
             builder: (context, c) {
               // Web'de küçük/çok sütunlu kompakt gıda kartları; mobilde 2.
@@ -2067,7 +2185,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: cols, childAspectRatio: 0.82, crossAxisSpacing: 12, mainAxisSpacing: 12),
                 itemCount: filteredFoods.length,
-                itemBuilder: (context, index) => _explorerFoodCard(filteredFoods[index]),
+                itemBuilder: (context, index) => _explorerFoodCard(filteredFoods[index], selectable: true),
               );
             },
           ),
