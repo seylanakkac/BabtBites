@@ -4,6 +4,7 @@ import '../data/extras_store.dart';
 import '../screens/recipe_detail_screen.dart' show globalCartList;
 import '../screens/notifications_screen.dart';
 import '../screens/articles_screen.dart';
+import '../services/auth_gate.dart';
 import 'ad_banner.dart';
 
 const Color _primary = Color(0xFFFF7A45);
@@ -113,6 +114,24 @@ class WebTopNav extends StatelessWidget {
 
   /// Profil açılır menüsü: bebek seçici + profil/yasal öğeleri (hepsi tıklanır).
   Widget _profileMenu(BuildContext context) {
+    // Misafir: profil menüsü yerine "Giriş Yap / Üye Ol" butonu.
+    if (isGuest()) {
+      return GestureDetector(
+        onTap: () => requireLogin(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(22)),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.login, size: 16, color: Colors.white),
+              SizedBox(width: 6),
+              Text("Giriş Yap / Üye Ol", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+            ],
+          ),
+        ),
+      );
+    }
     final active = webTopBar.activeBaby;
     final avatar = active?["avatar"]?.toString() ?? "👶";
     return PopupMenuButton<int>(

@@ -581,31 +581,57 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Hoş geldin / bebek özeti + ilerleme
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(20), border: Border.all(color: _primary.withOpacity(0.15))),
-            child: Row(
-              children: [
-                Container(width: 52, height: 52, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), alignment: Alignment.center, child: Text(avatar, style: const TextStyle(fontSize: 26))),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Merhaba, $babyName${months > 0 ? " · $months aylık" : ""}", style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
-                      const SizedBox(height: 3),
-                      Text("$tried / $total gıda denendi${next != null ? " · sırada: ${next.name}" : ""}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
-                    ],
+          // Hoş geldin / bebek özeti + ilerleme — misafirde kişisel bilgi gösterme.
+          if (isGuest())
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(20), border: Border.all(color: _primary.withOpacity(0.15))),
+              child: Row(
+                children: [
+                  Container(width: 52, height: 52, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), alignment: Alignment.center, child: const Text("👋", style: TextStyle(fontSize: 26))),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Hoş geldin!", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+                        SizedBox(height: 3),
+                        Text("Tarifleri ve gıdaları keşfet. Takip için giriş yap.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                      ],
+                    ),
                   ),
-                ),
-                Column(children: [
-                  Text("%$pct", style: const TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.w800, color: _primary)),
-                  const Text("ilerleme", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
-                ]),
-              ],
+                  TextButton(
+                    onPressed: () => requireLogin(context),
+                    child: const Text("Giriş Yap", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
+                  ),
+                ],
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(20), border: Border.all(color: _primary.withOpacity(0.15))),
+              child: Row(
+                children: [
+                  Container(width: 52, height: 52, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle), alignment: Alignment.center, child: Text(avatar, style: const TextStyle(fontSize: 26))),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Merhaba, $babyName${months > 0 ? " · $months aylık" : ""}", style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
+                        const SizedBox(height: 3),
+                        Text("$tried / $total gıda denendi${next != null ? " · sırada: ${next.name}" : ""}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                      ],
+                    ),
+                  ),
+                  Column(children: [
+                    Text("%$pct", style: const TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.w800, color: _primary)),
+                    const Text("ilerleme", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                  ]),
+                ],
+              ),
             ),
-          ),
           const SizedBox(height: 22),
           // Ana içerik + sağ ray
           Row(
