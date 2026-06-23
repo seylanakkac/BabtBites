@@ -185,7 +185,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                       const SizedBox(width: 8),
                       const Icon(Icons.star_rounded, size: 13, color: _star),
                       const SizedBox(width: 2),
-                      Text(recipeRatingAverage(recipe.id).toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: _text)),
+                      Text(recipeRatingLabel(recipe.id), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w700, color: _text)),
                     ],
                   ),
                 ],

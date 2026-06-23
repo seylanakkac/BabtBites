@@ -28,31 +28,25 @@ final Map<String, double> globalRecipeMyRating = {};
 /// globalRecipesDatabase until an admin approves it (so it stays unpublished).
 final List<Map<String, dynamic>> globalPendingRecipes = [];
 
-int _seed(String key, int min, int max) {
-  final h = key.hashCode.abs();
-  return min + (h % (max - min + 1));
-}
-
 /// Real cross-user aggregate stats per recipe, loaded from Firestore
 /// (`/recipeStats/{id}` → { views, ratingSum, ratingCount, likeCount }).
-/// When a recipe has no real data yet, the UI falls back to the stable seed so
-/// it doesn't look empty. SocialSync keeps this in sync with the cloud.
+/// YALNIZCA gerçek kullanıcı verisi gösterilir (sahte/seed taban kaldırıldı);
+/// veri yoksa 0 döner. SocialSync bunu bulutla senkron tutar.
 final Map<String, Map<String, num>> globalRecipeStats = {};
 
 num? _stat(String id, String key) => globalRecipeStats[id]?[key];
 
-/// Display view count: real cloud views (if any) else stable seed, + this
-/// device's own opens this session.
+/// Görüntülenme: gerçek bulut görüntülenmesi + bu cihazın bu oturumdaki açışları.
 int recipeViewCount(String id) {
   final v = _stat(id, 'views');
-  final base = v != null ? v.toInt() : _seed("v_$id", 60, 1400);
+  final base = v != null ? v.toInt() : 0;
   return base + (globalRecipeViews[id] ?? 0);
 }
 
-/// Total likes: real cloud like count (if present) else stable seed.
+/// Toplam beğeni: yalnızca gerçek bulut beğeni sayısı.
 int recipeLikeCount(String id) {
   final l = _stat(id, 'likeCount');
-  return l != null ? l.toInt() : _seed("l_$id", 8, 180);
+  return l != null ? l.toInt() : 0;
 }
 
 /// Deprecated alias kept for older call sites.
@@ -88,23 +82,22 @@ int pendingCommentCount() => pendingComments().length;
 
 // ---- Star ratings (1..5) ----
 
-/// Average star rating for a recipe = stable community base blended with this
-/// device's own vote (if any). Range ~3.8..4.9 before the user votes.
+/// Gerçek ortalama puan; henüz puan yoksa 0 (seed yok).
 double recipeRatingAverage(String id) {
   final count = (_stat(id, 'ratingCount'))?.toInt() ?? 0;
   if (count > 0) {
     final sum = (_stat(id, 'ratingSum'))?.toDouble() ?? 0;
     return sum / count;
   }
-  // No real ratings yet → stable seed so cards aren't empty.
-  return _seed("ra_$id", 38, 49) / 10.0;
+  return 0;
 }
 
-/// Number of ratings shown for a recipe (real count, else stable seed).
-int recipeRatingCount(String id) {
-  final count = (_stat(id, 'ratingCount'))?.toInt() ?? 0;
-  return count > 0 ? count : _seed("rc_$id", 5, 90);
-}
+/// Gerçek puan sayısı; yoksa 0 (seed yok).
+int recipeRatingCount(String id) => (_stat(id, 'ratingCount'))?.toInt() ?? 0;
+
+/// Kartlarda gösterilecek puan etiketi: gerçek puan varsa "4.6", yoksa "Yeni".
+String recipeRatingLabel(String id) =>
+    recipeRatingCount(id) > 0 ? recipeRatingAverage(id).toStringAsFixed(1) : "Yeni";
 
 /// The star value (1..5) this device gave a recipe, or 0 if not rated.
 double myRecipeRating(String id) => globalRecipeMyRating[id] ?? 0;

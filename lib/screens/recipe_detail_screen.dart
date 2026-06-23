@@ -103,11 +103,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
               ),
             ),
           const Spacer(),
-          const Icon(Icons.star_rounded, size: 18, color: star),
-          const SizedBox(width: 3),
-          Text(avg.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
-          const SizedBox(width: 4),
-          Text("($count)", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+          if (count > 0) ...[
+            const Icon(Icons.star_rounded, size: 18, color: star),
+            const SizedBox(width: 3),
+            Text(avg.toStringAsFixed(1), style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: textColor)),
+            const SizedBox(width: 4),
+            Text("($count)", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
+          ] else
+            const Text("Henüz puan yok", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: lightTextColor)),
         ],
       ),
     );
