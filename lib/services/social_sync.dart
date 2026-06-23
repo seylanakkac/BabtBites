@@ -313,6 +313,18 @@ class SocialSync {
   // ---- Public profiles ----
   CollectionReference<Map<String, dynamic>> get _profiles => _db.collection('profiles');
 
+  /// Kayıtlı public profil sayısı (admin istatistiği — kullanıcı sayısına
+  /// yaklaşık proxy). Hata/izin yoksa null döner.
+  Future<int?> profileCount() async {
+    try {
+      final snap = await _profiles.count().get();
+      return snap.count;
+    } catch (e) {
+      debugPrint('SocialSync.profileCount failed: $e');
+      return null;
+    }
+  }
+
   /// Saves the current user's public profile at /profiles/{uid}.
   Future<void> saveProfile(Map<String, dynamic> json) async {
     final uid = _uid;

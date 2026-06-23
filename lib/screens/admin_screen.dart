@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/admin_store.dart';
+import '../data/recipe_social_store.dart';
 import '../services/file_storage.dart';
 import '../services/catalog_sync.dart';
 import '../services/social_sync.dart';
@@ -399,6 +400,9 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _dashboard() {
     final babyCount = StorageService.instance.loadBabies()?.length ?? 0;
+    final totalViews = globalRecipesDatabase.fold<int>(0, (s, r) => s + recipeViewCount(r.id));
+    final totalLikes = globalRecipesDatabase.fold<int>(0, (s, r) => s + recipeLikeCount(r.id));
+    final pendingFoods = globalFoodsDatabase.where(effectiveFoodNeedsReview).length;
     return _pane([
       _sectionHeader("Genel Bakış", "İçerik ve kullanım istatistikleri"),
       Wrap(spacing: 16, runSpacing: 16, children: [
@@ -409,6 +413,40 @@ class _AdminScreenState extends State<AdminScreen> {
         _statCard("${globalCustomRecipes.length}", "Özel Tarif", const Color(0xFFD4AC0D), Icons.add_box_outlined),
         _statCard("$babyCount", "Kayıtlı Bebek", _red, Icons.child_care),
       ]),
+      const SizedBox(height: 16),
+      // Etkileşim (tüm kullanıcılar) + moderasyon + profil
+      Wrap(spacing: 16, runSpacing: 16, children: [
+        _statCard("$totalViews", "Tarif Görüntülenme", const Color(0xFF3B9EDB), Icons.visibility_outlined),
+        _statCard("$totalLikes", "Toplam Beğeni", const Color(0xFFE84393), Icons.favorite_border),
+        _statCard("${pendingRecipeCount()}", "Onay Bekleyen Tarif", const Color(0xFFE67E22), Icons.pending_actions),
+        _statCard("${pendingCommentCount()}", "Onay Bekleyen Yorum", const Color(0xFF8E44AD), Icons.mode_comment_outlined),
+        _statCard("$pendingFoods", "Uzman Onayı Bekleyen", const Color(0xFFC0392B), Icons.verified_outlined),
+        // Kayıtlı public profil — kullanıcı sayısına yaklaşık proxy (async).
+        FutureBuilder<int?>(
+          future: SocialSync.instance.profileCount(),
+          builder: (ctx, snap) => _statCard(
+            snap.connectionState == ConnectionState.waiting ? "…" : (snap.data?.toString() ?? "—"),
+            "Kayıtlı Profil",
+            const Color(0xFF16A085),
+            Icons.people_outline,
+          ),
+        ),
+      ]),
+      const SizedBox(height: 16),
+      _card(
+        child: Row(
+          children: [
+            const Icon(Icons.insights_outlined, color: _primary, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Toplam kayıtlı kullanıcı sayısı ve trafik/davranış raporları Firebase Console → Authentication ve Google Analytics (GA4) üzerindedir. Buradaki sayılar uygulama içi içerik ve etkileşim verileridir.",
+                style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+      ),
       const SizedBox(height: 24),
       _card(
         child: Column(
