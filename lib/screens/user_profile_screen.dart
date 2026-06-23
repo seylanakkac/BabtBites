@@ -145,8 +145,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 ],
                 const SizedBox(height: 4),
                 Text("${recipes.length} tarif", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _light)),
-                // Takip Et: yalnız girişli, başkasının (profili olan) profili.
-                if (!isGuest() && profile != null && author.trim().toLowerCase() != myUsername().trim().toLowerCase()) ...[
+                // Takip Et: kendi profilin hariç her yazarda görünür.
+                // Misafir tıklarsa _toggleFollow login ekranını açar.
+                if (author.trim().isNotEmpty && author.trim().toLowerCase() != myUsername().trim().toLowerCase()) ...[
                   const SizedBox(height: 12),
                   _followButton(author),
                 ],
