@@ -8,6 +8,8 @@ import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
 import '../services/analytics.dart';
 import '../services/auth_gate.dart';
+import '../services/push_notifications.dart';
+import '../config/push_config.dart';
 import '../services/file_storage.dart';
 import 'notifications_screen.dart';
 import '../data/extras_store.dart';
@@ -4039,6 +4041,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ====================== PROFILE TAB ======================
+  /// "Bildirimleri Aç" kartı — kullanıcı izin verince web push açılır.
+  /// VAPID anahtarı girilmemişse (push_config) hiç gösterilmez.
+  Widget _notificationCard() {
+    if (!pushConfigured) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+      child: Row(
+        children: [
+          Container(width: 48, height: 48, decoration: BoxDecoration(color: _primary.withOpacity(0.12), shape: BoxShape.circle), child: const Center(child: Icon(Icons.notifications_active_outlined, color: _primary, size: 24))),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Bildirimler", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+                SizedBox(height: 2),
+                Text("Yeni tarifler ve duyurular için bildirim al.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (requireLogin(context)) return;
+              final messenger = ScaffoldMessenger.of(context);
+              final ok = await PushNotifications.instance.enable();
+              if (!mounted) return;
+              messenger.showSnackBar(SnackBar(content: Text(ok ? "Bildirimler açıldı 🔔" : "Bildirim açılamadı (izin verilmedi ya da tarayıcı/iOS desteklemiyor).")));
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            child: const Text("Aç", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProfileTab() {
     final targets = _calculateBabyTargets();
     return ListView(
@@ -4048,6 +4088,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 4),
         const Text("Ebeveyn, bebek profilleri ve gelişim takibi.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light, fontWeight: FontWeight.w500)),
         const SizedBox(height: 24),
+        _notificationCard(),
         // Parent card
         Container(
           padding: const EdgeInsets.all(16),
