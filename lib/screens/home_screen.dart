@@ -654,10 +654,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     _userRecipesSection(),
                     const SizedBox(height: 22),
-                    _dashSectionHeader("Bu Mevsim Taze"),
-                    const SizedBox(height: 6),
-                    _buildSeasonalSection(),
-                    const SizedBox(height: 18),
                     _dashSectionHeader("Gıdaları Keşfet", onMore: () => setState(() => _currentIndex = 1)),
                     const SizedBox(height: 12),
                     LayoutBuilder(
@@ -672,6 +668,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         );
                       },
                     ),
+                    const SizedBox(height: 18),
+                    _dashSectionHeader("Bu Mevsim Taze"),
+                    const SizedBox(height: 6),
+                    _buildSeasonalSection(),
                   ],
                 ),
               ),
