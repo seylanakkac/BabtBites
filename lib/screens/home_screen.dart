@@ -2573,7 +2573,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (links.isEmpty) return <Widget>[];
           return <Widget>[
             const SizedBox(height: 26),
-            bigTitle("İndirimler"),
+            _sectionTitle("İndirimler 🏷️"),
             const SizedBox(height: 12),
             SizedBox(
               height: 180,
