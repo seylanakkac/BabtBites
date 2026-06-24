@@ -924,7 +924,7 @@ class _AdminScreenState extends State<AdminScreen> {
     ]);
   }
 
-  void _recipeDialog(Map<String, dynamic>? existing) {
+  void _recipeDialog(Map<String, dynamic>? existing, {Map<String, dynamic>? pending}) {
     final name = TextEditingController(text: existing?["name"]?.toString() ?? "");
     String image = existing?["imageUrl"]?.toString() ?? "";
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
@@ -1118,7 +1118,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 final nav = Navigator.of(ctx);
                 final rid = existing?["id"]?.toString() ?? "rc_${DateTime.now().millisecondsSinceEpoch}";
                 final imgUrl = await _runSaving(() => _uploadCatalogImage("catalog/recipes/$rid.jpg", image));
-                saveRecipeEdit({
+                final data = {
                   "id": rid,
                   "name": n,
                   "category": category,
@@ -1139,15 +1139,32 @@ class _AdminScreenState extends State<AdminScreen> {
                   "sponsorLabel": sponsorLabel.text.trim(),
                   "videoUrl": video.text.trim(),
                   "servings": int.tryParse(servings.text.trim()) ?? 1,
-                });
+                };
+                saveRecipeEdit(data);
+                // Onay kuyruğundan açıldıysa: yayına ekle + onay temizliği.
+                if (pending != null) {
+                  final saved = Recipe.fromJson(data);
+                  if (!globalRecipesDatabase.any((x) => x.id == saved.id)) {
+                    globalRecipesDatabase.add(saved);
+                  }
+                }
                 _persistAll();
                 final err = await _runSaving(() => CatalogSync.instance.push());
+                if (pending != null) {
+                  final docId = pending["_docId"]?.toString() ?? "";
+                  final toUid = pending["uid"]?.toString() ?? "";
+                  if (toUid.isNotEmpty) {
+                    await SocialSync.instance.sendNotification(toUid, "Tarifin onaylandı! 🎉", "\"$n\" tarifin yayınlandı.", type: 'recipe');
+                  }
+                  if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
+                  if (mounted) setState(() => _pendingRecipesList?.remove(pending));
+                }
                 nav.pop();
                 if (mounted) setState(() {});
                 if (err != null) {
                   _toast("Buluta kaydedilemedi: $err");
                 } else {
-                  _toast(existing == null ? "$n eklendi" : "$n güncellendi");
+                  _toast(pending != null ? "Tarif onaylandı ve yayınlandı" : (existing == null ? "$n eklendi" : "$n güncellendi"));
                 }
               },
               style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -1992,6 +2009,16 @@ class _AdminScreenState extends State<AdminScreen> {
                 Text("⚠️ ${p["allergyWarning"]}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _red)),
               ],
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _recipeDialog(p, pending: p),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text("İncele / Düzenle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                ),
+              ),
+              const SizedBox(height: 8),
               Row(children: [
                 Expanded(
                   child: ElevatedButton.icon(
