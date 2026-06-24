@@ -1949,7 +1949,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Nefis tarzı foto-öncelikli tarif kartı (ızgara için).
   Widget _recipeGridCard(Recipe recipe) {
     final fav = globalFavoriteRecipes.contains(recipe.id);
-    final author = recipe.author.isEmpty ? "babykitchenwithege" : recipe.author;
+    final author = recipe.author.isEmpty ? "BabyBites" : recipe.author;
     final initial = author.substring(0, 1).toUpperCase();
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(

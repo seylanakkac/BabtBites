@@ -930,7 +930,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     final kcal = TextEditingController(text: existing?["kcal"]?.toString() ?? "");
-    final author = TextEditingController(text: existing?["author"]?.toString() ?? "babykitchenwithege");
+    final author = TextEditingController(text: existing?["author"]?.toString() ?? "BabyBites");
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
     final video = TextEditingController(text: existing?["videoUrl"]?.toString() ?? "");
@@ -1010,7 +1010,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       label: const Text("Otomatik", style: TextStyle(fontFamily: 'Inter', color: _primary, fontWeight: FontWeight.bold)),
                     ),
                   ]),
-                  _field(author, "Hazırlayan", hint: "babykitchenwithege"),
+                  _field(author, "Hazırlayan", hint: "BabyBites"),
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Kategori", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -1133,7 +1133,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   }),
                   "steps": steps.text.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                   "allergyWarning": warn.text.trim(),
-                  "author": author.text.trim().isEmpty ? "babykitchenwithege" : author.text.trim(),
+                  "author": author.text.trim().isEmpty ? "BabyBites" : author.text.trim(),
                   "sponsored": sponsored,
                   "sponsorLabel": sponsorLabel.text.trim(),
                   "videoUrl": video.text.trim(),
