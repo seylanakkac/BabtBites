@@ -1211,18 +1211,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                     child: ElevatedButton(
                       onPressed: () {
                         final dateKey = _formatDateKey(selectedDate);
-                        if (globalWeeklyPlan[dateKey] == null) {
-                          globalWeeklyPlan[dateKey] = {
-                            "Kahvaltı": [],
-                            "Öğle Yemeği": [],
-                            "Akşam Yemeği": [],
-                            "1. Ara Öğün": [],
-                            "2. Ara Öğün": [],
-                            "3. Ara Öğün": [],
-                          };
-                        }
-                        globalWeeklyPlan[dateKey]![selectedMeal]!.add(widget.recipe.name);
-                        
+                        // Güvenli: tarih ya da öğün anahtarı yoksa oluştur
+                        // (otomatik menüden kısmi plan varken null-check çökmesin).
+                        final plan = globalWeeklyPlan.putIfAbsent(dateKey, () => {
+                              "Kahvaltı": [],
+                              "Öğle Yemeği": [],
+                              "Akşam Yemeği": [],
+                              "1. Ara Öğün": [],
+                              "2. Ara Öğün": [],
+                              "3. Ara Öğün": [],
+                            });
+                        plan.putIfAbsent(selectedMeal, () => <String>[]).add(widget.recipe.name);
+
                         Navigator.of(context).pop();
                         widget.onStateChanged?.call();
 
