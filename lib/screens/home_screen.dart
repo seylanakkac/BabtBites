@@ -4635,6 +4635,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final kcalCtrl = TextEditingController();
     final allergyCtrl = TextEditingController();
     final videoCtrl = TextEditingController();
+    final servingsCtrl = TextEditingController(text: "1");
     int startMonth = 6;
     String category = "Diğer";
     String? photo;
@@ -4676,6 +4677,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Expanded(child: TextField(controller: prepCtrl, decoration: dec("Süre (örn. 20 dk)"))),
                           const SizedBox(width: 10),
                           Expanded(child: TextField(controller: kcalCtrl, keyboardType: TextInputType.number, decoration: dec("kcal (otomatik)"))),
+                          const SizedBox(width: 10),
+                          Expanded(child: TextField(controller: servingsCtrl, keyboardType: TextInputType.number, decoration: dec("Porsiyon"))),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -4852,6 +4855,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
                         "startingMonth": startMonth,
                         "kcal": finalKcal,
+                        "servings": int.tryParse(servingsCtrl.text.trim()) ?? 1,
                         "imageUrl": imgUrl,
                         "ingredients": ingNames,
                         "ingredientAmounts": ingAmts,

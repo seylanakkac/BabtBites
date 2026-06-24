@@ -930,6 +930,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     final kcal = TextEditingController(text: existing?["kcal"]?.toString() ?? "");
+    final servings = TextEditingController(text: "${existing?["servings"] ?? 1}");
     final author = TextEditingController(text: existing?["author"]?.toString() ?? "BabyBites");
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
@@ -987,7 +988,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   PhotoPickerField(value: image, label: "Tarif fotoğrafı", height: 130, onChanged: (v) => setD(() => image = v ?? "")),
                   const SizedBox(height: 14),
                   _field(name, "Tarif adı"),
-                  Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(servings, "Porsiyon", hint: "1", keyboard: TextInputType.number))]),
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                     Expanded(child: _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number)),
                     const SizedBox(width: 8),
@@ -1137,6 +1138,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "sponsored": sponsored,
                   "sponsorLabel": sponsorLabel.text.trim(),
                   "videoUrl": video.text.trim(),
+                  "servings": int.tryParse(servings.text.trim()) ?? 1,
                 });
                 _persistAll();
                 final err = await _runSaving(() => CatalogSync.instance.push());

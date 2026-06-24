@@ -136,6 +136,7 @@ class Recipe {
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
   final String category; // tarif kategorisi (kRecipeCategories), boş = "Diğer"
   final String videoUrl; // opsiyonel YouTube linki (normal veya Shorts); boş = yok
+  final int servings; // kaç porsiyon (besin değeri buna bölünür); en az 1
 
   Recipe({
     required this.id,
@@ -153,6 +154,7 @@ class Recipe {
     this.sponsorLabel = "",
     this.category = "Diğer",
     this.videoUrl = "",
+    this.servings = 1,
   });
 
   Map<String, dynamic> toJson() => {
@@ -171,6 +173,7 @@ class Recipe {
         "sponsorLabel": sponsorLabel,
         "category": category,
         "videoUrl": videoUrl,
+        "servings": servings,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -189,6 +192,7 @@ class Recipe {
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
         category: j["category"]?.toString() ?? "Diğer",
         videoUrl: j["videoUrl"]?.toString() ?? "",
+        servings: (j["servings"] as num?)?.toInt() ?? 1,
       );
 }
 
@@ -385,6 +389,14 @@ Map<String, double> nutritionForRecipe(Recipe recipe) {
   }
   if ((sum["Karbonhidrat"] ?? 0) == 0) {
     sum["Karbonhidrat"] = atwaterCarb(sum["Enerji"]!, sum["Protein"]!, sum["Yağ"]!);
+  }
+  // Porsiyon başına böl (kek/çok porsiyonlu tariflerde tüm-tarif toplamı değil,
+  // bir porsiyonun değeri gösterilir). servings=1 ise değişmez.
+  final s = recipe.servings < 1 ? 1 : recipe.servings;
+  if (s > 1) {
+    for (final k in kNutrientKeys) {
+      sum[k] = sum[k]! / s;
+    }
   }
   return sum;
 }
