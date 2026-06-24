@@ -3243,7 +3243,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               )).toList(),
         );
 
-    Widget trackerCard({required String emoji, required String label, required Color color, required int count, required VoidCallback onMinus, required VoidCallback onPlus, String countSuffix = "", Widget? details}) {
+    Widget trackerCard({required String emoji, required String label, required Color color, required int count, required VoidCallback onMinus, required VoidCallback onPlus, String countSuffix = "", Widget? details, VoidCallback? onCountTap}) {
       return Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
@@ -3257,7 +3257,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 const SizedBox(width: 12),
                 Expanded(child: Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text))),
                 circleBtn(Icons.remove, onMinus, color),
-                Padding(padding: const EdgeInsets.symmetric(horizontal: 12), child: Text("$count$countSuffix", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: color))),
+                GestureDetector(
+                  onTap: onCountTap,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text("$count$countSuffix", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+                        if (onCountTap != null) Text("dokun", style: TextStyle(fontFamily: 'Inter', fontSize: 9, color: color.withOpacity(0.6))),
+                      ],
+                    ),
+                  ),
+                ),
                 circleBtn(Icons.add, onPlus, color),
               ],
             ),
@@ -3337,9 +3349,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           details: kakaList.isEmpty ? null : entryRows(kakaList, (entry) => kakaOptions.map((c) => pickChip(c, entry["consistency"] == c, kakaColor, () { setState(() => entry["consistency"] = c); _persist(); })).toList()),
         ),
         trackerCard(
-          emoji: "🥤", label: "Su Takibi", color: suColor, count: suCount, countSuffix: " bardak",
-          onMinus: () { if (suCount > 0) { setState(() => log["su"] = suCount - 1); _persist(); } },
-          onPlus: () { setState(() => log["su"] = suCount + 1); _persist(); },
+          emoji: "🥤", label: "Su Takibi", color: suColor, count: suCount, countSuffix: " ml",
+          onMinus: () { if (suCount > 0) { setState(() => log["su"] = (suCount - 50) < 0 ? 0 : suCount - 50); _persist(); } },
+          onPlus: () { setState(() => log["su"] = suCount + 50); _persist(); },
+          onCountTap: () async {
+            final ctrl = TextEditingController(text: suCount > 0 ? suCount.toString() : "");
+            final result = await showDialog<int>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                title: const Text("Su Miktarı", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                content: TextField(
+                  controller: ctrl,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                  decoration: const InputDecoration(
+                    suffixText: "ml",
+                    hintText: "Örn. 250",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal")),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: suColor, foregroundColor: Colors.white),
+                    onPressed: () {
+                      final v = int.tryParse(ctrl.text.trim());
+                      Navigator.pop(ctx, v == null ? suCount : (v < 0 ? 0 : v));
+                    },
+                    child: const Text("Kaydet"),
+                  ),
+                ],
+              ),
+            );
+            if (result != null && result != suCount) {
+              setState(() => log["su"] = result);
+              _persist();
+            }
+          },
         ),
         const SizedBox(height: 18),
         _sectionTitle("Takviyeler ☀️"),

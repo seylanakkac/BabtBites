@@ -29,7 +29,7 @@ final Map<String, List<Map<String, dynamic>>> globalBabyMeds = {};
 /// Log shape: {
 ///   "cisList":  [ {"color": "koyu"|"orta"|"açık"} ],   // one per wet diaper
 ///   "kakaList": [ {"consistency": "Sulu"|"Yumuşak"|"Normal"|"Katı"} ], // per poop
-///   "su": int,                  // water servings
+///   "su": int,                  // water intake in millilitres (ml)
 ///   "taken": { defId: bool }    // medication taken toggles
 /// }
 final Map<String, Map<String, dynamic>> globalDailyLogs = {};
