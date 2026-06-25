@@ -712,6 +712,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Sosyal giriş (Google/Apple) signInWithPopup'a dayanır ve yalnızca
+                  // web'de desteklenir; mobilde gizlenir (e-posta/şifre ile giriş açık).
+                  if (kIsWeb) ...[
                   // "veya" Divider
                   const Row(
                     children: [
@@ -812,6 +815,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  ], // /if (kIsWeb) — sosyal giriş satırı sonu
                   const SizedBox(height: 32),
 
                   // Bottom Toggle Text

@@ -1,0 +1,12 @@
+# android/key.properties ŞABLONU
+# -------------------------------------------------------------------
+# GERÇEK "key.properties" dosyası gitignore'dadır ve repoya GİRMEZ.
+# - CI (GitHub Actions) bu dosyayı gizli anahtarlardan otomatik üretir.
+# - Yerelde derleyecekseniz bu dosyayı "key.properties" olarak kopyalayıp
+#   kendi değerlerinizi yazın ve upload-keystore.jks'i android/app/ içine koyun.
+#
+# storeFile yolu, android/ klasörüne göredir (rootProject).
+storePassword=KEYSTORE_SIFRENIZ
+keyPassword=ANAHTAR_SIFRENIZ
+keyAlias=upload
+storeFile=app/upload-keystore.jks

@@ -1,0 +1,66 @@
+name: Android Build (AAB)
+
+# Elle tetiklenir (Actions sekmesi -> "Android Build (AAB)" -> Run workflow).
+# Web yayını her push'ta otomatik; Android'i her web değişikliğinde derlememek
+# için yalnızca istendiğinde çalışır.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Flutter kur
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.2"
+          channel: stable
+
+      - name: google-services.json yaz (gizli anahtardan)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+          echo "google-services.json yazıldı ($(wc -c < android/app/google-services.json) bayt)"
+
+      - name: Keystore çöz (gizli anahtardan)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/upload-keystore.jks
+          echo "keystore çözüldü ($(wc -c < android/app/upload-keystore.jks) bayt)"
+
+      - name: key.properties yaz (gizli anahtarlardan)
+        env:
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          {
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyPassword=$KEY_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=app/upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Bağımlılıklar
+        run: flutter pub get
+
+      - name: AAB derle (release, imzalı)
+        run: flutter build appbundle --release --build-number=${{ github.run_number }}
+
+      - name: AAB'yi yükle (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: babybites-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -27,7 +28,11 @@ Future<void> main() async {
   // init failure never blocks app startup — local storage still works offline.
   bool firebaseReady = false;
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    // Web'de elle yapılandırma; Android/iOS'ta google-services.json /
+    // GoogleService-Info.plist üzerinden otomatik (options: null).
+    await Firebase.initializeApp(
+      options: kIsWeb ? DefaultFirebaseOptions.web : null,
+    );
     debugPrint('Firebase initialized: ${Firebase.app().options.projectId}');
     // Offline cache so the app works without a connection and syncs on reconnect.
     try {

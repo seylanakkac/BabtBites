@@ -11,3 +11,7 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# Firebase Android istemci yapılandırması — CI'da gizli anahtardan yazılır,
+# repoda tutulmaz (public repo'da paket/anahtar açığa çıkmasın).
+app/google-services.json

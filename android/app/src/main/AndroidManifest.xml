@@ -1,6 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firebase / bulut senkronu için ağ erişimi gerekir. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+ bildirim izni (FCM push). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
-        android:label="babybites"
+        android:label="BabyBites"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
