@@ -7,4 +7,5 @@
 //
 // Boş bırakılırsa giriş accessToken ile yapılır (genelde yeterlidir); ancak
 // sunucu tarafı doğrulanabilir idToken almak için doldurulması önerilir.
-const String kGoogleServerClientId = '';
+const String kGoogleServerClientId =
+    '951840473715-93fkk1icif5ni8vredq0k66pkr4h13mr.apps.googleusercontent.com';
