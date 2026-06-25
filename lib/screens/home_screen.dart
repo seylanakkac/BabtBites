@@ -123,12 +123,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
 
     Map<String, dynamic> defaultBaby() => {
-          "name": "Asya",
-          "gender": "Kız",
-          "dob": "12.10.2025",
-          "avatar": "👧",
-          "weight": 8.4,
-          "height": 68.0,
+          "name": "Bebeğim",
+          "gender": "",
+          "dob": "",
+          "avatar": "👶",
+          "weight": 0.0,
+          "height": 0.0,
         };
 
     final provided = widget.initialBabies;

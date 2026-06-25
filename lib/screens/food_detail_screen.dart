@@ -670,7 +670,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
           
           // Trial + reaction status bottom panel
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).padding.bottom),
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(top: BorderSide(color: borderGreyColor.withOpacity(0.5))),

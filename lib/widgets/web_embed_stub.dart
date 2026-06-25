@@ -1,9 +1,35 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
-/// Web olmayan platformlarda Web Share API yok → her zaman false.
-Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async => false;
-Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) async => false;
+/// Mobil (Android/iOS): metin/link paylaşımı native paylaşım sayfasıyla.
+Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async {
+  try {
+    final msg = [text, url].where((e) => e != null && e.isNotEmpty).join('\n');
+    if (msg.isEmpty) return false;
+    await Share.share(msg, subject: title);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Mobil (Android/iOS): görseli (PNG byte'ları) native paylaşım sayfası ile
+/// paylaşır (Instagram, WhatsApp vb.). Geçici dosyaya yazıp paylaşır.
+Future<bool> shareImageViaWebShareApi(Uint8List bytes,
+    {String text = '', String filename = 'babybites.png'}) async {
+  try {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsBytes(bytes, flush: true);
+    await Share.shareXFiles([XFile(file.path)], text: text);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
 
 /// Web olmayan platformlar için yer-tutucu (mobil derlemede gerçek oynatıcı
 /// ileride video_player/youtube_player ile eklenebilir).

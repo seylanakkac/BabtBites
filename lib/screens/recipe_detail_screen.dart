@@ -533,12 +533,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
 
                         // Stats Row (kcal, protein, iron, carbs)
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildStatBadge(value: "${n["Enerji"]!.toInt()} kcal", label: "Kalori", color: textColor),
-                            _buildStatBadge(value: "${n["Protein"]!.toStringAsFixed(1)}g", label: "Protein", color: textColor),
-                            _buildStatBadge(value: "${n["Demir"]!.toStringAsFixed(1)}mg", label: "Demir", color: textColor),
-                            _buildStatBadge(value: "${n["Karbonhidrat"]!.toStringAsFixed(0)}g", label: "Karbon", color: textColor),
+                            Expanded(child: _buildStatBadge(value: "${n["Enerji"]!.toInt()} kcal", label: "Kalori", color: textColor)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildStatBadge(value: "${n["Protein"]!.toStringAsFixed(1)}g", label: "Protein", color: textColor)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildStatBadge(value: "${n["Demir"]!.toStringAsFixed(1)}mg", label: "Demir", color: textColor)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildStatBadge(value: "${n["Karbonhidrat"]!.toStringAsFixed(0)}g", label: "Karbon", color: textColor)),
                           ],
                         ),
                         const SizedBox(height: 32),
@@ -928,7 +930,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             left: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+              padding: EdgeInsets.fromLTRB(24, 16, 24, 24 + MediaQuery.of(context).padding.bottom),
               color: Colors.white,
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
@@ -1452,8 +1454,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     required Color color,
   }) {
     return Container(
-      width: 92,
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
@@ -1468,13 +1469,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       ),
       child: Column(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: color,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
           const SizedBox(height: 4),
