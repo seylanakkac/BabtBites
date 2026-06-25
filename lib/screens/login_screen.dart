@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../config/auth_config.dart';
 import '../services/cloud_sync.dart';
 import '../services/storage_service.dart';
 import '../services/analytics.dart';
@@ -76,8 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       await _applyPersistence();
-      final cred =
-          await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+      // Web: popup; Android/iOS: native Google Sign-In (signInWithPopup mobilde yok).
+      final UserCredential? cred = kIsWeb
+          ? await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider())
+          : await _nativeGoogleSignIn();
+      if (cred == null) return; // kullanıcı iptal etti
       final email = cred.user?.email ?? "";
       final isNew = cred.additionalUserInfo?.isNewUser ?? false;
       if (isNew) {
@@ -101,6 +106,22 @@ class _LoginScreenState extends State<LoginScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Native Google Sign-In (Android/iOS): hesap seçtirir, Firebase'e kimlik
+  /// bilgisiyle giriş yapar. Kullanıcı iptal ederse null döner (hata yok).
+  Future<UserCredential?> _nativeGoogleSignIn() async {
+    final googleUser = await GoogleSignIn(
+      serverClientId:
+          kGoogleServerClientId.isEmpty ? null : kGoogleServerClientId,
+    ).signIn();
+    if (googleUser == null) return null; // iptal
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    return FirebaseAuth.instance.signInWithCredential(credential);
   }
 
   /// "Beni hatırla": on web, LOCAL persistence keeps the session across browser
@@ -712,9 +733,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Sosyal giriş (Google/Apple) signInWithPopup'a dayanır ve yalnızca
-                  // web'de desteklenir; mobilde gizlenir (e-posta/şifre ile giriş açık).
-                  if (kIsWeb) ...[
                   // "veya" Divider
                   const Row(
                     children: [
@@ -775,9 +793,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      // Apple Button
-                      Expanded(
+                      // Apple yalnızca web — Android'de Apple Sign-In yapılandırılmadı.
+                      if (kIsWeb) const SizedBox(width: 12),
+                      if (kIsWeb) Expanded(
                         child: MouseRegion(
                           cursor: SystemMouseCursors.click,
                           child: ElevatedButton(
@@ -815,7 +833,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
-                  ], // /if (kIsWeb) — sosyal giriş satırı sonu
                   const SizedBox(height: 32),
 
                   // Bottom Toggle Text
