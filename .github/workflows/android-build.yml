@@ -5,6 +5,15 @@ name: Android Build (AAB)
 # için yalnızca istendiğinde çalışır.
 on:
   workflow_dispatch:
+  # GEÇİCİ: Android araç zinciri stabil olana kadar her push'ta da derle
+  # (yeşil olunca bu push bloğu kaldırılacak; normalde sadece elle çalışır).
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "pubspec.yaml"
+      - "lib/**"
+      - ".github/workflows/android-build.yml"
 
 jobs:
   build:
