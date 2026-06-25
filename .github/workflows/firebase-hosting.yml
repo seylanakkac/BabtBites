@@ -23,6 +23,14 @@ jobs:
       - name: Build web (release)
         run: flutter build web --web-renderer html --release
 
+      # GitHub runner varsayılan Node'u 24'e geçti; firebase-tools Node 24'te
+      # OAuth token alamıyor ("Premature close"). Node 20'yi PATH'e koyarak
+      # deploy adımındaki `npx firebase-tools` Node 20 altında çalışsın.
+      - name: Node 20 (firebase-tools için)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
