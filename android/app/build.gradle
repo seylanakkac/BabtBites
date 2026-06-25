@@ -40,7 +40,8 @@ if (hasKeystore) {
 android {
     namespace = "tr.com.babybites"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Bazı eklentiler daha yüksek NDK ister (build uyarısı).
+    ndkVersion = "25.1.8937393"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
