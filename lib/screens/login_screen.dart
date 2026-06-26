@@ -141,15 +141,18 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _routeAfterAuth(bool isNewUser) {
+    // Tüm önceki rotaları (giriş öncesi misafir Home dahil) temizle; hedef ekran
+    // TEK kök rota olsun. Aksi halde üst nav'daki popUntil(isFirst) altta kalan
+    // eski misafir Home'u açığa çıkarıp "çıkış yapılmış" gibi görünmesine yol açar.
     if (globalIsAdmin) {
-      Navigator.of(context).pushReplacementNamed('/admin');
+      Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
       return;
     }
     final babies = StorageService.instance.loadBabies();
     if (isNewUser || babies == null || babies.isEmpty) {
-      Navigator.of(context).pushReplacementNamed('/onboarding');
+      Navigator.of(context).pushNamedAndRemoveUntil('/onboarding', (route) => false);
     } else {
-      Navigator.of(context).pushReplacementNamed('/home');
+      Navigator.of(context).pushNamedAndRemoveUntil('/home', (route) => false);
     }
   }
 
