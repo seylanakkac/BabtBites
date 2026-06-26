@@ -400,8 +400,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final bool wideTab = _currentIndex == 0 || _currentIndex == 1;
       final double contentMax = wideTab ? 1160 : 760;
       // Yan reklam şeritleri (yeterince genişse, reklamsız değilse). Ana sayfa
-      // kendi sağ rayına sahip olduğundan orada dış şeritleri göstermeyiz.
-      final bool showSideAds = screenW >= 1320 && _currentIndex != 0 && !adFreeActive();
+      // dahil tüm geniş sekmelerde boş kenarları reklam alanıyla doldur.
+      final bool showSideAds = screenW >= 1320 && !adFreeActive();
       return Scaffold(
         backgroundColor: _bg,
         body: SafeArea(
