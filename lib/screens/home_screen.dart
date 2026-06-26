@@ -96,6 +96,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final Set<String> _selectedFoodNames = {};
   bool _onlyTriedRecipes = false;
   bool _onlyExpertRecipes = false;
+  bool _onlyUserRecipes = false; // sadece kullanıcıların eklediği tarifler
+  String? _selectedRecipeUser; // belirli bir kullanıcının tarifleri (null = tümü)
   String _foodTriedFilter = "Tümü"; // "Tümü" | "Denendi" | "Denenmedi"
   final Set<String> _pantry = {};
 
@@ -2263,6 +2265,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final matchesSearch = recipe.name.toLowerCase().contains(_recipeSearchQuery);
       if (_onlyTriedRecipes && !recipe.ingredients.any((ing) => triedNames.contains(ing))) return false;
       if (_onlyExpertRecipes && expertTypeForAuthor(recipe.author) == null) return false;
+      if (_onlyUserRecipes && !recipe.id.startsWith("user_")) return false;
+      if (_selectedRecipeUser != null && recipe.author.trim().toLowerCase() != _selectedRecipeUser) return false;
       if (_selectedRecipeCategory != "Tümü" && effectiveRecipeCategory(recipe) != _selectedRecipeCategory) return false;
       if (_pantry.isNotEmpty && !recipe.ingredients.any((ing) => _pantry.contains(ing))) return false;
       if (_selectedRecipeAge == "Tümü") return matchesSearch;
@@ -2276,6 +2280,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       return matchesSearch && recipe.startingMonth <= maxAge;
     }).toList();
+
+    // Kullanıcı tariflerini ekleyen farklı yazarlar (kullanıcı filtresi seçimi için).
+    final userAuthors = globalRecipesDatabase
+        .where((r) => r.id.startsWith("user_"))
+        .map((r) => r.author.trim())
+        .where((a) => a.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
 
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
@@ -2318,6 +2331,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ),
+          const SizedBox(height: 8),
+          // Sadece kullanıcı tarifleri + kullanıcıya göre süzme.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+              child: Row(
+                children: [
+                  const Icon(Icons.people_alt_outlined, size: 18, color: _primary),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text("Sadece kullanıcıların eklediği tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyUserRecipes, activeColor: _primary, onChanged: (v) => setState(() { _onlyUserRecipes = v; if (!v) _selectedRecipeUser = null; })),
+                ],
+              ),
+            ),
+          ),
+          if (_onlyUserRecipes && userAuthors.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 34,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                children: [
+                  for (final entry in <MapEntry<String?, String>>[
+                    const MapEntry(null, "Tüm kullanıcılar"),
+                    ...userAuthors.map((a) => MapEntry<String?, String>(a.toLowerCase(), "@$a")),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedRecipeUser = entry.key),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(color: _selectedRecipeUser == entry.key ? _primary : Colors.white, borderRadius: BorderRadius.circular(18), border: Border.all(color: _selectedRecipeUser == entry.key ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.8))),
+                          child: Center(child: Text(entry.value, style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _selectedRecipeUser == entry.key ? Colors.white : _text))),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -2369,7 +2426,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: ["Tümü", ...kRecipeCategories].map((cat) {
+              children: ["Tümü", ...recipeCategoryOptions].map((cat) {
                 final sel = _selectedRecipeCategory == cat;
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
@@ -3912,12 +3969,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 22),
-        const Row(
-          children: [
-            Icon(Icons.auto_awesome, size: 18, color: _primary),
-            SizedBox(width: 6),
-            Text("Kullanıcılardan Yeni Tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
-          ],
+        GestureDetector(
+          onTap: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; _onlyUserRecipes = true; _selectedRecipeUser = null; }),
+          behavior: HitTestBehavior.opaque,
+          child: const Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 18, color: _primary),
+              SizedBox(width: 6),
+              Expanded(child: Text("Kullanıcılardan Yeni Tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text))),
+              Row(children: [
+                Text("Tümü", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
+                Icon(Icons.chevron_right, size: 18, color: _primary),
+              ]),
+            ],
+          ),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -4684,7 +4749,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final videoCtrl = TextEditingController();
     final servingsCtrl = TextEditingController(text: "1");
     int startMonth = 6;
-    String category = "Diğer";
+    String? category; // zorunlu — kullanıcı seçmeli
     String? photo;
     final units = recipeUnitOptions;
     final defaultUnit = units.isNotEmpty ? units.first : "adet";
@@ -4747,8 +4812,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           child: DropdownButton<String>(
                             value: category,
                             isExpanded: true,
-                            items: kRecipeCategories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
-                            onChanged: (v) => setSheet(() => category = v ?? "Diğer"),
+                            hint: const Text("Kategori seçin", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light)),
+                            items: recipeCategoryOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
+                            onChanged: (v) => setSheet(() => category = v),
                           ),
                         ),
                       ),
@@ -4869,12 +4935,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: ElevatedButton(
                     onPressed: () async {
                       final name = nameCtrl.text.trim();
-                      final validIngs = ingredients.where((r) => r["name"]!.trim().isNotEmpty).toList();
-                      if (name.isEmpty || validIngs.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen tarif adı ve en az bir malzeme girin.")));
+                      final prep = prepCtrl.text.trim();
+                      final namedIngs = ingredients.where((r) => r["name"]!.trim().isNotEmpty).toList();
+                      final missingQty = namedIngs.any((r) => r["qty"]!.trim().isEmpty);
+                      final stepsList = stepCtrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+                      // Eksiksiz doldurma zorunlu: ad, süre, kategori, malzeme(+miktar), adımlar.
+                      String? err;
+                      if (name.isEmpty) {
+                        err = "Tarif adını girin.";
+                      } else if (prep.isEmpty) {
+                        err = "Süreyi girin (örn. 20 dk).";
+                      } else if (category == null || category!.trim().isEmpty) {
+                        err = "Bir kategori seçin.";
+                      } else if (namedIngs.isEmpty) {
+                        err = "En az bir malzeme ekleyin.";
+                      } else if (missingQty) {
+                        err = "Her malzeme için miktar girin (boş bırakmayın).";
+                      } else if (stepsList.isEmpty) {
+                        err = "En az bir hazırlanış adımı girin.";
+                      }
+                      if (err != null) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
                         return;
                       }
-                      final stepsList = stepCtrls.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList();
+                      final validIngs = namedIngs;
                       final now = DateTime.now();
                       final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
                       final author = myUsername(fallbackName: _parent?["name"] ?? "");
@@ -4898,8 +4982,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       await SocialSync.instance.submitRecipe({
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
-                        "category": category,
-                        "prepTime": prepCtrl.text.trim().isEmpty ? "20 dk" : prepCtrl.text.trim(),
+                        "category": category ?? "Diğer",
+                        "prepTime": prep.isEmpty ? "20 dk" : prep,
                         "startingMonth": startMonth,
                         "kcal": finalKcal,
                         "servings": int.tryParse(servingsCtrl.text.trim()) ?? 1,

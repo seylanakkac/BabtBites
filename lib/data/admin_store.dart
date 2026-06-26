@@ -113,6 +113,11 @@ List<String> get recipeUnitOptions =>
     (globalAdminConfig["recipeUnits"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultRecipeUnits);
 
+/// Tarif kategorileri (admin düzenleyebilir; yoksa yerleşik kRecipeCategories).
+List<String> get recipeCategoryOptions =>
+    (globalAdminConfig["recipeCategories"] as List?)?.map((e) => e.toString()).toList() ??
+    List<String>.from(kRecipeCategories);
+
 List<String> get formulaNameOptions =>
     (globalAdminConfig["formulaNames"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultFormulaNames);

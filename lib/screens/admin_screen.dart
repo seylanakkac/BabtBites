@@ -42,6 +42,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newDoseUnit = TextEditingController();
   final _newCartUnit = TextEditingController();
   final _newRecipeUnit = TextEditingController();
+  final _newRecipeCat = TextEditingController();
   final _newFormulaName = TextEditingController();
   final _newFeedingUnit = TextEditingController();
   final _newPromoCode = TextEditingController();
@@ -68,6 +69,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _newDoseUnit.dispose();
     _newCartUnit.dispose();
     _newRecipeUnit.dispose();
+    _newRecipeCat.dispose();
     _newFormulaName.dispose();
     _newFeedingUnit.dispose();
     _newPromoCode.dispose();
@@ -938,7 +940,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
     bool sponsored = existing?["sponsored"] == true;
     String category = existing?["category"]?.toString() ?? "Diğer";
-    if (!kRecipeCategories.contains(category)) category = "Diğer";
+    if (!recipeCategoryOptions.contains(category)) category = "Diğer";
 
     // Structured ingredient list: name (from foods or custom) + quantity + unit.
     final ingredients = <String>[];
@@ -1020,7 +1022,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       child: DropdownButton<String>(
                         value: category,
                         isExpanded: true,
-                        items: kRecipeCategories.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
+                        items: recipeCategoryOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
                         onChanged: (v) => setD(() => category = v ?? "Diğer"),
                       ),
                     ),
@@ -1707,6 +1709,15 @@ class _AdminScreenState extends State<AdminScreen> {
         controller: _newRecipeUnit,
         hint: "Örn. su bardağı",
         onSave: (next) => globalAdminConfig["recipeUnits"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
+        title: "Tarif Kategorileri",
+        subtitle: "Tarif ekleme/filtre ekranlarında çıkacak kategoriler (Bebek Püreleri, Çorbalar…)",
+        options: recipeCategoryOptions,
+        controller: _newRecipeCat,
+        hint: "Örn. Bebek Smoothie'leri",
+        onSave: (next) => globalAdminConfig["recipeCategories"] = next,
       ),
       const SizedBox(height: 16),
       _chipListCard(
