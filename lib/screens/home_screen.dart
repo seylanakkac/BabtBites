@@ -1471,9 +1471,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         return rich.isNotEmpty ? rich : scored;
       }
       List<Recipe> inCats(List<String> cats) => focusSort(globalRecipesDatabase.where((r) => ok(r) && cats.contains(effectiveRecipeCategory(r))).toList());
-      final breakfast = inCats(["Bebek Kahvaltısı"]);
-      final mainPool = inCats(["Bebek Çorbaları", "Bebek Köfteleri"]);
-      final snackPool = inCats(["Bebek Püreleri", "Bebek Bisküvileri", "Bebek Muhallebisi ve Mama Tarifleri"]);
+      final breakfast = inCats(["Kahvaltı"]);
+      final mainPool = inCats(["Çorbalar", "Köfteler"]);
+      final snackPool = inCats(["Püreler", "Bisküviler", "Muhallebi ve Mama Tarifleri"]);
       final anyPool = focusSort(globalRecipesDatabase.where(ok).toList());
       if (anyPool.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Seçilen alerjenler çıkarılınca uygun tarif kalmadı.")));

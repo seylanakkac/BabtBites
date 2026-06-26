@@ -1713,7 +1713,7 @@ class _AdminScreenState extends State<AdminScreen> {
       const SizedBox(height: 16),
       _chipListCard(
         title: "Tarif Kategorileri",
-        subtitle: "Tarif ekleme/filtre ekranlarında çıkacak kategoriler (Bebek Püreleri, Çorbalar…)",
+        subtitle: "Tarif ekleme/filtre ekranlarında çıkacak kategoriler (Püreler, Çorbalar…)",
         options: recipeCategoryOptions,
         controller: _newRecipeCat,
         hint: "Örn. Bebek Smoothie'leri",
