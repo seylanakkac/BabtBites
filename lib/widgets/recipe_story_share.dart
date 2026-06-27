@@ -1,11 +1,9 @@
 import 'dart:ui' as ui;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../data/food_database.dart';
-import 'image_helpers.dart';
 import 'web_embed.dart';
 
 const _primary = Color(0xFFFF7A45);
@@ -47,34 +45,49 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     }
   }
 
+  /// "Paylaş": önce hikaye görselini native paylaşım ekranıyla paylaşmayı dener;
+  /// tarayıcı dosya paylaşımını desteklemiyorsa BAĞLANTIYI paylaşım ekranıyla açar
+  /// (yine native menü çıkar); o da yoksa linki panoya kopyalar.
   Future<void> _share() async {
     setState(() => _busy = true);
     final r = widget.recipe;
     final url = recipeShareUrl(r);
-    // Linki panoya kopyala (kullanıcı hikayede link sticker olarak ekleyebilir).
-    await Clipboard.setData(ClipboardData(text: url));
-    // Görseli yakalamadan önce bir kare bekle (ağ görseli yerleşsin).
+    await Clipboard.setData(ClipboardData(text: url)); // her ihtimale karşı kopyala
     await Future.delayed(const Duration(milliseconds: 120));
     final bytes = await _capture();
-    var shared = false;
+    var sharedImage = false;
     if (bytes != null) {
-      shared = await shareImageViaWebShareApi(
+      sharedImage = await shareImageViaWebShareApi(
         bytes,
         text: "${r.name} • BabyBites\n$url",
         filename: "babybites_${r.id}.png",
       );
     }
+    var sharedLink = false;
+    if (!sharedImage) {
+      sharedLink = await shareViaWebShareApi(
+        title: "BabyBites",
+        text: "${r.name} • BabyBites",
+        url: url,
+      );
+    }
     if (!mounted) return;
     setState(() => _busy = false);
-    if (shared) {
+    if (sharedImage) {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Hikayene ekleyebilirsin! Link panoya kopyalandı (link sticker olarak yapıştırabilirsin)."),
-        duration: Duration(seconds: 4),
+        content: Text("Hazır! Hikayene ekleyebilirsin. 🎉"),
+        duration: Duration(seconds: 3),
+      ));
+    } else if (sharedLink) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Paylaşım menüsü açıldı (bağlantı). Bağlantı panoya da kopyalandı."),
+        duration: Duration(seconds: 3),
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Bu tarayıcı görsel paylaşımını desteklemiyor. Link panoya kopyalandı."),
+        content: Text("Tarayıcın paylaşımı desteklemiyor. Bağlantı panoya kopyalandı."),
         duration: Duration(seconds: 4),
       ));
     }
@@ -88,27 +101,6 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
       content: Text("Bağlantı kopyalandı. Hikayene 'bağlantı' çıkartması olarak ekleyebilirsin."),
       duration: Duration(seconds: 3),
     ));
-  }
-
-  /// Web: hikaye görselini (9:16 PNG) indirir; kullanıcı Instagram hikayesine
-  /// galeriden yükleyebilir. Bağlantıyı da panoya kopyalar.
-  Future<void> _download() async {
-    setState(() => _busy = true);
-    final r = widget.recipe;
-    await Clipboard.setData(ClipboardData(text: recipeShareUrl(r)));
-    await Future.delayed(const Duration(milliseconds: 120));
-    final bytes = await _capture();
-    var ok = false;
-    if (bytes != null) ok = await downloadImage(bytes, filename: "babybites_${r.id}.png");
-    if (!mounted) return;
-    setState(() => _busy = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(ok
-          ? "Görsel indirildi 📥 Instagram > Hikaye > galeriden bu görseli seç. Bağlantı da kopyalandı."
-          : "Görsel oluşturulamadı. Bağlantı panoya kopyalandı."),
-      duration: const Duration(seconds: 5),
-    ));
-    if (ok && mounted) Navigator.pop(context);
   }
 
   @override
@@ -171,11 +163,11 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: _busy ? null : (kIsWeb ? _download : _share),
+                    onPressed: _busy ? null : _share,
                     icon: _busy
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(kIsWeb ? Icons.download_rounded : Icons.ios_share, size: 18, color: Colors.white),
-                    label: const Text(kIsWeb ? "Görseli İndir" : "Instagram'da Paylaş", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+                        : const Icon(Icons.ios_share, size: 18, color: Colors.white),
+                    label: const Text("Paylaş", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _primary,
                       padding: const EdgeInsets.symmetric(vertical: 13),
@@ -192,10 +184,10 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
   }
 
   Widget _storyCard(Recipe recipe) {
-    final hasPhoto = isPhotoUrl(recipe.imageUrl);
-    final bg = hasPhoto
-        ? photoOrFallback(recipe.imageUrl, fallback: _gradientBg(), fit: BoxFit.cover, width: double.infinity, height: double.infinity)
-        : _gradientBg();
+    // Paylaşım/indirme görseli her zaman MARKALI DEGRADE arka plan kullanır.
+    // Ağdan gelen tarif fotoğrafı (CORS) canvas'ı kirletip toImage()'i bozuyordu;
+    // bu yüzden yakalama bütün tarayıcılarda güvenilir olsun diye degrade kullanılır.
+    final bg = _gradientBg();
 
     return Stack(
       fit: StackFit.expand,
