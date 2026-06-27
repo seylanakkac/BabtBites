@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Mobil (Android/iOS): metin/link paylaşımı native paylaşım sayfasıyla.
 Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async {
@@ -38,21 +39,58 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes,
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
     shareImageViaWebShareApi(bytes, filename: filename);
 
-/// Web olmayan platformlar için yer-tutucu (mobil derlemede gerçek oynatıcı
-/// ileride video_player/youtube_player ile eklenebilir).
+String _ytId(String url) {
+  final m = RegExp(r'(?:youtu\.be/|v=|embed/|shorts/|live/)([A-Za-z0-9_-]{6,})').firstMatch(url.trim());
+  return m != null ? m.group(1)! : '';
+}
+
+/// Mobil (Android/iOS): makale/tarif videosu. YouTube küçük resmi + oynat
+/// düğmesi; dokununca videoyu YouTube uygulaması/tarayıcıda açar.
 Widget mediaEmbed({required bool youtube, required String url, double aspectRatio = 16 / 9}) {
+  final id = youtube ? _ytId(url) : '';
+  Future<void> open() async {
+    final u = Uri.tryParse(url.trim());
+    if (u == null) return;
+    try {
+      await launchUrl(u, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+  }
+
   return AspectRatio(
     aspectRatio: aspectRatio,
-    child: Container(
-      decoration: BoxDecoration(color: const Color(0xFFEDEDF0), borderRadius: BorderRadius.circular(12)),
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(youtube ? Icons.smart_display_outlined : Icons.movie_outlined, size: 34, color: Colors.black.withOpacity(0.35)),
-          const SizedBox(height: 6),
-          const Text("Video", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xFF8E8E9F))),
-        ],
+    child: GestureDetector(
+      onTap: open,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (youtube && id.isNotEmpty)
+              Image.network(
+                'https://img.youtube.com/vi/$id/hqdefault.jpg',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1C1C28)),
+              )
+            else
+              Container(color: const Color(0xFF1C1C28)),
+            Container(color: Colors.black.withOpacity(0.28)),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const Icon(Icons.play_arrow_rounded, size: 34, color: Color(0xFFFF7A45)),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text("Videoyu İzle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     ),
   );

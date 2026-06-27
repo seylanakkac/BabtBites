@@ -6,6 +6,7 @@ import '../widgets/image_helpers.dart';
 import '../widgets/sponsored_badge.dart';
 import '../widgets/web_embed.dart';
 import '../widgets/web_shell.dart';
+import 'article_detail_screen.dart';
 import 'premium_screen.dart';
 
 class Article {
@@ -20,6 +21,9 @@ class Article {
   final bool sponsored; // admin-flagged sponsored content
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
   final String author; // "Hazırlayan" — yazıyı hazırlayan
+  final String updatedDate; // "Son güncelleme" (ör. "06.2026") — bilimsel güncellik
+  /// Bilimsel kaynaklar/referanslar. Her biri: {"title": String, "url": String}.
+  final List<Map<String, String>> sources;
   /// Zengin içerik blokları. Boşsa düz [content] gösterilir. Blok şekilleri:
   /// {"t":"text","v":String,"color":"#RRGGBB","size":double,"bold":bool}
   /// {"t":"image","v":urlString,"w":int(40-100)}
@@ -38,6 +42,8 @@ class Article {
     this.sponsored = false,
     this.sponsorLabel = "",
     this.author = "",
+    this.updatedDate = "",
+    this.sources = const [],
     this.blocks = const [],
   });
 
@@ -53,6 +59,8 @@ class Article {
         "sponsored": sponsored,
         "sponsorLabel": sponsorLabel,
         "author": author,
+        "updatedDate": updatedDate,
+        "sources": sources,
         "blocks": blocks,
       };
 
@@ -68,6 +76,15 @@ class Article {
         sponsored: j["sponsored"] == true,
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
         author: j["author"]?.toString() ?? "",
+        updatedDate: j["updatedDate"]?.toString() ?? "",
+        sources: (j["sources"] as List?)
+                ?.map((e) => {
+                      "title": (e as Map)["title"]?.toString() ?? "",
+                      "url": e["url"]?.toString() ?? "",
+                    })
+                .where((m) => (m["title"] ?? "").isNotEmpty || (m["url"] ?? "").isNotEmpty)
+                .toList() ??
+            const [],
         blocks: (j["blocks"] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? const [],
       );
 }
@@ -855,109 +872,9 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
   }
 
   void _showArticleDetails(Article article) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("${article.emoji} ", style: const TextStyle(fontSize: 24)),
-              Expanded(
-                child: Text(
-                  article.title,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF2D2D3A),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (article.sponsored) ...[
-                  SponsoredBadge(label: article.sponsorLabel),
-                  const SizedBox(height: 12),
-                ],
-                // Cover photo (if provided)
-                if (isPhotoUrl(article.imageUrl)) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 160,
-                      child: photoOrFallback(article.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-                // Info chips row
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFF7A45).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        article.category,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFFF7A45),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      "${article.readTime} okuma süresi",
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 11,
-                        color: Color(0xFFA8A8B3),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                if (article.author.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text("Hazırlayan: ${article.author}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFA8A8B3))),
-                ],
-                const SizedBox(height: 16),
-                ...renderArticleBlocks(article),
-                const SizedBox(height: 4),
-                const MedicalDisclaimer(),
-              ],
-            ),
-          ),
-          actions: [
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text(
-                  "Kapat",
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFFF7A45),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    // Popup yerine TAM SAYFA aç (tarif detayı gibi).
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ArticleDetailScreen(article: article)),
     );
   }
 }

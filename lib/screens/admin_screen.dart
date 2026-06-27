@@ -1280,8 +1280,14 @@ class _AdminScreenState extends State<AdminScreen> {
     final summary = TextEditingController(text: existing?.summary ?? "");
     final content = TextEditingController(text: existing?.content ?? "");
     final author = TextEditingController(text: existing?.author ?? "");
+    final updatedDate = TextEditingController(text: existing?.updatedDate ?? "");
     final sponsorLabel = TextEditingController(text: existing?.sponsorLabel ?? "");
     bool sponsored = existing?.sponsored ?? false;
+    // Bilimsel kaynaklar (başlık + URL).
+    final sources = <Map<String, String>>[
+      for (final s in (existing?.sources ?? const <Map<String, String>>[]))
+        {"title": s["title"] ?? "", "url": s["url"] ?? ""}
+    ];
     // Zengin içerik blokları (her birine düzenleyici-içi anahtar _k eklenir).
     var bkCounter = 0;
     final blocks = <Map<String, dynamic>>[
@@ -1309,6 +1315,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(readTime, "Okuma süresi", hint: "3 dk"),
                   _field(summary, "Özet", maxLines: 2),
                   _field(author, "Hazırlayan", hint: "ör. Uzm. Dyt. Ayşe Yılmaz"),
+                  _field(updatedDate, "Son güncelleme (AA.YYYY)", hint: "ör. 06.2026"),
                   _field(content, "İçerik (basit metin)", maxLines: 6),
                   const Padding(
                     padding: EdgeInsets.only(top: 10, bottom: 2),
@@ -1319,6 +1326,52 @@ class _AdminScreenState extends State<AdminScreen> {
                     child: Align(alignment: Alignment.centerLeft, child: Text("Blok eklersen yazı bunlarla gösterilir; boşsa yukarıdaki basit metin kullanılır.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
                   ),
                   _articleBlockEditor(blocks, setD, newKey),
+                  const Padding(
+                    padding: EdgeInsets.only(top: 10, bottom: 2),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Bilimsel Kaynaklar (referanslar)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 6),
+                    child: Align(alignment: Alignment.centerLeft, child: Text("Yazının altında tıklanabilir liste olur (PubMed, WHO, Sağlık Bakanlığı…). En az bir kaynak eklenince 'Bilimsel kaynaklı' rozeti çıkar.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
+                  ),
+                  ...sources.asMap().entries.map((e) {
+                    final i = e.key;
+                    final s = e.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              controller: TextEditingController(text: s["title"])..selection = TextSelection.collapsed(offset: (s["title"] ?? "").length),
+                              decoration: _dec("Kaynak başlığı"),
+                              onChanged: (v) => s["title"] = v,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            flex: 4,
+                            child: TextField(
+                              controller: TextEditingController(text: s["url"])..selection = TextSelection.collapsed(offset: (s["url"] ?? "").length),
+                              decoration: _dec("URL (https://...)"),
+                              keyboardType: TextInputType.url,
+                              onChanged: (v) => s["url"] = v,
+                            ),
+                          ),
+                          IconButton(icon: const Icon(Icons.remove_circle_outline, color: _red, size: 20), onPressed: () => setD(() => sources.removeAt(i))),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setD(() => sources.add({"title": "", "url": ""})),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text("Kaynak Ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
@@ -1370,6 +1423,12 @@ class _AdminScreenState extends State<AdminScreen> {
                   sponsored: sponsored,
                   sponsorLabel: sponsorLabel.text.trim(),
                   author: author.text.trim(),
+                  updatedDate: updatedDate.text.trim(),
+                  sources: [
+                    for (final s in sources)
+                      if ((s["title"] ?? "").trim().isNotEmpty || (s["url"] ?? "").trim().isNotEmpty)
+                        {"title": (s["title"] ?? "").trim(), "url": (s["url"] ?? "").trim()}
+                  ],
                   blocks: cleanBlocks,
                 ));
                 _persistAll();
@@ -1384,7 +1443,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [title, readTime, summary, content, author]) {
+      for (final c in [title, readTime, summary, content, author, updatedDate, sponsorLabel]) {
         c.dispose();
       }
     });
