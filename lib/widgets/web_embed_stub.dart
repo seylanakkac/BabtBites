@@ -24,7 +24,9 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes,
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes, flush: true);
-    await Share.shareXFiles([XFile(file.path)], text: text);
+    // Metin boşsa hiç gönderme (URL'li metin Instagram'ı DM/link moduna sokuyor;
+    // sadece görsel paylaşınca "Hikayene Ekle" seçeneği çıkar).
+    await Share.shareXFiles([XFile(file.path)], text: text.isEmpty ? null : text);
     return true;
   } catch (_) {
     return false;

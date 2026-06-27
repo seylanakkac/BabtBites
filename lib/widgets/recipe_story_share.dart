@@ -57,9 +57,11 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     final bytes = await _capture();
     var sharedImage = false;
     if (bytes != null) {
+      // Görseli METİNSİZ paylaş: görselle birlikte URL gidince Instagram bunu
+      // "bağlantı paylaş → DM" olarak yorumluyor. Sadece görsel → Instagram
+      // "Hikayene Ekle / Akış / DM" seçeneklerini sunar.
       sharedImage = await shareImageViaWebShareApi(
         bytes,
-        text: "${r.name} • BabyBites\n$url",
         filename: "babybites_${r.id}.png",
       );
     }
