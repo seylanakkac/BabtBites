@@ -137,6 +137,7 @@ class Recipe {
   final String category; // tarif kategorisi (kRecipeCategories), boş = "Diğer"
   final String videoUrl; // opsiyonel YouTube linki (normal veya Shorts); boş = yok
   final int servings; // kaç porsiyon (besin değeri buna bölünür); en az 1
+  final String storage; // saklama koşulları (ör. "Buzdolabında 3 gün, buzlukta 1 ay")
 
   Recipe({
     required this.id,
@@ -155,6 +156,7 @@ class Recipe {
     this.category = "Diğer",
     this.videoUrl = "",
     this.servings = 1,
+    this.storage = "",
   });
 
   Map<String, dynamic> toJson() => {
@@ -174,6 +176,7 @@ class Recipe {
         "category": category,
         "videoUrl": videoUrl,
         "servings": servings,
+        "storage": storage,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -193,6 +196,7 @@ class Recipe {
         category: j["category"]?.toString() ?? "Diğer",
         videoUrl: j["videoUrl"]?.toString() ?? "",
         servings: (j["servings"] as num?)?.toInt() ?? 1,
+        storage: j["storage"]?.toString() ?? "",
       );
 }
 

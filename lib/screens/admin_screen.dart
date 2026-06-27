@@ -937,6 +937,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final steps = TextEditingController(text: ((existing?["steps"] as List?) ?? []).join("\n"));
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
     final video = TextEditingController(text: existing?["videoUrl"]?.toString() ?? "");
+    final storage = TextEditingController(text: existing?["storage"]?.toString() ?? "");
     final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
     bool sponsored = existing?["sponsored"] == true;
     String category = existing?["category"]?.toString() ?? "Diğer";
@@ -1094,6 +1095,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   const SizedBox(height: 8),
                   _field(steps, "Adımlar (her satır)", maxLines: 5),
                   _field(warn, "Alerji uyarısı"),
+                  _field(storage, "Saklama koşulları", hint: "ör. Buzdolabında 3 gün, buzlukta 1 ay"),
                   _field(video, "Video linki (YouTube/Shorts, opsiyonel)", hint: "https://youtube.com/... veya youtu.be/..."),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -1141,6 +1143,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "sponsorLabel": sponsorLabel.text.trim(),
                   "videoUrl": video.text.trim(),
                   "servings": int.tryParse(servings.text.trim()) ?? 1,
+                  "storage": storage.text.trim(),
                 };
                 saveRecipeEdit(data);
                 // Onay kuyruğundan açıldıysa: yayına ekle + onay temizliği.

@@ -865,6 +865,36 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         const MedicalDisclaimer(),
                         const SizedBox(height: 24),
 
+                        // Saklama Koşulları (varsa)
+                        if (recipe.storage.trim().isNotEmpty) ...[
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF4FB),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFF2980B9).withOpacity(0.15)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.ac_unit, color: Color(0xFF2980B9), size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text("Saklama Koşulları", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2980B9))),
+                                      const SizedBox(height: 4),
+                                      Text(recipe.storage, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Color(0xFF34495E), height: 1.4)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
                         // Alerji Uyarısı Panel
                         Container(
                           padding: const EdgeInsets.all(16),
