@@ -31,6 +31,11 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes,
   }
 }
 
+/// Mobilde "indir" yerine native paylaşım kullanılır; bu yine de paylaşım
+/// sayfasını açar (görseli galeriye kaydet/Instagram'a gönder seçenekleriyle).
+Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
+    shareImageViaWebShareApi(bytes, filename: filename);
+
 /// Web olmayan platformlar için yer-tutucu (mobil derlemede gerçek oynatıcı
 /// ileride video_player/youtube_player ile eklenebilir).
 Widget mediaEmbed({required bool youtube, required String url, double aspectRatio = 16 / 9}) {

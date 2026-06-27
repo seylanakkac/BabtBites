@@ -30,6 +30,25 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String
   }
 }
 
+/// Web'de bir PNG'yi dosya olarak indirir (masaüstü tarayıcılar paylaşımı
+/// desteklemediğinde kullanıcı görseli indirip Instagram hikayesine yükleyebilir).
+Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) async {
+  try {
+    final blob = html.Blob(<Object>[bytes], 'image/png');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..download = filename
+      ..style.display = 'none';
+    html.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
+    html.Url.revokeObjectUrl(url);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 /// Web'de native paylaşım sayfasını (Web Share API) açar. Tarayıcı desteklemiyorsa
 /// ya da kullanıcı vazgeçerse false döner (çağıran tarafta yedek davranış için).
 Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async {

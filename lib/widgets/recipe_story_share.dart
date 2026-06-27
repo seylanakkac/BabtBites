@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -79,6 +80,37 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     }
   }
 
+  /// Bağlantıyı panoya kopyalar (her platformda çalışır).
+  Future<void> _copyLink() async {
+    await Clipboard.setData(ClipboardData(text: recipeShareUrl(widget.recipe)));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text("Bağlantı kopyalandı. Hikayene 'bağlantı' çıkartması olarak ekleyebilirsin."),
+      duration: Duration(seconds: 3),
+    ));
+  }
+
+  /// Web: hikaye görselini (9:16 PNG) indirir; kullanıcı Instagram hikayesine
+  /// galeriden yükleyebilir. Bağlantıyı da panoya kopyalar.
+  Future<void> _download() async {
+    setState(() => _busy = true);
+    final r = widget.recipe;
+    await Clipboard.setData(ClipboardData(text: recipeShareUrl(r)));
+    await Future.delayed(const Duration(milliseconds: 120));
+    final bytes = await _capture();
+    var ok = false;
+    if (bytes != null) ok = await downloadImage(bytes, filename: "babybites_${r.id}.png");
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? "Görsel indirildi 📥 Instagram > Hikaye > galeriden bu görseli seç. Bağlantı da kopyalandı."
+          : "Görsel oluşturulamadı. Bağlantı panoya kopyalandı."),
+      duration: const Duration(seconds: 5),
+    ));
+    if (ok && mounted) Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
@@ -105,28 +137,54 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextButton.icon(
-                onPressed: _busy ? null : () => Navigator.pop(context),
-                icon: const Icon(Icons.close, color: Colors.white70, size: 20),
-                label: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', color: Colors.white70, fontWeight: FontWeight.w600)),
+          // Bağlantıyı Kopyala (her zaman görünür).
+          SizedBox(
+            width: w,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : _copyLink,
+              icon: const Icon(Icons.link, size: 18, color: Colors.white),
+              label: const Text("Bağlantıyı Kopyala", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white54),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              const SizedBox(width: 8),
-              ElevatedButton.icon(
-                onPressed: _busy ? null : _share,
-                icon: _busy
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.ios_share, size: 18, color: Colors.white),
-                label: const Text("Instagram'da Paylaş", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primary,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: w,
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white24),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', color: Colors.white70, fontWeight: FontWeight.w600)),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    onPressed: _busy ? null : (kIsWeb ? _download : _share),
+                    icon: _busy
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(kIsWeb ? Icons.download_rounded : Icons.ios_share, size: 18, color: Colors.white),
+                    label: const Text(kIsWeb ? "Görseli İndir" : "Instagram'da Paylaş", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

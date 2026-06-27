@@ -15,3 +15,7 @@ Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) =>
 /// Web'de bir görseli (PNG byte'ları) native paylaşım sayfası ile paylaşır.
 Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) =>
     impl.shareImageViaWebShareApi(bytes, text: text, filename: filename);
+
+/// Web'de PNG'yi indirir; mobilde paylaşım sayfasını açar.
+Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
+    impl.downloadImage(bytes, filename: filename);
