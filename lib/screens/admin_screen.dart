@@ -5,6 +5,8 @@ import '../data/recipe_social_store.dart';
 import '../services/file_storage.dart';
 import '../services/catalog_sync.dart';
 import '../services/social_sync.dart';
+import '../services/community_sync.dart';
+import '../data/community_store.dart';
 import '../data/food_database.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
@@ -43,6 +45,7 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newCartUnit = TextEditingController();
   final _newRecipeUnit = TextEditingController();
   final _newRecipeCat = TextEditingController();
+  final _newCommunityCat = TextEditingController();
   final _newFormulaName = TextEditingController();
   final _newFeedingUnit = TextEditingController();
   final _newPromoCode = TextEditingController();
@@ -70,6 +73,7 @@ class _AdminScreenState extends State<AdminScreen> {
     _newCartUnit.dispose();
     _newRecipeUnit.dispose();
     _newRecipeCat.dispose();
+    _newCommunityCat.dispose();
     _newFormulaName.dispose();
     _newFeedingUnit.dispose();
     _newPromoCode.dispose();
@@ -251,6 +255,7 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.rate_review_outlined, "Yorumlar"),
       (Icons.menu_book_outlined, "Tarif Onayı"),
       (Icons.verified_outlined, "Uzman Onayı"),
+      (Icons.forum_outlined, "Topluluk"),
     ];
 
     return Scaffold(
@@ -358,6 +363,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _recipesApprovalManager();
       case 10:
         return _expertApprovalManager();
+      case 11:
+        return _communityManager();
       default:
         return _dashboard();
     }
@@ -1783,6 +1790,15 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
       const SizedBox(height: 16),
       _chipListCard(
+        title: "Topluluk Kategorileri",
+        subtitle: "Toplulukta gönderi açarken/filtrede çıkacak kategoriler (Uyku, Alerji…)",
+        options: communityCategoryOptions,
+        controller: _newCommunityCat,
+        hint: "Örn. Kreş & Bakıcı",
+        onSave: (next) => globalAdminConfig["communityCategories"] = next,
+      ),
+      const SizedBox(height: 16),
+      _chipListCard(
         title: "Formül Mama Adları",
         subtitle: "Takvim beslenme takibinde seçilebilecek mama markaları",
         options: formulaNameOptions,
@@ -2138,6 +2154,110 @@ class _AdminScreenState extends State<AdminScreen> {
         );
       }),
     ]);
+  }
+
+  // ---------- topluluk moderasyonu ----------
+  List<CommunityPost>? _pendingCommunityPosts;
+  List<CommunityPost>? _reportedCommunityPosts;
+
+  Future<void> _reloadCommunity() async {
+    final pend = await CommunitySync.instance.loadPendingPosts();
+    final rep = await CommunitySync.instance.loadReportedPosts();
+    if (mounted) setState(() { _pendingCommunityPosts = pend; _reportedCommunityPosts = rep; });
+  }
+
+  Widget _communityManager() {
+    if (_pendingCommunityPosts == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) { if (_pendingCommunityPosts == null) _reloadCommunity(); });
+      return _pane([
+        _sectionHeader("Topluluk", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+    final pending = _pendingCommunityPosts!;
+    final reported = _reportedCommunityPosts ?? [];
+    return _pane([
+      Row(children: [
+        Expanded(child: _sectionHeader("Topluluk", "${pending.length} gönderi onay bekliyor • ${reported.length} şikayet")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadCommunity),
+      ]),
+      const Padding(padding: EdgeInsets.only(top: 4, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Onay Bekleyen Gönderiler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
+      if (pending.isEmpty) _card(child: const Text("Onay bekleyen gönderi yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...pending.map((p) => _communityPostCard(p, pendingMode: true)),
+      const Padding(padding: EdgeInsets.only(top: 16, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Şikayet Edilen Gönderiler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
+      if (reported.isEmpty) _card(child: const Text("Şikayet edilen gönderi yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...reported.map((p) => _communityPostCard(p, pendingMode: false)),
+    ]);
+  }
+
+  Widget _communityPostCard(CommunityPost p, {required bool pendingMode}) {
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.forum_outlined, size: 16, color: _primary),
+            const SizedBox(width: 6),
+            Expanded(child: Text(p.title, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+            if (!pendingMode && p.reportCount > 0) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _red.withOpacity(0.12), borderRadius: BorderRadius.circular(6)), child: Text("${p.reportCount} şikayet", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _red))),
+          ]),
+          const SizedBox(height: 4),
+          Text("${p.anonymous ? "Anonim" : "@${p.authorName}"} • ${p.category}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+          if (p.body.trim().isNotEmpty) ...[const SizedBox(height: 6), Text(p.body, maxLines: 4, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF5A5A6A), height: 1.4))],
+          if (isPhotoUrl(p.imageUrl)) ...[const SizedBox(height: 8), ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 120, width: double.infinity, child: photoOrFallback(p.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))],
+          if (p.hasPoll) ...[const SizedBox(height: 6), Text("📊 Anket: ${p.pollOptions.join(" / ")}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))],
+          const SizedBox(height: 12),
+          Row(children: [
+            if (pendingMode)
+              Expanded(child: ElevatedButton.icon(
+                onPressed: () async {
+                  await CommunitySync.instance.approvePost(p.id);
+                  if (mounted) setState(() => _pendingCommunityPosts!.remove(p));
+                  _toast("Gönderi onaylandı ve yayınlandı");
+                },
+                icon: const Icon(Icons.check, size: 18),
+                label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              ))
+            else
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () async {
+                  await CommunitySync.instance.setHidden(p.id, true);
+                  if (mounted) setState(() => _reportedCommunityPosts!.remove(p));
+                  _toast("Gönderi gizlendi");
+                },
+                icon: const Icon(Icons.visibility_off_outlined, size: 18),
+                label: const Text("Gizle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+            const SizedBox(width: 10),
+            if (!pendingMode) ...[
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () async {
+                  await CommunitySync.instance.setHidden(p.id, false);
+                  if (mounted) setState(() => _reportedCommunityPosts!.remove(p));
+                  _toast("Şikayet temizlendi (yayında kaldı)");
+                },
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: const Text("Sorun yok", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF10B981), side: const BorderSide(color: Color(0xFF10B981)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+              const SizedBox(width: 10),
+            ],
+            Expanded(child: OutlinedButton.icon(
+              onPressed: () async {
+                await CommunitySync.instance.deletePost(p.id);
+                if (mounted) setState(() { _pendingCommunityPosts?.remove(p); _reportedCommunityPosts?.remove(p); });
+                _toast(pendingMode ? "Gönderi reddedildi" : "Gönderi silindi");
+              },
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: Text(pendingMode ? "Reddet" : "Sil", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(foregroundColor: _red, side: const BorderSide(color: _red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            )),
+          ]),
+        ],
+      ),
+    );
   }
 
   // ---------- expert verification approval ----------

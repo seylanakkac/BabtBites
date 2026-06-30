@@ -25,6 +25,7 @@ import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/sponsored_badge.dart';
 import 'articles_screen.dart';
+import 'community_screen.dart';
 import 'food_detail_screen.dart';
 import 'growth_screen.dart';
 import 'legal_screen.dart';
@@ -891,6 +892,37 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
                 const Icon(Icons.chevron_right, color: Color(0xFF2BB673)),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Topluluk
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CommunityScreen())),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFF7A5CFF).withOpacity(0.10), borderRadius: BorderRadius.circular(18), border: Border.all(color: const Color(0xFF7A5CFF).withOpacity(0.25))),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(color: Color(0xFF7A5CFF), shape: BoxShape.circle),
+                  child: const Icon(Icons.forum_rounded, color: Colors.white, size: 22),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Topluluk", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+                      SizedBox(height: 3),
+                      Text("Diğer ebeveynlerle soru-cevap, deneyim ve tavsiye.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: Color(0xFF7A5CFF)),
               ],
             ),
           ),

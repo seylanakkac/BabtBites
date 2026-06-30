@@ -4,6 +4,7 @@ import '../data/extras_store.dart';
 import '../screens/recipe_detail_screen.dart' show globalCartList;
 import '../screens/notifications_screen.dart';
 import '../screens/articles_screen.dart';
+import '../screens/community_screen.dart';
 import '../services/auth_gate.dart';
 import 'ad_banner.dart';
 
@@ -273,6 +274,7 @@ class WebTopNav extends StatelessWidget {
                   ),
                 );
                 }),
+                _communityNavItem(context),
                 _guideNavItem(context),
               ],
             ),
@@ -290,6 +292,20 @@ class WebTopNav extends StatelessWidget {
               Icon(Icons.menu_book_outlined, size: 20, color: _light),
               SizedBox(width: 8),
               Text("Rehber", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: _text)),
+            ],
+          ),
+        ),
+      );
+
+  Widget _communityNavItem(BuildContext context) => InkWell(
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CommunityScreen())),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: const Row(
+            children: [
+              Icon(Icons.forum_outlined, size: 20, color: _light),
+              SizedBox(width: 8),
+              Text("Topluluk", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: _text)),
             ],
           ),
         ),
