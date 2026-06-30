@@ -2159,11 +2159,19 @@ class _AdminScreenState extends State<AdminScreen> {
   // ---------- topluluk moderasyonu ----------
   List<CommunityPost>? _pendingCommunityPosts;
   List<CommunityPost>? _reportedCommunityPosts;
+  List<CommunityPost>? _publishedCommunityPosts;
 
   Future<void> _reloadCommunity() async {
     final pend = await CommunitySync.instance.loadPendingPosts();
     final rep = await CommunitySync.instance.loadReportedPosts();
-    if (mounted) setState(() { _pendingCommunityPosts = pend; _reportedCommunityPosts = rep; });
+    await CommunitySync.instance.loadPosts(); // yayındakiler → globalCommunityPosts
+    if (mounted) {
+      setState(() {
+        _pendingCommunityPosts = pend;
+        _reportedCommunityPosts = rep;
+        _publishedCommunityPosts = List<CommunityPost>.from(globalCommunityPosts);
+      });
+    }
   }
 
   Widget _communityManager() {
@@ -2176,21 +2184,26 @@ class _AdminScreenState extends State<AdminScreen> {
     }
     final pending = _pendingCommunityPosts!;
     final reported = _reportedCommunityPosts ?? [];
+    final published = _publishedCommunityPosts ?? [];
     return _pane([
       Row(children: [
-        Expanded(child: _sectionHeader("Topluluk", "${pending.length} gönderi onay bekliyor • ${reported.length} şikayet")),
+        Expanded(child: _sectionHeader("Topluluk", "${pending.length} onay bekliyor • ${reported.length} şikayet • ${published.length} yayında")),
         IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadCommunity),
       ]),
       const Padding(padding: EdgeInsets.only(top: 4, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Onay Bekleyen Gönderiler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
       if (pending.isEmpty) _card(child: const Text("Onay bekleyen gönderi yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
-      ...pending.map((p) => _communityPostCard(p, pendingMode: true)),
+      ...pending.map((p) => _communityPostCard(p, mode: "pending")),
       const Padding(padding: EdgeInsets.only(top: 16, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Şikayet Edilen Gönderiler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
       if (reported.isEmpty) _card(child: const Text("Şikayet edilen gönderi yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
-      ...reported.map((p) => _communityPostCard(p, pendingMode: false)),
+      ...reported.map((p) => _communityPostCard(p, mode: "reported")),
+      const Padding(padding: EdgeInsets.only(top: 16, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Yayındaki Gönderiler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
+      if (published.isEmpty) _card(child: const Text("Yayında gönderi yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...published.map((p) => _communityPostCard(p, mode: "published")),
     ]);
   }
 
-  Widget _communityPostCard(CommunityPost p, {required bool pendingMode}) {
+  Widget _communityPostCard(CommunityPost p, {required String mode}) {
+    final pendingMode = mode == "pending";
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2199,7 +2212,8 @@ class _AdminScreenState extends State<AdminScreen> {
             const Icon(Icons.forum_outlined, size: 16, color: _primary),
             const SizedBox(width: 6),
             Expanded(child: Text(p.title, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
-            if (!pendingMode && p.reportCount > 0) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _red.withOpacity(0.12), borderRadius: BorderRadius.circular(6)), child: Text("${p.reportCount} şikayet", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _red))),
+            if (mode == "published" && p.pinned) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.push_pin, size: 14, color: _primary)),
+            if (mode == "reported" && p.reportCount > 0) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _red.withOpacity(0.12), borderRadius: BorderRadius.circular(6)), child: Text("${p.reportCount} şikayet", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _red))),
           ]),
           const SizedBox(height: 4),
           Text("${p.anonymous ? "Anonim" : "@${p.authorName}"} • ${p.category}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
@@ -2218,7 +2232,7 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
           const SizedBox(height: 8),
           Row(children: [
-            if (pendingMode)
+            if (mode == "pending") ...[
               Expanded(child: ElevatedButton.icon(
                 onPressed: () async {
                   await CommunitySync.instance.approvePost(p.id);
@@ -2228,8 +2242,9 @@ class _AdminScreenState extends State<AdminScreen> {
                 icon: const Icon(Icons.check, size: 18),
                 label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-              ))
-            else
+              )),
+              const SizedBox(width: 10),
+            ] else if (mode == "reported") ...[
               Expanded(child: OutlinedButton.icon(
                 onPressed: () async {
                   await CommunitySync.instance.setHidden(p.id, true);
@@ -2240,8 +2255,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 label: const Text("Gizle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
                 style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               )),
-            const SizedBox(width: 10),
-            if (!pendingMode) ...[
+              const SizedBox(width: 10),
               Expanded(child: OutlinedButton.icon(
                 onPressed: () async {
                   await CommunitySync.instance.setHidden(p.id, false);
@@ -2253,11 +2267,23 @@ class _AdminScreenState extends State<AdminScreen> {
                 style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF10B981), side: const BorderSide(color: Color(0xFF10B981)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
               )),
               const SizedBox(width: 10),
+            ] else ...[
+              Expanded(child: OutlinedButton.icon(
+                onPressed: () async {
+                  await CommunitySync.instance.setPinned(p.id, !p.pinned);
+                  await _reloadCommunity();
+                  _toast(p.pinned ? "Sabit kaldırıldı" : "Gönderi sabitlendi");
+                },
+                icon: Icon(p.pinned ? Icons.push_pin : Icons.push_pin_outlined, size: 18),
+                label: Text(p.pinned ? "Sabiti Kaldır" : "Sabitle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              )),
+              const SizedBox(width: 10),
             ],
             Expanded(child: OutlinedButton.icon(
               onPressed: () async {
                 await CommunitySync.instance.deletePost(p.id);
-                if (mounted) setState(() { _pendingCommunityPosts?.remove(p); _reportedCommunityPosts?.remove(p); });
+                if (mounted) setState(() { _pendingCommunityPosts?.remove(p); _reportedCommunityPosts?.remove(p); _publishedCommunityPosts?.remove(p); });
                 _toast(pendingMode ? "Gönderi reddedildi" : "Gönderi silindi");
               },
               icon: const Icon(Icons.delete_outline, size: 18),
