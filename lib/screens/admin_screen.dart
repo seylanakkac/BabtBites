@@ -2207,6 +2207,16 @@ class _AdminScreenState extends State<AdminScreen> {
           if (isPhotoUrl(p.imageUrl)) ...[const SizedBox(height: 8), ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 120, width: double.infinity, child: photoOrFallback(p.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)))],
           if (p.hasPoll) ...[const SizedBox(height: 6), Text("📊 Anket: ${p.pollOptions.join(" / ")}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))],
           const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _communityPostDialog(p, pendingMode: pendingMode),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text("İncele / Düzenle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+              style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            ),
+          ),
+          const SizedBox(height: 8),
           Row(children: [
             if (pendingMode)
               Expanded(child: ElevatedButton.icon(
@@ -2258,6 +2268,80 @@ class _AdminScreenState extends State<AdminScreen> {
         ],
       ),
     );
+  }
+
+  /// Topluluk gönderisini incele/düzenle (tarif onayındaki gibi). pendingMode ise
+  /// kaydet düğmesi 'Onayla ve Yayınla' olur.
+  void _communityPostDialog(CommunityPost p, {required bool pendingMode}) {
+    final titleC = TextEditingController(text: p.title);
+    final bodyC = TextEditingController(text: p.body);
+    String cat = communityCategoryOptions.contains(p.category) ? p.category : communityCategoryOptions.first;
+    String image = p.imageUrl;
+    bool anonymous = p.anonymous;
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(pendingMode ? "Gönderiyi İncele / Onayla" : "Gönderiyi Düzenle", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 420,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(alignment: Alignment.centerLeft, child: Text("@${p.authorName}${p.anonymous ? " (anonim)" : ""} • ${communityTimeAgo(p.createdMs)}", style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))),
+                  const SizedBox(height: 10),
+                  PhotoPickerField(value: image, label: "Fotoğraf", height: 130, onChanged: (v) => setD(() => image = v ?? "")),
+                  const SizedBox(height: 12),
+                  _field(titleC, "Başlık"),
+                  _dropdown("Kategori", cat, communityCategoryOptions, (v) => setD(() => cat = v)),
+                  _field(bodyC, "Metin", maxLines: 6),
+                  if (p.hasPoll)
+                    Padding(padding: const EdgeInsets.only(top: 8), child: Align(alignment: Alignment.centerLeft, child: Text("📊 Anket: ${p.pollOptions.join(" / ")}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)))),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Anonim göster", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
+                    value: anonymous,
+                    activeColor: _primary,
+                    onChanged: (v) => setD(() => anonymous = v),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () async {
+                final nav = Navigator.of(ctx);
+                var imgUrl = image;
+                if (isPhotoUrl(imgUrl) && imgUrl.startsWith('data:')) {
+                  imgUrl = await _runSaving(() => _uploadCatalogImage("community/${p.id}.jpg", image));
+                }
+                await CommunitySync.instance.updatePost(p.id, {
+                  'title': titleC.text.trim(),
+                  'body': bodyC.text.trim(),
+                  'category': cat,
+                  'imageUrl': imgUrl,
+                  'anonymous': anonymous,
+                  if (pendingMode) 'approved': true,
+                });
+                nav.pop();
+                await _reloadCommunity();
+                _toast(pendingMode ? "Gönderi onaylandı ve yayınlandı" : "Gönderi güncellendi");
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: pendingMode ? const Color(0xFF10B981) : _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: Text(pendingMode ? "Onayla ve Yayınla" : "Kaydet", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      titleC.dispose();
+      bodyC.dispose();
+    });
   }
 
   // ---------- expert verification approval ----------

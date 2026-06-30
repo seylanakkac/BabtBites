@@ -121,6 +121,17 @@ class CommunitySync {
     }
   }
 
+  /// Admin: gönderi alanlarını günceller (incele/düzenle). [fields] yalnız
+  /// değiştirilen alanları içerir (title/body/category/imageUrl/anonymous,
+  /// istenirse approved).
+  Future<void> updatePost(String id, Map<String, dynamic> fields) async {
+    try {
+      await _posts.doc(id).update(fields);
+    } catch (e) {
+      debugPrint('CommunitySync.updatePost failed: $e');
+    }
+  }
+
   Future<void> deletePost(String id) async {
     try {
       await _posts.doc(id).delete();
