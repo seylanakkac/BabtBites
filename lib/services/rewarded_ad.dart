@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+import '../widgets/mobile_ads.dart';
 
 /// Rewarded ad service.
 ///
@@ -25,7 +28,14 @@ class RewardedAdService {
   static final RewardedAdService instance = RewardedAdService._();
 
   /// Shows a rewarded ad and resolves true if the reward was earned.
+  /// Mobilde gerçek AdMob ödüllü reklamı; web'de ya da reklam yüklenemezse
+  /// yer-tutucu (geri sayım) ile ödül verilir.
   Future<bool> show(BuildContext context) async {
+    if (!kIsWeb) {
+      final r = await showRewardedMobile();
+      if (r != null) return r; // gerçek reklam gösterildi
+    }
+    if (!context.mounted) return false;
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,

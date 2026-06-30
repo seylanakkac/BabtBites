@@ -20,10 +20,13 @@ import 'screens/admin_screen.dart';
 import 'screens/recipe_detail_screen.dart';
 import 'data/food_database.dart';
 import 'widgets/mobile_web_frame.dart';
+import 'widgets/mobile_ads.dart';
 import 'services/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // AdMob (mobil reklamlar) — web'de no-op. Hata uygulamayı bloklamaz.
+  initMobileAds();
   // Connect to Firebase (account + cloud sync backend). Wrapped so a transient
   // init failure never blocks app startup — local storage still works offline.
   bool firebaseReady = false;

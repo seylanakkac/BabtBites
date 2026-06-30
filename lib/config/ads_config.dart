@@ -18,3 +18,12 @@ const String kAdsenseSideSlot = ""; // dikey skyscraper reklam birimi data-ad-sl
 
 /// AdSense kimliği girilmiş mi?
 bool get adsConfigured => kAdsenseClient.isNotEmpty;
+
+// ---- AdMob (MOBİL uygulama reklamları) ----
+// Uygulama Kimliği (App ID) AndroidManifest.xml'de meta-data olarak bulunur:
+//   ca-app-pub-4036323836264136~2084738864
+const String kAdmobBannerUnit = "ca-app-pub-4036323836264136/1485973064";
+const String kAdmobRewardedUnit = "ca-app-pub-4036323836264136/6923534942";
+
+/// AdMob banner birimi girilmiş mi?
+bool get admobConfigured => kAdmobBannerUnit.isNotEmpty;
