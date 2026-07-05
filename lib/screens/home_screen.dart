@@ -4798,7 +4798,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheet) => Padding(
-          padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: (MediaQuery.of(sheetCtx).viewInsets.bottom > 0 ? MediaQuery.of(sheetCtx).viewInsets.bottom : MediaQuery.of(sheetCtx).padding.bottom) + 16),
           child: SizedBox(
             height: MediaQuery.of(sheetCtx).size.height * 0.86,
             child: Column(

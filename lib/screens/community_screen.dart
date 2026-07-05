@@ -243,7 +243,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (sheetCtx) => StatefulBuilder(
         builder: (sheetCtx, setSheet) => Padding(
-          padding: EdgeInsets.only(left: 18, right: 18, top: 14, bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 16),
+          padding: EdgeInsets.only(left: 18, right: 18, top: 14, bottom: (MediaQuery.of(sheetCtx).viewInsets.bottom > 0 ? MediaQuery.of(sheetCtx).viewInsets.bottom : MediaQuery.of(sheetCtx).padding.bottom) + 16),
           child: SizedBox(
             height: MediaQuery.of(sheetCtx).size.height * 0.84,
             child: Column(

@@ -29,7 +29,7 @@ class LegalScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator(color: Color(0xFFFF7A45)));
           }
           return ListView(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            padding: EdgeInsets.fromLTRB(24, 8, 24, 32 + MediaQuery.of(context).padding.bottom),
             children: _render(snap.data!),
           );
         },

@@ -56,7 +56,7 @@ class _MilestonesScreenState extends State<MilestonesScreen> {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).padding.bottom),
         children: [
           Text("${widget.ageMonths} aylık • ${done.length}/${kMilestones.length} tamamlandı", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
           const SizedBox(height: 14),

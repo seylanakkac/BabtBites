@@ -1052,7 +1052,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
             ];
 
             return Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + MediaQuery.of(context).padding.bottom),
               decoration: const BoxDecoration(
                 color: Color(0xFFFAF9F6),
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
