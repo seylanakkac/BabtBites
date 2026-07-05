@@ -198,7 +198,7 @@ class WebTopNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const labels = ["Ana Sayfa", "Gıdalar", "Takvim", "Sepet", "Profil"];
+    const labels = ["Ana Sayfa", "Tarifler", "Takvim", "Sepet", "Profil"];
     const iconsOut = [Icons.home_outlined, Icons.restaurant_outlined, Icons.calendar_today_outlined, Icons.shopping_cart_outlined, Icons.person_outline];
     const iconsIn = [Icons.home, Icons.restaurant, Icons.calendar_today, Icons.shopping_cart, Icons.person];
     return Column(

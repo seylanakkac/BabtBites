@@ -457,7 +457,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         unselectedLabelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 11),
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: "Ana Sayfa"),
-          const BottomNavigationBarItem(icon: Icon(Icons.restaurant_outlined), activeIcon: Icon(Icons.restaurant), label: "Gıdalar"),
+          const BottomNavigationBarItem(icon: Icon(Icons.restaurant_outlined), activeIcon: Icon(Icons.restaurant), label: "Tarifler"),
           const BottomNavigationBarItem(icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: "Takvim"),
           BottomNavigationBarItem(
             icon: _cartIcon(false),
@@ -2341,8 +2341,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   const Icon(Icons.verified_outlined, size: 18, color: _green),
                   const SizedBox(width: 10),
-                  const Expanded(child: Text("Sadece denediğim gıdaları içerenler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
-                  Switch(value: _onlyTriedRecipes, activeColor: _green, onChanged: (v) => setState(() => _onlyTriedRecipes = v)),
+                  const Expanded(child: Text("Sadece denediğim gıdaları içerenler", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyTriedRecipes, activeColor: _green, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (v) => setState(() => _onlyTriedRecipes = v)),
                 ],
               ),
             ),
@@ -2357,8 +2357,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   const Icon(Icons.verified, size: 18, color: Color(0xFF2BB673)),
                   const SizedBox(width: 10),
-                  const Expanded(child: Text("Sadece uzman içerikleri (doktor, diyetisyen…)", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
-                  Switch(value: _onlyExpertRecipes, activeColor: const Color(0xFF2BB673), onChanged: (v) => setState(() => _onlyExpertRecipes = v)),
+                  const Expanded(child: Text("Sadece uzman içerikleri (doktor, diyetisyen…)", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyExpertRecipes, activeColor: const Color(0xFF2BB673), materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (v) => setState(() => _onlyExpertRecipes = v)),
                 ],
               ),
             ),
@@ -2374,8 +2374,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   const Icon(Icons.people_alt_outlined, size: 18, color: _primary),
                   const SizedBox(width: 10),
-                  const Expanded(child: Text("Sadece kullanıcıların eklediği tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
-                  Switch(value: _onlyUserRecipes, activeColor: _primary, onChanged: (v) => setState(() { _onlyUserRecipes = v; if (!v) _selectedRecipeUser = null; })),
+                  const Expanded(child: Text("Sadece kullanıcıların eklediği tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyUserRecipes, activeColor: _primary, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (v) => setState(() { _onlyUserRecipes = v; if (!v) _selectedRecipeUser = null; })),
                 ],
               ),
             ),
@@ -2449,29 +2449,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(24, 0, 24, 6),
-            child: Align(alignment: Alignment.centerLeft, child: Text("Kategoriler", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
-          ),
-          SizedBox(
-            height: 38,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              children: ["Tümü", ...recipeCategoryOptions].map((cat) {
-                final sel = _selectedRecipeCategory == cat;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedRecipeCategory = cat),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(color: sel ? _green : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6).withOpacity(0.8))),
-                      child: Center(child: Text(cat, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: sel ? FontWeight.bold : FontWeight.w500, color: sel ? Colors.white : _text))),
-                    ),
-                  ),
-                );
-              }).toList(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: ["Tümü", ...recipeCategoryOptions].contains(_selectedRecipeCategory) ? _selectedRecipeCategory : "Tümü",
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down, color: _light),
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text),
+                  items: ["Tümü", ...recipeCategoryOptions].map((c) => DropdownMenuItem(value: c, child: Text(c == "Tümü" ? "Tüm kategoriler" : c))).toList(),
+                  onChanged: (v) => setState(() => _selectedRecipeCategory = v ?? "Tümü"),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -3120,8 +3112,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final amount = (f["amount"] ?? "").toString().trim();
     final unit = (f["unit"] ?? "").toString().trim();
     final time = (f["time"] ?? "").toString().trim();
+    final breast = (f["breast"] ?? "").toString().trim();
+    final duration = (f["duration"] ?? "").toString().trim();
     final parts = <String>[];
-    if (amount.isNotEmpty) parts.add("$amount $unit".trim());
+    if (isFormula) {
+      if (amount.isNotEmpty) parts.add("$amount $unit".trim());
+    } else {
+      const breastLabels = {"sol": "Sol meme", "sag": "Sağ meme", "iki": "İki meme"};
+      if (breast.isNotEmpty) parts.add(breastLabels[breast] ?? "");
+      if (duration.isNotEmpty) parts.add("$duration dk");
+    }
     if (time.isNotEmpty) parts.add(time);
     final sub = parts.join(" • ");
     final color = isFormula ? const Color(0xFF7A5CFF) : const Color(0xFFEC4899);
@@ -3155,6 +3155,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     String? selectedFormula = allFormulas.isNotEmpty ? allFormulas.first : null;
     final customCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
+    final durationCtrl = TextEditingController(); // emzirme süresi (dk)
+    String breast = "sol"; // sol | sag | iki
     final units = feedingUnitOptions.isNotEmpty ? feedingUnitOptions : ["ml"];
     String unit = units.first;
 
@@ -3175,6 +3177,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(color: sel ? _primary : const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+            child: Center(child: Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: sel ? Colors.white : _light))),
+          ),
+        ),
+      );
+    }
+
+    Widget breastChip(String label, String value, StateSetter setD) {
+      final sel = breast == value;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setD(() => breast = value),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(color: sel ? const Color(0xFFEC4899) : const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
             child: Center(child: Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: sel ? Colors.white : _light))),
           ),
         ),
@@ -3231,15 +3247,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ],
                     const SizedBox(height: 14),
-                    const Text("Miktar", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Expanded(child: TextField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 120"))),
-                        const SizedBox(width: 10),
-                        Expanded(child: dropdownBox(unit, units, (v) => setD(() => unit = v))),
-                      ],
-                    ),
+                    if (type == "emzirme") ...[
+                      const Text("Meme", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                      const SizedBox(height: 6),
+                      Row(children: [breastChip("Sol", "sol", setD), const SizedBox(width: 8), breastChip("Sağ", "sag", setD), const SizedBox(width: 8), breastChip("İkisi", "iki", setD)]),
+                      const SizedBox(height: 12),
+                      const Text("Süre (dk) — isteğe bağlı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                      const SizedBox(height: 6),
+                      TextField(controller: durationCtrl, keyboardType: TextInputType.number, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 15")),
+                    ] else ...[
+                      const Text("Miktar", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Expanded(child: TextField(controller: amountCtrl, keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 120"))),
+                          const SizedBox(width: 10),
+                          Expanded(child: dropdownBox(unit, units, (v) => setD(() => unit = v))),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -3264,8 +3290,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   setState(() => feeds.add({
                         "type": type,
                         "formula": formula,
-                        "amount": amountCtrl.text.trim(),
-                        "unit": unit,
+                        "amount": type == "emzirme" ? "" : amountCtrl.text.trim(),
+                        "unit": type == "emzirme" ? "" : unit,
+                        "breast": type == "emzirme" ? breast : "",
+                        "duration": type == "emzirme" ? durationCtrl.text.trim() : "",
                         "time": time,
                       }));
                   _persist();
@@ -3281,6 +3309,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ).then((_) {
       customCtrl.dispose();
       amountCtrl.dispose();
+      durationCtrl.dispose();
     });
   }
 
@@ -3423,7 +3452,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 18),
-        _sectionTitle("Bez Takibi 🧷"),
+        _sectionTitle("Günlük Takip 📋"),
         const SizedBox(height: 10),
         trackerCard(
           emoji: "💧", label: "Çiş Takibi", color: cisColor, count: cisList.length,
@@ -4857,7 +4886,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           const Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
                           const Spacer(),
                           TextButton.icon(
-                            onPressed: () => setSheet(() => ingredients.add({"name": "", "qty": "", "unit": defaultUnit})),
+                            onPressed: () => setSheet(() => ingredients.insert(0, {"name": "", "qty": "", "unit": defaultUnit})),
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text("Ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
                           ),
@@ -4867,8 +4896,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         final i = e.key;
                         final row = e.value;
                         return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(10),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6))),
                           child: Column(
                             children: [
@@ -4878,12 +4907,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     child: GestureDetector(
                                       onTap: () => _pickFoodForRecipe((name) => setSheet(() => row["name"] = name)),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
                                         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE2E2E6))),
                                         child: Row(
                                           children: [
-                                            Icon(Icons.search, size: 16, color: row["name"]!.isEmpty ? _light : _primary),
-                                            const SizedBox(width: 8),
+                                            Icon(Icons.search, size: 15, color: row["name"]!.isEmpty ? _light : _primary),
+                                            const SizedBox(width: 6),
                                             Expanded(child: Text(row["name"]!.isEmpty ? "Gıda seç" : row["name"]!, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: row["name"]!.isEmpty ? _light : _text))),
                                           ],
                                         ),
@@ -4891,10 +4920,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                     ),
                                   ),
                                   if (ingredients.length > 1)
-                                    IconButton(icon: const Icon(Icons.remove_circle_outline, color: _danger, size: 20), onPressed: () => setSheet(() => ingredients.removeAt(i))),
+                                    IconButton(icon: const Icon(Icons.remove_circle_outline, color: _danger, size: 20), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () => setSheet(() => ingredients.removeAt(i))),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                               Row(
                                 children: [
                                   Expanded(
