@@ -12,6 +12,8 @@ on:
       - "android/**"
       - "pubspec.yaml"
       - "lib/**"
+      - "legal/**"
+      - "assets/**"
       - ".github/workflows/android-build.yml"
 
 jobs:
