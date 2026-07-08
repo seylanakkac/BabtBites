@@ -108,4 +108,3 @@ Uygulama'yı Apple App Store veya Google Play üzerinden edindiyseniz, ilgili ma
 
 - **Geliştirici:** Seylan Akkaç
 - **E-posta:** seylanakkac@gmail.com
-- **Adres:** Mithatpaşa Mah. 199. Sok. No:7 Konak/İzmir

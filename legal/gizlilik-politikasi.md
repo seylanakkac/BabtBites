@@ -136,4 +136,3 @@ Sorularınız ve veri talepleriniz için:
 
 - **Veri Sorumlusu:** Seylan Akkaç
 - **E-posta:** seylanakkac@gmail.com
-- **Adres:** Mithatpaşa Mah. 199. Sok. No:7 Konak/İzmir
