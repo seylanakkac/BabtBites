@@ -2002,10 +2002,12 @@ class _AdminScreenState extends State<AdminScreen> {
 
   // ---------- comment moderation ----------
   List<Map<String, dynamic>>? _pendingComments;
+  List<Map<String, dynamic>>? _reportedComments;
 
   Future<void> _reloadPendingComments() async {
     final list = await SocialSync.instance.loadPendingComments();
-    if (mounted) setState(() => _pendingComments = list);
+    final rep = await SocialSync.instance.loadReportedComments();
+    if (mounted) setState(() { _pendingComments = list; _reportedComments = rep; });
   }
 
   Widget _commentsManager() {
@@ -2021,6 +2023,7 @@ class _AdminScreenState extends State<AdminScreen> {
     }
 
     final pending = _pendingComments!;
+    final reported = _reportedComments ?? [];
     String recipeName(String rid) {
       final m = globalRecipesDatabase.where((r) => r.id == rid).toList();
       return m.isNotEmpty ? m.first.name : "Tarif";
@@ -2028,9 +2031,53 @@ class _AdminScreenState extends State<AdminScreen> {
 
     return _pane([
       Row(children: [
-        Expanded(child: _sectionHeader("Yorum Onayı", "${pending.length} yorum onay bekliyor")),
+        Expanded(child: _sectionHeader("Yorum Onayı", "${pending.length} onay bekliyor • ${reported.length} şikayet")),
         IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadPendingComments),
       ]),
+      if (reported.isNotEmpty) ...[
+        const Padding(padding: EdgeInsets.only(bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Şikayet Edilen Yorumlar", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _red)))),
+        ...reported.map((c) {
+          final id = c["id"]?.toString() ?? "";
+          return _card(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.flag, size: 15, color: _red),
+                  const SizedBox(width: 6),
+                  Expanded(child: Text("${recipeName(c["recipeId"]?.toString() ?? "")}  •  ${c["name"]?.toString() ?? "Kullanıcı"}", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text))),
+                ]),
+                if ((c["text"]?.toString() ?? "").isNotEmpty) ...[const SizedBox(height: 6), Text(c["text"].toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text, height: 1.4))],
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await SocialSync.instance.clearCommentReport(id);
+                      if (mounted) setState(() => _reportedComments!.remove(c));
+                      _toast("Şikayet temizlendi");
+                    },
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text("Sorun yok", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF10B981), side: const BorderSide(color: Color(0xFF10B981)), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  )),
+                  const SizedBox(width: 10),
+                  Expanded(child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await SocialSync.instance.rejectComment(id);
+                      if (mounted) setState(() => _reportedComments!.remove(c));
+                      _toast("Yorum silindi");
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text("Sil", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: _red, side: const BorderSide(color: _red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  )),
+                ]),
+              ],
+            ),
+          );
+        }),
+        const Padding(padding: EdgeInsets.only(top: 8, bottom: 8), child: Align(alignment: Alignment.centerLeft, child: Text("Onay Bekleyen Yorumlar", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)))),
+      ],
       if (pending.isEmpty)
         _card(child: const Text("Onay bekleyen yorum yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
       ...pending.map((c) {

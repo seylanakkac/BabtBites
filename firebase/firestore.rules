@@ -46,8 +46,15 @@ service cloud.firestore {
         // Boyut sınırı: dev base64/metin ile Firestore'u zehirlemeyi önler.
         && (!('text' in request.resource.data) || request.resource.data.text.size() < 2000)
         && (!('photo' in request.resource.data) || request.resource.data.photo.size() < 2000);
-      allow update, delete: if isAdmin()
+      allow delete: if isAdmin()
         || (request.auth != null && resource.data.uid == request.auth.uid);
+      // Güncelleme: admin / yorum sahibi; VEYA giriş yapmış herhangi biri
+      // yalnızca 'reported' alanını true yapabilir (başkasının yorumunu şikayet).
+      allow update: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid)
+        || (request.auth != null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reported'])
+            && request.resource.data.reported == true);
     }
 
     // Kullanıcı tarifleri (admin onay kuyruğu): admin tümünü okur; kullanıcı

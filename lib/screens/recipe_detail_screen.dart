@@ -1413,7 +1413,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     final comments = commentsFor(recipe.id);
     final myUid = FirebaseAuth.instance.currentUser?.uid;
     // Public list: approved comments + the user's own (still pending) ones.
-    final visible = comments.where((c) => c["approved"] == true || (myUid != null && c["uid"] == myUid)).toList();
+    final visible = comments.where((c) => (c["approved"] == true || (myUid != null && c["uid"] == myUid)) && !isBlockedUser(c["name"]?.toString() ?? "")).toList();
 
     String fmtDate(String iso) {
       final p = iso.split('-');
@@ -1506,6 +1506,30 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ],
                         const Spacer(),
                         Text(fmtDate(c["date"]?.toString() ?? ""), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: lightTextColor)),
+                        if (myUid == null || c["uid"] != myUid)
+                          PopupMenuButton<String>(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(Icons.more_vert, size: 18, color: lightTextColor),
+                            onSelected: (v) async {
+                              final name = c["name"]?.toString() ?? "";
+                              final id = c["id"]?.toString() ?? "";
+                              final messenger = ScaffoldMessenger.of(context);
+                              if (v == 'report') {
+                                if (requireLogin(context)) return;
+                                if (id.isNotEmpty) await SocialSync.instance.reportComment(id);
+                                messenger.showSnackBar(const SnackBar(content: Text("Yorum şikayet edildi. Teşekkürler.")));
+                              } else if (v == 'block' && name.isNotEmpty) {
+                                globalBlockedUsers.add(name.trim().toLowerCase());
+                                await StorageService.instance.saveMyProfile();
+                                if (mounted) setState(() {});
+                                messenger.showSnackBar(SnackBar(content: Text("$name engellendi.")));
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'report', child: Text("Şikayet Et", style: TextStyle(fontFamily: 'Inter', fontSize: 13))),
+                              PopupMenuItem(value: 'block', child: Text("Kullanıcıyı Engelle", style: TextStyle(fontFamily: 'Inter', fontSize: 13))),
+                            ],
+                          ),
                       ],
                     ),
                     if ((c["text"]?.toString() ?? "").isNotEmpty) ...[

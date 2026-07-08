@@ -136,6 +136,15 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
     }
   }
 
+  Future<void> _blockAuthor(String name) async {
+    if (name.trim().isEmpty) return;
+    globalBlockedUsers.add(name.trim().toLowerCase());
+    await StorageService.instance.saveMyProfile();
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("@$name engellendi. İçerikleri gizlendi.")));
+  }
+
   Future<void> _deletePost() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -201,6 +210,8 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
             const SizedBox(width: 18),
             _actionBtn(Icons.chat_bubble_outline, "${_replies.length}", _light, null),
             const Spacer(),
+            if (!p.anonymous && _uid != p.authorUid)
+              IconButton(tooltip: "Kullanıcıyı engelle", icon: const Icon(Icons.person_off_outlined, size: 20, color: _light), onPressed: () => _blockAuthor(p.authorName)),
             IconButton(tooltip: "Şikayet et", icon: const Icon(Icons.flag_outlined, size: 20, color: _light), onPressed: _report),
             if (globalIsAdmin) IconButton(tooltip: "Sil", icon: const Icon(Icons.delete_outline, size: 20, color: _danger), onPressed: _deletePost),
           ],
@@ -213,7 +224,7 @@ class _CommunityPostScreenState extends State<CommunityPostScreen> {
         else if (_replies.isEmpty)
           const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Text("Henüz yanıt yok. İlk yanıtı sen yaz!", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)))
         else
-          ..._replies.map(_replyTile),
+          ..._replies.where((r) => r.anonymous || !isBlockedUser(r.authorName)).map(_replyTile),
       ],
     );
 

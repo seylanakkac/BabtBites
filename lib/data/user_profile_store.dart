@@ -64,6 +64,13 @@ final Set<String> globalMyFollowing = {};
 bool isFollowing(String username) =>
     globalMyFollowing.contains(username.trim().toLowerCase());
 
+/// Engellenen @kullanıcı adları (küçük harf). İçerikleri (topluluk/yorum)
+/// yerel olarak gizlenir.
+final Set<String> globalBlockedUsers = {};
+
+bool isBlockedUser(String username) =>
+    globalBlockedUsers.contains(username.trim().toLowerCase());
+
 /// Talep edilebilecek uzman türleri.
 const List<String> kExpertTypes = [
   "Doktor",

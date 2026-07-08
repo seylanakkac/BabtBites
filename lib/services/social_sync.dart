@@ -176,6 +176,39 @@ class SocialSync {
     }
   }
 
+  /// Kullanıcı bir yorumu şikayet eder → admin moderasyonuna işaretlenir.
+  Future<void> reportComment(String id) async {
+    try {
+      await _comments.doc(id).update({'reported': true});
+    } catch (e) {
+      debugPrint('SocialSync.reportComment failed: $e');
+    }
+  }
+
+  /// Şikayeti temizle (yorum yayında kalsın).
+  Future<void> clearCommentReport(String id) async {
+    try {
+      await _comments.doc(id).update({'reported': false});
+    } catch (e) {
+      debugPrint('SocialSync.clearCommentReport failed: $e');
+    }
+  }
+
+  /// Şikayet edilmiş yorumlar (admin). Her biri 'id' taşır.
+  Future<List<Map<String, dynamic>>> loadReportedComments() async {
+    try {
+      final snap = await _comments.where('reported', isEqualTo: true).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadReportedComments failed: $e');
+      return [];
+    }
+  }
+
   Future<void> rejectComment(String id) async {
     try {
       await _comments.doc(id).delete();

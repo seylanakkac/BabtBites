@@ -8,6 +8,7 @@ import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
 import '../services/analytics.dart';
 import '../services/auth_gate.dart';
+import '../services/account_service.dart';
 import '../services/push_notifications.dart';
 import '../config/push_config.dart';
 import '../services/file_storage.dart';
@@ -4463,6 +4464,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
+        if (globalBlockedUsers.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Text("Engellenen Kullanıcılar", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 8),
+          ...globalBlockedUsers.toList().map((u) => Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.7))),
+                child: Row(children: [
+                  const Icon(Icons.person_off_outlined, size: 18, color: _light),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text("@$u", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text))),
+                  TextButton(
+                    onPressed: () async {
+                      globalBlockedUsers.remove(u);
+                      await StorageService.instance.saveMyProfile();
+                      if (mounted) setState(() {});
+                    },
+                    child: const Text("Engeli Kaldır", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                  ),
+                ]),
+              )),
+        ],
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
@@ -4473,9 +4497,86 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             style: OutlinedButton.styleFrom(foregroundColor: _danger, side: const BorderSide(color: _danger), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
         ),
+        const SizedBox(height: 10),
+        Center(
+          child: TextButton(
+            onPressed: _deleteAccountFlow,
+            child: const Text("Hesabımı Kalıcı Olarak Sil", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light, decoration: TextDecoration.underline)),
+          ),
+        ),
         const SizedBox(height: 8),
       ],
     );
+  }
+
+  /// Hesap silme akışı (Play zorunluluğu): onay → sil → gerekirse yeniden
+  /// kimlik doğrula → tekrar sil → misafir ana sayfaya dön.
+  Future<void> _deleteAccountFlow() async {
+    if (requireLogin(context)) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Hesabını Sil", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: const Text(
+          "Hesabın ve buluttaki verilerin (profil, senkronize kayıtlar) KALICI olarak silinecek. Bu işlem geri alınamaz.\n\nDevam etmek istiyor musun?",
+          style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: Color(0xFF5A5A6A), height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _danger, foregroundColor: Colors.white, elevation: 0),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text("Hesabımı Sil", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    var res = await AccountService.deleteAccount();
+    if (res == AccountDeleteResult.reauthRequired && mounted) {
+      final reauthed = await _reauthForDelete();
+      if (reauthed) res = await AccountService.deleteAccount();
+    }
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
+    if (res == AccountDeleteResult.success) {
+      messenger.showSnackBar(const SnackBar(content: Text("Hesabın silindi. 👋")));
+      nav.pushNamedAndRemoveUntil('/home', (r) => false);
+    } else {
+      messenger.showSnackBar(const SnackBar(content: Text("Hesap silinemedi. Lütfen çıkış yapıp tekrar giriş yaptıktan sonra dene.")));
+    }
+  }
+
+  /// Silme için yeniden kimlik doğrulama (Google otomatik; e-posta şifre ister).
+  Future<bool> _reauthForDelete() async {
+    if (AccountService.providerId == 'google.com') {
+      return AccountService.reauthWithGoogle();
+    }
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Güvenlik Doğrulaması", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Hesabı silmek için şifreni gir.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+            const SizedBox(height: 12),
+            TextField(controller: ctrl, obscureText: true, decoration: InputDecoration(labelText: "Şifre", isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+          ElevatedButton(onPressed: () => Navigator.pop(c, true), style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white), child: const Text("Doğrula")),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    return AccountService.reauthWithPassword(ctrl.text);
   }
 
   // ---- Social profile (public @username + linked accounts) ----

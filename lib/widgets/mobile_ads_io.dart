@@ -7,6 +7,13 @@ import '../config/ads_config.dart';
 /// AdMob SDK'sını başlatır (uygulama açılışında, mobilde).
 Future<void> initMobileAds() async {
   try {
+    // Uygulama EBEVEYNLER (yetişkinler) içindir, çocuklara yönelik değildir.
+    await MobileAds.instance.updateRequestConfiguration(
+      RequestConfiguration(
+        tagForChildDirectedTreatment: TagForChildDirectedTreatment.no,
+        maxAdContentRating: MaxAdContentRating.g,
+      ),
+    );
     await MobileAds.instance.initialize();
   } catch (_) {}
 }

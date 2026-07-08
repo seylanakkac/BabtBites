@@ -41,6 +41,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
   List<CommunityPost> get _filtered {
     return globalCommunityPosts.where((p) {
+      if (!p.anonymous && isBlockedUser(p.authorName)) return false; // engellenen yazar
       if (_category != "Tümü" && p.category != _category) return false;
       if (_query.isNotEmpty && !("${p.title} ${p.body}".toLowerCase().contains(_query))) return false;
       return true;

@@ -94,7 +94,7 @@ Geliştirici, bu Koşulları ve Uygulama'nın özelliklerini zaman zaman güncel
 
 ## 12. Uygulanacak Hukuk ve Yetki
 
-Bu Koşullar **Türkiye Cumhuriyeti** kanunlarına tabidir. Doğabilecek uyuşmazlıklarda **[şehir]** mahkemeleri ve icra daireleri yetkilidir. (Tüketici mevzuatından doğan haklarınız saklıdır.)
+Bu Koşullar **Türkiye Cumhuriyeti** kanunlarına tabidir. Doğabilecek uyuşmazlıklarda **İzmir** mahkemeleri ve icra daireleri yetkilidir. (Tüketici mevzuatından doğan haklarınız saklıdır.)
 
 ---
 
@@ -109,7 +109,3 @@ Uygulama'yı Apple App Store veya Google Play üzerinden edindiyseniz, ilgili ma
 - **Geliştirici:** Seylan Akkaç
 - **E-posta:** seylanakkac@gmail.com
 - **Adres:** Mithatpaşa Mah. 199. Sok. No:7 Konak/İzmir
-
----
-
-*Bu metin bir taslak/şablondur. Hukuki kesinlik için yayımlamadan önce bir avukata/uzmana inceletmeniz önerilir.*

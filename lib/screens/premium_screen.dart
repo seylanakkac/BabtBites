@@ -95,7 +95,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
         centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
+        padding: EdgeInsets.fromLTRB(24, 0, 24, 28 + MediaQuery.of(context).padding.bottom),
         children: [
           Center(
             child: Column(
