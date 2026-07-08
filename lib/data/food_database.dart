@@ -138,6 +138,8 @@ class Recipe {
   final String videoUrl; // opsiyonel YouTube linki (normal veya Shorts); boş = yok
   final int servings; // kaç porsiyon (besin değeri buna bölünür); en az 1
   final String storage; // saklama koşulları (ör. "Buzdolabında 3 gün, buzlukta 1 ay")
+  /// Tarife özel ürün/işbirliği linkleri. Her biri: {"label": String, "url": String}.
+  final List<Map<String, String>> productLinks;
 
   Recipe({
     required this.id,
@@ -157,6 +159,7 @@ class Recipe {
     this.videoUrl = "",
     this.servings = 1,
     this.storage = "",
+    this.productLinks = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -177,6 +180,7 @@ class Recipe {
         "videoUrl": videoUrl,
         "servings": servings,
         "storage": storage,
+        "productLinks": productLinks,
       };
 
   factory Recipe.fromJson(Map<String, dynamic> j) => Recipe(
@@ -197,6 +201,14 @@ class Recipe {
         videoUrl: j["videoUrl"]?.toString() ?? "",
         servings: (j["servings"] as num?)?.toInt() ?? 1,
         storage: j["storage"]?.toString() ?? "",
+        productLinks: (j["productLinks"] as List?)
+                ?.map((e) => {
+                      "label": (e as Map)["label"]?.toString() ?? "",
+                      "url": e["url"]?.toString() ?? "",
+                    })
+                .where((m) => (m["url"] ?? "").isNotEmpty)
+                .toList() ??
+            const [],
       );
 }
 

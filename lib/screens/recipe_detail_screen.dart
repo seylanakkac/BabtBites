@@ -895,6 +895,51 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           const SizedBox(height: 24),
                         ],
 
+                        // Bu Tarifte Kullandıklarım (ürün / işbirliği linkleri)
+                        if (recipe.productLinks.isNotEmpty) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: primaryColor.withOpacity(0.22))),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(children: [
+                                  Icon(Icons.shopping_bag_outlined, size: 18, color: primaryColor),
+                                  SizedBox(width: 8),
+                                  Text("Bu Tarifte Kullandıklarım", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: textColor)),
+                                ]),
+                                const SizedBox(height: 4),
+                                const Text("Bu linkler işbirliği/reklam içerebilir.", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: lightTextColor)),
+                                const SizedBox(height: 10),
+                                ...recipe.productLinks.map((l) {
+                                  final label = (l["label"] ?? "").trim();
+                                  final url = (l["url"] ?? "").trim();
+                                  if (url.isEmpty) return const SizedBox.shrink();
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: InkWell(
+                                      onTap: () { final u = Uri.tryParse(url); if (u != null) _open(u); },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                        decoration: BoxDecoration(color: primaryColor.withOpacity(0.06), borderRadius: BorderRadius.circular(12), border: Border.all(color: primaryColor.withOpacity(0.25))),
+                                        child: Row(children: [
+                                          const Icon(Icons.link, size: 16, color: primaryColor),
+                                          const SizedBox(width: 10),
+                                          Expanded(child: Text(label.isNotEmpty ? label : url, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: textColor))),
+                                          const Icon(Icons.open_in_new, size: 15, color: primaryColor),
+                                        ]),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+
                         // Alerji Uyarısı Panel
                         Container(
                           padding: const EdgeInsets.all(16),

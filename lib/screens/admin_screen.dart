@@ -945,6 +945,10 @@ class _AdminScreenState extends State<AdminScreen> {
     final warn = TextEditingController(text: existing?["allergyWarning"]?.toString() ?? "");
     final video = TextEditingController(text: existing?["videoUrl"]?.toString() ?? "");
     final storage = TextEditingController(text: existing?["storage"]?.toString() ?? "");
+    final productLinks = <Map<String, String>>[
+      for (final l in ((existing?["productLinks"] as List?) ?? const []))
+        {"label": (l as Map)["label"]?.toString() ?? "", "url": l["url"]?.toString() ?? ""}
+    ];
     final sponsorLabel = TextEditingController(text: existing?["sponsorLabel"]?.toString() ?? "");
     bool sponsored = existing?["sponsored"] == true;
     String category = existing?["category"]?.toString() ?? "Diğer";
@@ -1104,6 +1108,46 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(warn, "Alerji uyarısı"),
                   _field(storage, "Saklama koşulları", hint: "ör. Buzdolabında 3 gün, buzlukta 1 ay"),
                   _field(video, "Video linki (YouTube/Shorts, opsiyonel)", hint: "https://youtube.com/... veya youtu.be/..."),
+                  const Padding(padding: EdgeInsets.only(top: 10, bottom: 2), child: Align(alignment: Alignment.centerLeft, child: Text("Ürün / İşbirliği Linkleri", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)))),
+                  const Padding(padding: EdgeInsets.only(bottom: 6), child: Align(alignment: Alignment.centerLeft, child: Text("Tarif detayında 'Bu Tarifte Kullandıklarım' altında tıklanabilir çıkar (affiliate).", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)))),
+                  ...productLinks.asMap().entries.map((e) {
+                    final i = e.key;
+                    final l = e.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextField(
+                              controller: TextEditingController(text: l["label"])..selection = TextSelection.collapsed(offset: (l["label"] ?? "").length),
+                              decoration: _dec("Etiket (ör. Kullandığım tava)"),
+                              onChanged: (v) => l["label"] = v,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            flex: 4,
+                            child: TextField(
+                              controller: TextEditingController(text: l["url"])..selection = TextSelection.collapsed(offset: (l["url"] ?? "").length),
+                              decoration: _dec("URL (https://...)"),
+                              keyboardType: TextInputType.url,
+                              onChanged: (v) => l["url"] = v,
+                            ),
+                          ),
+                          IconButton(icon: const Icon(Icons.remove_circle_outline, color: _red, size: 20), onPressed: () => setD(() => productLinks.removeAt(i))),
+                        ],
+                      ),
+                    );
+                  }),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setD(() => productLinks.add({"label": "", "url": ""})),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text("Link Ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Sponsorlu içerik", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: _text)),
@@ -1151,6 +1195,11 @@ class _AdminScreenState extends State<AdminScreen> {
                   "videoUrl": video.text.trim(),
                   "servings": int.tryParse(servings.text.trim()) ?? 1,
                   "storage": storage.text.trim(),
+                  "productLinks": [
+                    for (final l in productLinks)
+                      if ((l["url"] ?? "").trim().isNotEmpty)
+                        {"label": (l["label"] ?? "").trim(), "url": (l["url"] ?? "").trim()}
+                  ],
                 };
                 saveRecipeEdit(data);
                 // Onay kuyruğundan açıldıysa: yayına ekle + onay temizliği.
