@@ -5,16 +5,6 @@ name: Android Build (AAB)
 # için yalnızca istendiğinde çalışır.
 on:
   workflow_dispatch:
-  # GEÇİCİ: production-hazırlık AAB'si için (yeşil olunca kaldırılır).
-  push:
-    branches: [main]
-    paths:
-      - "android/**"
-      - "pubspec.yaml"
-      - "lib/**"
-      - "legal/**"
-      - "assets/**"
-      - ".github/workflows/android-build.yml"
 
 jobs:
   build:
