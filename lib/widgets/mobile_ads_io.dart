@@ -1,8 +1,15 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config/ads_config.dart';
+
+/// Platforma göre doğru banner/ödüllü reklam birimini seçer.
+String get _bannerUnit =>
+    Platform.isIOS ? kAdmobBannerUnitIOS : kAdmobBannerUnitAndroid;
+String get _rewardedUnit =>
+    Platform.isIOS ? kAdmobRewardedUnitIOS : kAdmobRewardedUnitAndroid;
 
 /// AdMob SDK'sını başlatır (uygulama açılışında, mobilde).
 Future<void> initMobileAds() async {
@@ -27,7 +34,7 @@ Future<bool?> showRewardedMobile() async {
   final completer = Completer<bool?>();
   try {
     RewardedAd.load(
-      adUnitId: kAdmobRewardedUnit,
+      adUnitId: _rewardedUnit,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
@@ -69,7 +76,7 @@ class _AdmobBannerState extends State<_AdmobBanner> {
   void initState() {
     super.initState();
     _ad = BannerAd(
-      adUnitId: kAdmobBannerUnit,
+      adUnitId: _bannerUnit,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(

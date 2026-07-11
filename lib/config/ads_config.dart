@@ -20,10 +20,16 @@ const String kAdsenseSideSlot = ""; // dikey skyscraper reklam birimi data-ad-sl
 bool get adsConfigured => kAdsenseClient.isNotEmpty;
 
 // ---- AdMob (MOBİL uygulama reklamları) ----
-// Uygulama Kimliği (App ID) AndroidManifest.xml'de meta-data olarak bulunur:
+// ANDROID: App ID AndroidManifest.xml'de meta-data olarak bulunur:
 //   ca-app-pub-4036323836264136~2084738864
-const String kAdmobBannerUnit = "ca-app-pub-4036323836264136/1485973064";
-const String kAdmobRewardedUnit = "ca-app-pub-4036323836264136/6923534942";
+const String kAdmobBannerUnitAndroid = "ca-app-pub-4036323836264136/1485973064";
+const String kAdmobRewardedUnitAndroid = "ca-app-pub-4036323836264136/6923534942";
+
+// iOS: App ID ios/Runner/Info.plist içindeki GADApplicationIdentifier'dır.
+// ⚠️ DEĞİŞTİR: Şu an Google TEST birimleri (çökmesin diye). AdMob'da iOS
+// uygulaması + reklam birimleri oluşturunca gerçek kimliklerle değiştir.
+const String kAdmobBannerUnitIOS = "ca-app-pub-3940256099942544/2934735716";
+const String kAdmobRewardedUnitIOS = "ca-app-pub-3940256099942544/1712485313";
 
 /// AdMob banner birimi girilmiş mi?
-bool get admobConfigured => kAdmobBannerUnit.isNotEmpty;
+bool get admobConfigured => kAdmobBannerUnitAndroid.isNotEmpty;

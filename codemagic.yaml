@@ -1,0 +1,87 @@
+# ============================================================================
+# BabyBites — iOS (App Store) derleme + TestFlight yükleme (Codemagic CI)
+#
+# Windows'ta Mac olmadan iOS derlemek için. Kurulum adımları için depodaki
+# talimatları / sohbeti izle. Bu dosya bir ŞABLONDUR; aşağıdaki "DEĞİŞTİR"
+# notlarını ve Codemagic'te tanımlanacak gizli değişkenleri tamamla.
+# ============================================================================
+workflows:
+  ios-release:
+    name: BabyBites iOS Release
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    integrations:
+      # Codemagic → Teams/User settings → Integrations → App Store Connect
+      # bölümünde oluşturacağın API anahtarının ADI (aşağıya onu yaz).
+      app_store_connect: BabyBites ASC Key   # DEĞİŞTİR: Codemagic'teki ASC entegrasyon adı
+
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: tr.com.babybites
+      groups:
+        - babybites_ios          # Codemagic'te bu grubu oluştur (gizli değişkenler aşağıda)
+      vars:
+        APP_STORE_APPLE_ID: 0000000000   # DEĞİŞTİR: App Store Connect'teki uygulamanın "Apple ID" numarası
+      flutter: 3.22.2
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Flutter paketleri
+        script: flutter pub get
+
+      - name: GoogleService-Info.plist yaz (gizli değişkenden)
+        script: |
+          # Codemagic'te GOOGLE_SERVICE_INFO_PLIST = GoogleService-Info.plist'in base64'ü
+          echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+          echo "GoogleService-Info.plist yazıldı ($(wc -c < ios/Runner/GoogleService-Info.plist) bayt)"
+
+      - name: REVERSED_CLIENT_ID'yi Info.plist'e işle (Google girişi)
+        script: |
+          REVERSED=$(/usr/libexec/PlistBuddy -c "Print :REVERSED_CLIENT_ID" ios/Runner/GoogleService-Info.plist)
+          echo "REVERSED_CLIENT_ID = $REVERSED"
+          # Info.plist'teki yer-tutucu URL şemasını gerçek değerle değiştir.
+          /usr/bin/sed -i '' "s#com.googleusercontent.apps.REVERSED_CLIENT_ID#$REVERSED#g" ios/Runner/Info.plist
+
+      - name: GoogleService-Info.plist'i Xcode projesine ekle
+        script: |
+          # Runner hedefine kaynak olarak eklenmemişse ekle (idempotent).
+          if ! grep -q "GoogleService-Info.plist" ios/Runner.xcodeproj/project.pbxproj; then
+            gem install xcodeproj --no-document
+            ruby - <<'RUBY'
+          require 'xcodeproj'
+          project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+          target = project.targets.find { |t| t.name == 'Runner' }
+          group = project.main_group.find_subpath('Runner', true)
+          file_ref = group.new_reference('GoogleService-Info.plist')
+          target.add_resources([file_ref])
+          project.save
+          RUBY
+          fi
+
+      - name: CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: İmza profillerini uygula
+        script: xcode-project use-profiles
+
+      - name: IPA derle
+        script: |
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true   # TestFlight'a otomatik gönder (dahili test)
+        # submit_to_app_store: false # Üretime gönderimi Apple incelemesinden sonra elle yap
