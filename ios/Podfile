@@ -28,8 +28,9 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
-  use_modular_headers!
+  # Statik bağlama: Firestore (gRPC/BoringSSL) + pigeon tabanlı eklentiler
+  # (wakelock_plus 'messages.g.h' vb.) ile uyumlu; Firebase'in önerdiği yol.
+  use_frameworks! :linkage => :static
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
