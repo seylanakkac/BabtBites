@@ -25,11 +25,10 @@ bool get adsConfigured => kAdsenseClient.isNotEmpty;
 const String kAdmobBannerUnitAndroid = "ca-app-pub-4036323836264136/1485973064";
 const String kAdmobRewardedUnitAndroid = "ca-app-pub-4036323836264136/6923534942";
 
-// iOS: App ID ios/Runner/Info.plist içindeki GADApplicationIdentifier'dır.
-// ⚠️ DEĞİŞTİR: Şu an Google TEST birimleri (çökmesin diye). AdMob'da iOS
-// uygulaması + reklam birimleri oluşturunca gerçek kimliklerle değiştir.
-const String kAdmobBannerUnitIOS = "ca-app-pub-3940256099942544/2934735716";
-const String kAdmobRewardedUnitIOS = "ca-app-pub-3940256099942544/1712485313";
+// iOS: App ID ios/Runner/Info.plist içindeki GADApplicationIdentifier'dır
+// (ca-app-pub-4036323836264136~9572997011). Aşağıdakiler gerçek iOS birimleri.
+const String kAdmobBannerUnitIOS = "ca-app-pub-4036323836264136/5608068364";
+const String kAdmobRewardedUnitIOS = "ca-app-pub-4036323836264136/8126420492";
 
 /// AdMob banner birimi girilmiş mi?
 bool get admobConfigured => kAdmobBannerUnitAndroid.isNotEmpty;

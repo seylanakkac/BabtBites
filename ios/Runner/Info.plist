@@ -60,11 +60,9 @@
 	<key>NSUserTrackingUsageDescription</key>
 	<string>İzniniz, size daha alakalı reklamlar göstermek için kullanılır. Reddetseniz de uygulamayı kullanmaya devam edebilirsiniz.</string>
 
-	<!-- ⚠️ DEĞİŞTİR: Şu an Google'ın TEST iOS App ID'si (çökmesin diye).
-	     AdMob'da iOS uygulaması oluşturunca gerçek "App ID" ile değiştir:
-	     ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY -->
+	<!-- BabyBites iOS AdMob App ID (gerçek). -->
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<string>ca-app-pub-4036323836264136~9572997011</string>
 
 	<!-- ================= GOOGLE İLE GİRİŞ ================= -->
 	<!-- ⚠️ DEĞİŞTİR: GoogleService-Info.plist içindeki REVERSED_CLIENT_ID değerini buraya yaz
