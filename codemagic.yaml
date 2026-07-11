@@ -17,9 +17,6 @@ workflows:
       app_store_connect: BabyBites ASC Key   # DEĞİŞTİR: Codemagic'teki ASC entegrasyon adı
 
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: tr.com.babybites
       groups:
         - babybites_ios          # Codemagic'te bu grubu oluştur (gizli değişkenler aşağıda)
       vars:
@@ -65,8 +62,15 @@ workflows:
         script: |
           find . -name "Podfile" -execdir pod install \;
 
-      - name: İmza profillerini uygula
-        script: xcode-project use-profiles
+      - name: Kod imzalama (sertifika + profili yoksa OLUSTUR)
+        script: |
+          keychain initialize
+          # Dağıtım sertifikası + App Store profilini getir; yoksa otomatik oluştur.
+          app-store-connect fetch-signing-files "tr.com.babybites" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: IPA derle
         script: |
