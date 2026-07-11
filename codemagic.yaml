@@ -23,7 +23,7 @@ workflows:
       groups:
         - babybites_ios          # Codemagic'te bu grubu oluştur (gizli değişkenler aşağıda)
       vars:
-        APP_STORE_APPLE_ID: 0000000000   # DEĞİŞTİR: App Store Connect'teki uygulamanın "Apple ID" numarası
+        APP_STORE_APPLE_ID: 6789892940   # App Store Connect'teki BabyBites "Apple ID" numarası
       flutter: 3.22.2
       xcode: latest
       cocoapods: default
