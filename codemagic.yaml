@@ -58,6 +58,19 @@ workflows:
           RUBY
           fi
 
+      - name: wakelock_plus messages.g.h düzelt (aynı klasöre kopyala)
+        script: |
+          set -e
+          # messages.g.h `include/wakelock_plus/` alt klasöründe ama kaynak onu
+          # `#import "messages.g.h"` diye (aynı klasör bekleyerek) çağırıyor.
+          # Header'ı .m ile aynı klasöre kopyalarsak import kesin çözümlenir.
+          M=$(find "$HOME/.pub-cache" -path "*wakelock_plus*/Sources/wakelock_plus/WakelockPlusPlugin.m" | head -1)
+          if [ -z "$M" ]; then echo "UYARI: WakelockPlusPlugin.m bulunamadı"; exit 0; fi
+          DIR=$(dirname "$M")
+          H=$(find "$DIR/include" -name "messages.g.h" | head -1)
+          echo "Kaynak header: $H  →  $DIR/messages.g.h"
+          cp "$H" "$DIR/messages.g.h"
+
       - name: CocoaPods
         script: |
           find . -name "Podfile" -execdir pod install \;
