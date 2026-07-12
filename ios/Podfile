@@ -48,12 +48,12 @@ post_install do |installer|
 
       # wakelock_plus: messages.g.h `include/wakelock_plus/` alt klasöründe ama
       # kaynak `#import "messages.g.h"` diye çağırıyor → use_frameworks! ile
-      # bulunamıyor. O alt klasörü başlık arama yoluna ekle.
+      # bulunamıyor. O klasörleri başlık arama yoluna ekle (.symlinks üzerinden
+      # kesin yol; string biçimi — topluluğun doğrulanmış çözümü).
       if target.name == 'wakelock_plus'
-        config.build_settings['HEADER_SEARCH_PATHS'] = [
-          '$(inherited)',
-          '"${PODS_TARGET_SRCROOT}/wakelock_plus/Sources/wakelock_plus/include/wakelock_plus"',
-        ]
+        base = '${PODS_ROOT}/../.symlinks/plugins/wakelock_plus/ios/wakelock_plus/Sources/wakelock_plus/include'
+        config.build_settings['HEADER_SEARCH_PATHS'] =
+          "$(inherited) \"#{base}\" \"#{base}/wakelock_plus\""
       end
     end
   end
