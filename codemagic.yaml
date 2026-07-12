@@ -62,15 +62,15 @@ workflows:
         script: |
           find . -name "Podfile" -execdir pod install \;
 
-      - name: Kod imzalama (sertifika + profili yoksa OLUSTUR)
+      - name: Kod imzalama (SABIT anahtarla; sertifikayi yeniden kullan)
         script: |
           keychain initialize
-          # Dağıtım sertifikası için yeni bir private key üret (boş hesapta gerekli).
-          openssl genrsa -out /tmp/dist_cert_key.pem 2048
-          # Sertifika + App Store profilini getir; yoksa bu key ile OLUŞTUR.
+          # SABIT private key (Codemagic gizli değişkeni CERTIFICATE_PRIVATE_KEY).
+          # Aynı anahtar → her derlemede AYNI tek dağıtım sertifikası kullanılır,
+          # böylece Apple'ın 2 sertifika limiti dolmaz.
           app-store-connect fetch-signing-files "tr.com.babybites" \
             --type IOS_APP_STORE \
-            --certificate-key @file:/tmp/dist_cert_key.pem \
+            --certificate-key @env:CERTIFICATE_PRIVATE_KEY \
             --create
           keychain add-certificates
           xcode-project use-profiles
