@@ -45,6 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Uygulama yalnızca standart HTTPS/TLS kullanır; ihraç izni gerektiren
+	     özel şifreleme yok. Bu anahtar TestFlight "Missing Compliance" adımını
+	     her derlemede elle onaylama zorunluluğunu kaldırır. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 
 	<!-- ================= İZİN METİNLERİ (Apple zorunlu) ================= -->
 	<!-- Kullanıcı fotoğraf seçtiğinde (gıda/tarif/bebek avatarı) gösterilir. -->
