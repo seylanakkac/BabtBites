@@ -1,8 +1,13 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../config/auth_config.dart';
 import '../services/cloud_sync.dart';
@@ -71,17 +76,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _socialLogin(String platform) async {
-    if (platform == "Apple") {
-      _showError("Apple ile giriş yakında (web yapılandırması gerekiyor).");
-      return;
-    }
     setState(() => _isLoading = true);
     try {
       await _applyPersistence();
-      // Web: popup; Android/iOS: native Google Sign-In (signInWithPopup mobilde yok).
-      final UserCredential? cred = kIsWeb
-          ? await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider())
-          : await _nativeGoogleSignIn();
+      // Web: popup; Android/iOS: native (signInWithPopup mobilde yok).
+      final UserCredential? cred = platform == "Apple"
+          ? await _appleSignIn()
+          : (kIsWeb
+              ? await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider())
+              : await _nativeGoogleSignIn());
       if (cred == null) return; // kullanıcı iptal etti
       final email = cred.user?.email ?? "";
       final isNew = cred.additionalUserInfo?.isNewUser ?? false;
@@ -92,7 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _applyAdmin(email);
       await CloudSync.instance.pull();
       if (!mounted) return;
-      Analytics.instance.log(isNew ? 'sign_up' : 'login', {'method': 'google'});
+      Analytics.instance
+          .log(isNew ? 'sign_up' : 'login', {'method': platform.toLowerCase()});
       _routeAfterAuth(isNew);
     } on FirebaseAuthException catch (e) {
       if (e.code == "popup-closed-by-user" ||
@@ -101,12 +105,67 @@ class _LoginScreenState extends State<LoginScreen> {
       } else if (mounted) {
         _showError(_authErrorTr(e.code));
       }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // Kullanıcı iptal ettiyse sessiz geç; diğer hatalarda bilgilendir.
+      if (e.code != AuthorizationErrorCode.canceled && mounted) {
+        _showError("Apple ile giriş yapılamadı.");
+      }
     } catch (_) {
-      if (mounted) _showError("Google ile giriş yapılamadı.");
+      if (mounted) _showError("$platform ile giriş yapılamadı.");
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  /// Apple ile giriş: iOS'ta native, web'de Firebase popup. Firebase'e OAuth
+  /// kimlik bilgisiyle bağlanır. Kullanıcı iptal ederse üstteki catch sessiz geçer.
+  Future<UserCredential?> _appleSignIn() async {
+    if (kIsWeb) {
+      // Web: Apple sağlayıcısı Firebase Console'da etkin + Services ID gerekli.
+      final provider = OAuthProvider("apple.com")
+        ..addScope('email')
+        ..addScope('name');
+      return FirebaseAuth.instance.signInWithPopup(provider);
+    }
+    // iOS native: güvenlik için nonce (rawNonce + SHA256).
+    final rawNonce = _generateNonce();
+    final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+    final appleCred = await SignInWithApple.getAppleIDCredential(
+      scopes: [
+        AppleIDAuthorizationScopes.email,
+        AppleIDAuthorizationScopes.fullName,
+      ],
+      nonce: hashedNonce,
+    );
+    final oauth = OAuthProvider("apple.com").credential(
+      idToken: appleCred.identityToken,
+      rawNonce: rawNonce,
+    );
+    final cred = await FirebaseAuth.instance.signInWithCredential(oauth);
+    // Apple, adı YALNIZCA ilk girişte döndürür; varsa Firebase profiline yaz.
+    if (cred.additionalUserInfo?.isNewUser ?? false) {
+      final full = [appleCred.givenName, appleCred.familyName]
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .join(' ');
+      if (full.isNotEmpty) {
+        await cred.user?.updateDisplayName(full);
+      }
+    }
+    return cred;
+  }
+
+  String _generateNonce([int length = 32]) {
+    const chars =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final rand = Random.secure();
+    return List.generate(length, (_) => chars[rand.nextInt(chars.length)])
+        .join();
+  }
+
+  /// Apple butonu: iOS'ta (native) ve web'de gösterilir; Android'de gizli.
+  bool get _showApple =>
+      kIsWeb || defaultTargetPlatform == TargetPlatform.iOS;
 
   /// Native Google Sign-In (Android/iOS): hesap seçtirir, Firebase'e kimlik
   /// bilgisiyle giriş yapar. Kullanıcı iptal ederse null döner (hata yok).
@@ -796,9 +855,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      // Apple yalnızca web — Android'de Apple Sign-In yapılandırılmadı.
-                      if (kIsWeb) const SizedBox(width: 12),
-                      if (kIsWeb) Expanded(
+                      // Apple: iOS native + web (App Store 4.8 gereği). Android'de gizli.
+                      if (_showApple) const SizedBox(width: 12),
+                      if (_showApple) Expanded(
                         child: MouseRegion(
                           cursor: SystemMouseCursors.click,
                           child: ElevatedButton(
