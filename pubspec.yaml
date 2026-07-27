@@ -72,8 +72,12 @@ dev_dependencies:
 # Uygulama ikonu üretimi:  dart run flutter_launcher_icons
 flutter_launcher_icons:
   android: "ic_launcher"
-  ios: false
+  ios: true
+  remove_alpha_ios: true
   image_path: "assets/images/logo_launcher.png"
+  # iOS: App Store'daki mağaza ikonuyla aynı tam kare tasarım kullanılır
+  # (Apple 2.3.8 — ikonlar birbirine benzemeli).
+  image_path_ios: "assets/images/logo.png"
   min_sdk_android: 23
   adaptive_icon_background: "#FF7A45"
   adaptive_icon_foreground: "assets/images/logo_adaptive.png"

@@ -10,6 +10,7 @@ import '../services/analytics.dart';
 import '../services/auth_gate.dart';
 import '../services/account_service.dart';
 import '../services/push_notifications.dart';
+import '../config/premium_config.dart';
 import '../config/push_config.dart';
 import '../services/file_storage.dart';
 import 'notifications_screen.dart';
@@ -361,10 +362,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ..onSelectBaby = _setActiveBaby
       ..onOpenFavorites = _openFavorites
       ..profileItems = [
-        {"label": "BabyBites+", "icon": Icons.workspace_premium, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)))},
-        {"label": "Büyüme Grafiği", "icon": Icons.show_chart, "premium": !globalIsPremium, "onTap": () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
-        {"label": "Gelişim & Diş Takvimi", "icon": Icons.event_note_outlined, "premium": !globalIsPremium, "onTap": () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
-        {"label": "Gelişim Raporu", "icon": Icons.description_outlined, "premium": !globalIsPremium, "onTap": () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))))},
+        if (kPremiumEnabled)
+          {"label": "BabyBites+", "icon": Icons.workspace_premium, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)))},
+        {"label": "Büyüme Grafiği", "icon": Icons.show_chart, "premium": !premiumUnlocked(), "onTap": () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
+        {"label": "Gelişim & Diş Takvimi", "icon": Icons.event_note_outlined, "premium": !premiumUnlocked(), "onTap": () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
+        {"label": "Gelişim Raporu", "icon": Icons.description_outlined, "premium": !premiumUnlocked(), "onTap": () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))))},
         {"label": "Başarımlar", "icon": Icons.emoji_events_outlined, "premium": false, "onTap": _showAchievements},
         {"label": "Tüm Profil", "icon": Icons.person_outline, "premium": false, "onTap": () => setState(() => _currentIndex = 4)},
         {"label": "Kullanım Koşulları", "icon": Icons.description_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(title: "Kullanım Koşulları", assetPath: "legal/kullanim-kosullari.md")))},
@@ -685,8 +687,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 width: 280,
                 child: Column(
                   children: [
-                    _dashPremiumCard(),
-                    const SizedBox(height: 14),
+                    if (kPremiumEnabled) ...[
+                      _dashPremiumCard(),
+                      const SizedBox(height: 14),
+                    ],
                     GestureDetector(
                       onTap: () => setState(() => _currentIndex = 2),
                       child: Container(
@@ -2838,7 +2842,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Free users keep the last 60 days of dated records; older days are hidden
   /// (not deleted) behind a BabyBites+ upsell. Premium = unlimited history.
   bool _isDayLocked(String dayKey) {
-    if (globalIsPremium) return false;
+    if (premiumUnlocked()) return false;
     final d = DateTime.tryParse(dayKey);
     if (d == null) return false;
     return DateTime.now().difference(d).inDays > 60;
@@ -4418,29 +4422,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: OutlinedButton.icon(
             onPressed: () {
               // First baby is free; additional profiles need BabyBites+.
-              if (_babies.isNotEmpty && !globalIsPremium) {
+              if (_babies.isNotEmpty && !premiumUnlocked()) {
                 _showPremiumGate("Sınırsız Bebek Profili");
                 return;
               }
               _showAddBabyDialog();
             },
-            icon: Icon(_babies.isNotEmpty && !globalIsPremium ? Icons.lock_outline : Icons.add, size: 18),
+            icon: Icon(_babies.isNotEmpty && !premiumUnlocked() ? Icons.lock_outline : Icons.add, size: 18),
             label: const Text("Yeni Bebek Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
           ),
         ),
         const SizedBox(height: 24),
-        const Text("Gelişim & Premium", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+        Text(kPremiumEnabled ? "Gelişim & Premium" : "Gelişim", style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
           child: Column(
             children: [
-              _navTile("BabyBites+", Icons.workspace_premium, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged))),
-                  trailing: globalIsPremium
-                      ? Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: const Text("Aktif", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _green)))
-                      : null),
-              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              if (kPremiumEnabled) ...[
+                _navTile("BabyBites+", Icons.workspace_premium, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged))),
+                    trailing: globalIsPremium
+                        ? Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(8)), child: const Text("Aktif", style: TextStyle(fontFamily: 'Inter', fontSize: 10, fontWeight: FontWeight.bold, color: _green)))
+                        : null),
+                const Divider(height: 1, color: Color(0xFFEDEDED)),
+              ],
               _navTile("Büyüme Grafiği", Icons.show_chart, () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
@@ -5321,7 +5327,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Premium gate: returns true if the user may use the feature (is premium),
   /// otherwise shows an upsell sheet and returns false.
   bool _requirePremium([String? featureName]) {
-    if (globalIsPremium) return true;
+    if (premiumUnlocked()) return true;
     _showPremiumGate(featureName);
     return false;
   }
@@ -5330,7 +5336,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// unlock is active for [rewardKey]); otherwise shows the gate. When
   /// [rewardKey] is set, the gate offers a "watch ad to unlock" option.
   void _gatedFeature(String name, {String? rewardKey, required VoidCallback action}) {
-    if (globalIsPremium || (rewardKey != null && featureUnlocked(rewardKey))) {
+    if (premiumUnlocked() || (rewardKey != null && featureUnlocked(rewardKey))) {
       action();
       return;
     }
@@ -5412,7 +5418,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   /// Small lock badge for premium-only tiles (hidden when premium or when a
   /// rewarded unlock is currently active for [rewardKey]).
-  Widget? _premiumLock([String? rewardKey]) => (globalIsPremium || (rewardKey != null && featureUnlocked(rewardKey)))
+  Widget? _premiumLock([String? rewardKey]) => (premiumUnlocked() || (rewardKey != null && featureUnlocked(rewardKey)))
       ? null
       : Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

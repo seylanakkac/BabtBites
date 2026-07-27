@@ -1,3 +1,5 @@
+import '../config/premium_config.dart';
+
 // Extra engagement/premium state (local; persisted by StorageService).
 // - Growth measurements over time (for the growth chart).
 // - Milestone "done" toggles (development & teeth calendar).
@@ -20,6 +22,12 @@ Set<String> milestonesDoneFor(String babyId) =>
 /// BabyBites+ premium flag (demo). When store IAP / Firebase is added, this is
 /// driven by the real subscription state.
 bool globalIsPremium = false;
+
+/// Premium özelliklere erişim hakkı.
+///
+/// Premium satışı kapalıyken (kPremiumEnabled == false) kilit yoktur; tüm
+/// özellikler herkese açıktır. Bkz. lib/config/premium_config.dart
+bool premiumUnlocked() => !kPremiumEnabled || globalIsPremium;
 
 /// ISO date the free trial started (or null).
 String? globalTrialStart;

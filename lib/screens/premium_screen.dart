@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/premium_config.dart';
 import '../data/admin_store.dart';
 import '../data/extras_store.dart';
 import '../services/rewarded_ad.dart';
@@ -97,6 +98,11 @@ class _PremiumScreenState extends State<PremiumScreen> {
       body: ListView(
         padding: EdgeInsets.fromLTRB(24, 0, 24, 28 + MediaQuery.of(context).padding.bottom),
         children: [
+          // Abonelik satışı kapalıyken (kPremiumEnabled == false) yalnızca
+          // ödüllü reklamla geçici reklamsız kullanım sunulur; fiyat, deneme
+          // ve promosyon kodu gösterilmez (App Store 3.1.1).
+          if (!kPremiumEnabled) ..._adFreeOnlyBody(),
+          if (kPremiumEnabled) ...[
           Center(
             child: Column(
               children: [
@@ -255,8 +261,61 @@ class _PremiumScreenState extends State<PremiumScreen> {
           ],
           const SizedBox(height: 14),
           const Text("Not: Ödeme, uygulama mağazası (App Store / Google Play) üzerinden gerçekleşir. Bu sürüm tanıtım amaçlıdır.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _light)),
+          ],
         ],
       ),
     );
   }
+
+  /// Abonelik kapalıyken gösterilen sade gövde: yalnızca ödüllü reklam ile
+  /// 1 günlük reklamsız kullanım. Satın alma / fiyat / kod yoktur.
+  List<Widget> _adFreeOnlyBody() => [
+        Center(
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(gradient: const LinearGradient(colors: [_primary, Color(0xFFFFB199)]), borderRadius: BorderRadius.circular(20)),
+                child: const Text("Reklamsız Kullan", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+              const SizedBox(height: 12),
+              const Text("Kısa bir reklam izle, 1 gün boyunca reklamsız kullan", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 4),
+              const Text("Uygulamadaki tüm özellikler ücretsizdir.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(color: const Color(0xFFFFF6F2), borderRadius: BorderRadius.circular(14), border: Border.all(color: _primary.withOpacity(0.25))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(children: [
+                Icon(Icons.play_circle_outline, color: _primary, size: 20),
+                SizedBox(width: 8),
+                Expanded(child: Text("Reklamsızı ücretsiz dene", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+              ]),
+              const SizedBox(height: 4),
+              Text(
+                adFreeActive()
+                    ? "Şu an reklamsızsın. ${_adFreeRemainingLabel()} sonra tekrar izleyebilirsin."
+                    : "Kısa bir reklam izle, 1 gün boyunca reklamsız kullan.",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: adFreeActive() ? null : _watchRewardedForAdFree,
+                  icon: const Icon(Icons.movie_outlined, size: 18),
+                  label: Text(adFreeActive() ? "Reklamsız aktif" : "Reklam İzle (1 gün reklamsız)", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ];
 }
