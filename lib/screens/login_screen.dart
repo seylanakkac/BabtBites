@@ -102,19 +102,52 @@ class _LoginScreenState extends State<LoginScreen> {
       if (e.code == "popup-closed-by-user" ||
           e.code == "cancelled-popup-request") {
         // user dismissed the popup — no error toast.
-      } else if (mounted) {
-        _showError(_authErrorTr(e.code));
+      } else if (!_enterIfAuthenticated() && mounted) {
+        _showError("${_authErrorTr(e.code)} (${e.code})");
       }
     } on SignInWithAppleAuthorizationException catch (e) {
       // Kullanıcı iptal ettiyse sessiz geç; diğer hatalarda bilgilendir.
-      if (e.code != AuthorizationErrorCode.canceled && mounted) {
-        _showError("Apple ile giriş yapılamadı.");
+      if (e.code == AuthorizationErrorCode.canceled) return;
+      if (!_enterIfAuthenticated() && mounted) {
+        _showError("Apple ile giriş yapılamadı (${e.code.name}).");
       }
-    } catch (_) {
-      if (mounted) _showError("$platform ile giriş yapılamadı.");
+    } catch (e) {
+      if (!_enterIfAuthenticated() && mounted) {
+        _showError("$platform ile giriş yapılamadı: $e");
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  /// Firebase oturumu AÇILDIYSA kullanıcıyı uygulamaya al.
+  ///
+  /// Neden: kimlik doğrulaması (Apple/Google → Firebase) başarılı olduktan
+  /// SONRA çalışan yardımcı adımlar — görünen adı yazma, analytics, bulut
+  /// senkronu — hata verebiliyor. Eskiden bu hatalar genel catch'e düşüp
+  /// doğrulanmış kullanıcıyı da giriş ekranına geri atıyordu; App Store
+  /// incelemesi bu yüzden 2.1(a) ile reddetti (28.07.2026).
+  ///
+  /// Güvenlik notu: burada `currentUser != null`, Firebase'in Apple/Google
+  /// kimlik token'ını doğrulayıp oturum açtığı anlamına gelir. Yetkilendirme
+  /// zaten sunucuda (Firestore kuralları, request.auth.uid) yapılır; kullanıcıyı
+  /// içeri almak kimseye başkasının verisini açmaz. Doğrulama başarısızsa
+  /// currentUser null kalır ve giriş yine engellenir.
+  ///
+  /// true dönerse çağıran taraf hata göstermemeli (yönlendirme yapıldı).
+  bool _enterIfAuthenticated() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return false;
+    // Yardımcı adımlar yarıda kaldıysa kullanıcıyı bilgilendir ama engelleme.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+            "Giriş yapıldı, ancak verilerin şu an eşitlenemedi. İnternetin varsa daha sonra otomatik denenecek."),
+      ),
+    );
+    _applyAdmin(user.email ?? "");
+    _routeAfterAuth(false);
+    return true;
   }
 
   /// Apple ile giriş: iOS'ta native, web'de Firebase popup. Firebase'e OAuth

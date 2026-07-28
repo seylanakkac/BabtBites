@@ -33,6 +33,7 @@ import 'growth_screen.dart';
 import 'legal_screen.dart';
 import 'milestones_screen.dart';
 import 'premium_screen.dart';
+import 'sources_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'report_screen.dart';
 import 'user_profile_screen.dart';
@@ -369,6 +370,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         {"label": "Gelişim Raporu", "icon": Icons.description_outlined, "premium": !premiumUnlocked(), "onTap": () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))))},
         {"label": "Başarımlar", "icon": Icons.emoji_events_outlined, "premium": false, "onTap": _showAchievements},
         {"label": "Tüm Profil", "icon": Icons.person_outline, "premium": false, "onTap": () => setState(() => _currentIndex = 4)},
+        {"label": "Bilgi Kaynaklarımız", "icon": Icons.menu_book_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SourcesScreen()))},
         {"label": "Kullanım Koşulları", "icon": Icons.description_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(title: "Kullanım Koşulları", assetPath: "legal/kullanim-kosullari.md")))},
         {"label": "Gizlilik Politikası", "icon": Icons.privacy_tip_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LegalScreen(title: "Gizlilik Politikası", assetPath: "legal/gizlilik-politikasi.md")))},
         {"label": "Çıkış Yap", "icon": Icons.logout, "premium": false, "danger": true, "onTap": _logout},
