@@ -61,9 +61,22 @@
 	<string>Gıda veya tarif fotoğrafı çekmek isterseniz kameraya erişim gerekir.</string>
 
 	<!-- ================= REKLAM (AdMob) ================= -->
-	<!-- App Tracking Transparency: reklam kişiselleştirme izni istenirken gösterilir. -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>İzniniz, size daha alakalı reklamlar göstermek için kullanılır. Reddetseniz de uygulamayı kullanmaya devam edebilirsiniz.</string>
+	<!-- NSUserTrackingUsageDescription BİLİNÇLİ OLARAK YOK.
+	     Uygulama App Tracking Transparency izni İSTEMİYOR (app_tracking_transparency
+	     paketi kullanılmıyor), dolayısıyla IDFA'ya erişmiyor ve AdMob
+	     kişiselleştirilmemiş reklam sunuyor.
+
+	     Bu anahtar burada dururken App Store Connect gizlilik anketinde
+	     "izleme yapılmıyor" beyanı KABUL EDİLMİYOR; Apple şu hatayı veriyor:
+	       "Your app contains NSUserTrackingUsageDescription, indicating that it
+	        may request permission to track users. To submit for review, update
+	        your App Privacy response... or update your app binary and upload a
+	        new build."
+	     Yani anahtar ile beyan çelişiyor ve gönderim engelleniyor.
+
+	     İleride kişiselleştirilmiş reklam istenirse: app_tracking_transparency
+	     paketi eklenip izin İSTENDİKTEN sonra bu anahtar geri konmalı ve
+	     gizlilik anketi de izleme yapıldığını söyleyecek şekilde güncellenmeli. -->
 
 	<!-- BabyBites iOS AdMob App ID (gerçek). -->
 	<key>GADApplicationIdentifier</key>
