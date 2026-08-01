@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+    show kIsWeb, defaultTargetPlatform, TargetPlatform, debugPrint;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -53,23 +53,49 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         final cred = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: pass);
-        await cred.user?.updateDisplayName(_parentNameController.text.trim());
+        // Görünen adı yazmak kayit icin KRITIK DEGIL — sosyal girişteki
+        // updateDisplayName ile aynı gerekçe (App Review 2.1(a), 28.07.2026).
+        try {
+          await cred.user?.updateDisplayName(_parentNameController.text.trim());
+        } catch (e) {
+          debugPrint('updateDisplayName (email) failed (non-fatal): $e');
+        }
         StorageService.instance.saveParent(
           _parentNameController.text.trim(),
           _parentRelationship,
         );
         isNewUser = true;
       }
-      _applyAdmin(email);
-      // Bring this user's cloud data down (or seed it on first use).
+
+      // ---- Buradan sonrası YARDIMCI adımlar; hiçbiri girişi engellememeli ----
+      try {
+        _applyAdmin(email);
+      } catch (e) {
+        debugPrint('post-auth local setup (email) failed (non-fatal): $e');
+      }
+
+      // CloudSync.pull() kendi hatalarını içeride yutar, fırlatmaz.
       await CloudSync.instance.pull();
       if (!mounted) return;
-      Analytics.instance.log(isNewUser ? 'sign_up' : 'login', {'method': 'email'});
+
+      try {
+        Analytics.instance
+            .log(isNewUser ? 'sign_up' : 'login', {'method': 'email'});
+      } catch (e) {
+        debugPrint('analytics log (email) failed (non-fatal): $e');
+      }
+
       _routeAfterAuth(isNewUser);
     } on FirebaseAuthException catch (e) {
-      if (mounted) _showError(_authErrorTr(e.code));
-    } catch (_) {
-      if (mounted) _showError("Bir hata oluştu. Lütfen tekrar deneyin.");
+      // Sosyal giriştekiyle aynı kurtarma: kimlik doğrulaması BAŞARILI olduysa
+      // kullanıcıyı içeri al, giriş ekranına geri atma.
+      if (!_enterIfAuthenticated() && mounted) {
+        _showError("${_authErrorTr(e.code)} (${e.code})");
+      }
+    } catch (e) {
+      if (!_enterIfAuthenticated() && mounted) {
+        _showError("Bir hata oluştu: $e");
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -88,15 +114,32 @@ class _LoginScreenState extends State<LoginScreen> {
       if (cred == null) return; // kullanıcı iptal etti
       final email = cred.user?.email ?? "";
       final isNew = cred.additionalUserInfo?.isNewUser ?? false;
-      if (isNew) {
-        StorageService.instance
-            .saveParent(cred.user?.displayName ?? "", "Anne");
+
+      // ---- Buradan sonrası YARDIMCI adımlar ----
+      // Kimlik doğrulaması bitti; hiçbiri girişi engellememeli. Tek tek
+      // korunuyorlar ki biri patladığında diğerleri çalışsın ve kullanıcı
+      // her hâlükârda içeri girsin.
+      try {
+        if (isNew) {
+          StorageService.instance
+              .saveParent(cred.user?.displayName ?? "", "Anne");
+        }
+        _applyAdmin(email);
+      } catch (e) {
+        debugPrint('post-auth local setup failed (non-fatal): $e');
       }
-      _applyAdmin(email);
+
+      // CloudSync.pull() kendi hatalarını içeride yutar, fırlatmaz.
       await CloudSync.instance.pull();
       if (!mounted) return;
-      Analytics.instance
-          .log(isNew ? 'sign_up' : 'login', {'method': platform.toLowerCase()});
+
+      try {
+        Analytics.instance.log(
+            isNew ? 'sign_up' : 'login', {'method': platform.toLowerCase()});
+      } catch (e) {
+        debugPrint('analytics log failed (non-fatal): $e');
+      }
+
       _routeAfterAuth(isNew);
     } on FirebaseAuthException catch (e) {
       if (e.code == "popup-closed-by-user" ||
@@ -139,10 +182,13 @@ class _LoginScreenState extends State<LoginScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !mounted) return false;
     // Yardımcı adımlar yarıda kaldıysa kullanıcıyı bilgilendir ama engelleme.
+    // NOT: mesaj bilerek "senkron" demiyor — CloudSync.pull() kendi hatalarını
+    // zaten yutuyor, dolayısıyla buraya düşen sebep senkron DEĞİL. Yanlış
+    // yönlendirmemek için genel bir ifade kullanılıyor.
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-            "Giriş yapıldı, ancak verilerin şu an eşitlenemedi. İnternetin varsa daha sonra otomatik denenecek."),
+            "Giriş yapıldı. Bazı hazırlık adımları tamamlanamadı; uygulamayı kullanmaya devam edebilirsiniz."),
       ),
     );
     _applyAdmin(user.email ?? "");
@@ -182,7 +228,17 @@ class _LoginScreenState extends State<LoginScreen> {
           .where((s) => s.isNotEmpty)
           .join(' ');
       if (full.isNotEmpty) {
-        await cred.user?.updateDisplayName(full);
+        // Görünen adı yazmak giriş için KRİTİK DEĞİL. Korumasız bırakılırsa
+        // hata _socialLogin'in genel catch'ine düşer ve kimliği doğrulanmış
+        // kullanıcıyı giriş ekranına geri atar — App Store incelemesinin
+        // 2.1(a) ile reddettiği davranış buydu (28.07.2026, Submission
+        // c9588afc). Bu yol YALNIZCA yeni kayıtta çalıştığı için mevcut
+        // hesapla test ederken hiç görünmez; inceleyici ise yeni kayıt yapar.
+        try {
+          await cred.user?.updateDisplayName(full);
+        } catch (e) {
+          debugPrint('updateDisplayName failed (non-fatal): $e');
+        }
       }
     }
     return cred;

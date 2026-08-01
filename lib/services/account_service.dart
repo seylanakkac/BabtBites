@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 import '../config/auth_config.dart';
 import 'storage_service.dart';
@@ -17,7 +22,7 @@ class AccountService {
   static String? get providerId {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null || u.providerData.isEmpty) return null;
-    return u.providerData.first.providerId; // 'password' | 'google.com'
+    return u.providerData.first.providerId; // 'password' | 'google.com' | 'apple.com'
   }
 
   static Future<AccountDeleteResult> deleteAccount() async {
@@ -81,5 +86,61 @@ class AccountService {
       debugPrint('reauthWithGoogle failed: $e');
       return false;
     }
+  }
+
+  /// Apple kullanıcısı için yeniden kimlik doğrulama.
+  ///
+  /// ZORUNLU: Apple ile giren kullanıcının ŞİFRESİ YOKTUR. Bu yol olmadan
+  /// Firebase 'requires-recent-login' döndürdüğünde kullanıcıya şifre soruluyor,
+  /// giremiyor ve hesabını SİLEMİYOR. App Store Guideline 5.1.1(v) hesap
+  /// oluşturan uygulamalarda uygulama içi hesap silmeyi zorunlu tutar; bu
+  /// eksiklik doğrudan ret sebebidir.
+  static Future<bool> reauthWithApple() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      if (kIsWeb) {
+        await user.reauthenticateWithPopup(
+          OAuthProvider("apple.com")
+            ..addScope('email')
+            ..addScope('name'),
+        );
+        return true;
+      }
+      // Girişteki ile aynı desen: hash'lenmiş nonce Apple'a, ham nonce Firebase'e.
+      final rawNonce = _generateNonce();
+      final hashedNonce = sha256.convert(utf8.encode(rawNonce)).toString();
+      final appleCred = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: hashedNonce,
+      );
+      await user.reauthenticateWithCredential(
+        OAuthProvider("apple.com").credential(
+          idToken: appleCred.identityToken,
+          rawNonce: rawNonce,
+        ),
+      );
+      return true;
+    } on SignInWithAppleAuthorizationException catch (e) {
+      // Kullanıcı iptal ettiyse hata değil.
+      if (e.code != AuthorizationErrorCode.canceled) {
+        debugPrint('reauthWithApple failed: ${e.code.name}');
+      }
+      return false;
+    } catch (e) {
+      debugPrint('reauthWithApple failed: $e');
+      return false;
+    }
+  }
+
+  static String _generateNonce([int length = 32]) {
+    const chars =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final rand = Random.secure();
+    return List.generate(length, (_) => chars[rand.nextInt(chars.length)])
+        .join();
   }
 }

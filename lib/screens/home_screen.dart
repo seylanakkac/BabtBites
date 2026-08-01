@@ -4558,10 +4558,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Silme için yeniden kimlik doğrulama (Google otomatik; e-posta şifre ister).
+  /// Silme için yeniden kimlik doğrulama.
+  ///
+  /// Sağlayıcıya göre dallanır: Google ve Apple kendi akışlarını açar, yalnızca
+  /// e-posta/şifre hesabı şifre sorar. Apple dalı OLMADAN, Apple ile giren
+  /// kullanıcıya olmayan bir şifre sorulur ve hesabını silemez — App Store
+  /// Guideline 5.1.1(v) ihlali.
   Future<bool> _reauthForDelete() async {
-    if (AccountService.providerId == 'google.com') {
+    final provider = AccountService.providerId;
+    if (provider == 'google.com') {
       return AccountService.reauthWithGoogle();
+    }
+    if (provider == 'apple.com') {
+      return AccountService.reauthWithApple();
     }
     final ctrl = TextEditingController();
     final ok = await showDialog<bool>(

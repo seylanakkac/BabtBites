@@ -50,28 +50,40 @@ class MedicalDisclaimer extends StatelessWidget {
                   style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: Color(0xFF8A7A4A), height: 1.3),
                 ),
                 if (showSources) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
+                  // Guideline 1.4.1: atıf "kullanıcının kolayca bulabileceği"
+                  // yerde olmalı. Bu yüzden bağlantı bilinçli olarak uyarı
+                  // metninden DAHA belirgin: daha büyük punto, daha koyu renk
+                  // ve en az 44pt dokunma alanı (Apple HIG minimumu).
                   InkWell(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const SourcesScreen()),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          "Bilgi kaynaklarımız",
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFB8860B),
-                            decoration: TextDecoration.underline,
-                            decorationColor: Color(0xFFB8860B),
+                    borderRadius: BorderRadius.circular(6),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.menu_book_outlined,
+                              size: 15, color: Color(0xFF7A5C00)),
+                          SizedBox(width: 5),
+                          Text(
+                            "Bilgi kaynaklarımız",
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF7A5C00),
+                              decoration: TextDecoration.underline,
+                              decorationColor: Color(0xFF7A5C00),
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 3),
-                        Icon(Icons.chevron_right, size: 12, color: Color(0xFFB8860B)),
-                      ],
+                          SizedBox(width: 2),
+                          Icon(Icons.chevron_right,
+                              size: 15, color: Color(0xFF7A5C00)),
+                        ],
+                      ),
                     ),
                   ),
                 ],
