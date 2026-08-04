@@ -262,7 +262,11 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.menu_book_outlined, "Tarif Onayı"),
       (Icons.verified_outlined, "Uzman Onayı"),
       (Icons.forum_outlined, "Topluluk"),
-      (Icons.eco_outlined, "Mevsimlik"),
+      // NOT: Yalnızca bu const record listesinde geçen bir ikon, Flutter'ın
+      // ikon tree-shaking'i tarafından font'tan atılıyor ve boş çiziliyor
+      // (eco_outlined ile bu yaşandı). Bu yüzden uygulamada başka yerlerde de
+      // kullanılan bir ikon seçildi.
+      (Icons.wb_sunny_outlined, "Mevsimlik"),
     ];
 
     return Scaffold(
