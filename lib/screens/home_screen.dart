@@ -4938,16 +4938,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     InputDecoration dec(String label) => InputDecoration(labelText: label, isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
 
+    // Sheet içi durum: gönderim sürüyor mu ve son hata mesajı.
+    // Hata SnackBar ile gösterilemez — sheet tam ekrana yakın olduğu için
+    // SnackBar arkada kalır ve kullanıcı "buton çalışmıyor" sanır.
+    bool submitting = false;
+    String? formError;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (sheetCtx) => StatefulBuilder(
-        builder: (sheetCtx, setSheet) => Padding(
-          padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: (MediaQuery.of(sheetCtx).viewInsets.bottom > 0 ? MediaQuery.of(sheetCtx).viewInsets.bottom : MediaQuery.of(sheetCtx).padding.bottom) + 16),
+        builder: (sheetCtx, setSheet) {
+        final keyboard = MediaQuery.of(sheetCtx).viewInsets.bottom;
+        final screenH = MediaQuery.of(sheetCtx).size.height;
+        // Klavye açılınca içerik alanı KISALMALI. Aksi halde sabit yükseklik +
+        // klavye boşluğu ekranı aşıyor ve en alttaki "Onaya Gönder" butonu
+        // erişilemez hale geliyor (cihaz/klavye boyuna göre değiştiği için
+        // yalnızca bazı telefonlarda fark ediliyordu).
+        final contentH = (screenH * 0.86 - keyboard).clamp(220.0, screenH * 0.86);
+        return Padding(
+          padding: EdgeInsets.only(left: 20, right: 20, top: 14, bottom: (keyboard > 0 ? keyboard : MediaQuery.of(sheetCtx).padding.bottom) + 16),
           child: SizedBox(
-            height: MediaQuery.of(sheetCtx).size.height * 0.86,
+            height: contentH,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -5112,10 +5126,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
+                // Hata mesajı sheet'in İÇİNDE, butonun hemen üstünde gösterilir
+                // ki kullanıcı mutlaka görsün.
+                if (formError != null) ...[
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _danger.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _danger.withOpacity(0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, size: 17, color: _danger),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(formError!,
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _danger, height: 1.35)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () async {
+                    onPressed: submitting
+                        ? null
+                        : () async {
                       final name = nameCtrl.text.trim();
                       final prep = prepCtrl.text.trim();
                       final namedIngs = ingredients.where((r) => r["name"]!.trim().isNotEmpty).toList();
@@ -5137,9 +5177,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         err = "En az bir hazırlanış adımı girin.";
                       }
                       if (err != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                        setSheet(() => formError = err);
                         return;
                       }
+                      setSheet(() { formError = null; submitting = true; });
                       final validIngs = namedIngs;
                       final now = DateTime.now();
                       final date = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
@@ -5150,9 +5191,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       // shared approval queue.
                       String imgUrl = photo ?? "";
                       final uid = FirebaseAuth.instance.currentUser?.uid;
+                      var photoFailed = false;
                       if (isPhotoUrl(imgUrl) && imgUrl.startsWith('data:') && uid != null) {
                         imgUrl = await FileStorage.instance.uploadDataUri(
                             "users/$uid/recipes/${now.millisecondsSinceEpoch}.jpg", imgUrl);
+                        // Yükleme başarısızsa uploadDataUri base64'ü aynen geri
+                        // döndürür. Bunu Firestore'a yazmak 1 MiB doküman
+                        // limitini aşıp KAYDI TAMAMEN başarısız yapar; fotoğrafı
+                        // düşürüp tarifi kurtarmak daha iyi.
+                        if (imgUrl.startsWith('data:')) {
+                          photoFailed = true;
+                          imgUrl = "";
+                        }
                       }
                       final ingNames = validIngs.map((r) => r["name"]!).toList();
                       final ingAmts = validIngs.map((r) => "${r["qty"]} ${r["unit"]}".trim()).toList();
@@ -5161,7 +5211,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       final typedKcal = double.tryParse(kcalCtrl.text.trim().replaceAll(',', '.')) ?? 0;
                       final autoKcal = computeEnergyFromIngredients(ingNames, ingAmts);
                       final finalKcal = typedKcal > 0 ? typedKcal : autoKcal.roundToDouble();
-                      await SocialSync.instance.submitRecipe({
+                      final submittedId = await SocialSync.instance.submitRecipe({
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
                         "category": category ?? "Diğer",
@@ -5180,17 +5230,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "submittedBy": author,
                         "date": date,
                       });
+                      // submitRecipe hatayı yutup null döner — bunu başarı
+                      // sayıp sheet'i kapatmak, tarif hiç kaydedilmemişken
+                      // kullanıcıya "alındı" demek olurdu.
+                      if (submittedId == null) {
+                        setSheet(() {
+                          submitting = false;
+                          formError = "Tarif gönderilemedi. İnternet bağlantını kontrol edip tekrar dene.";
+                        });
+                        return;
+                      }
                       nav.pop();
-                      messenger.showSnackBar(const SnackBar(content: Text("Tarifin alındı. Yönetici onayından sonra yayınlanacak. 👍")));
+                      messenger.showSnackBar(SnackBar(
+                        content: Text(photoFailed
+                            ? "Tarifin alındı, ancak fotoğraf yüklenemedi. Onaydan sonra yayınlanacak. 👍"
+                            : "Tarifin alındı. Yönetici onayından sonra yayınlanacak. 👍"),
+                      ));
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    child: const Text("Onaya Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, disabledBackgroundColor: _primary.withOpacity(0.5), disabledForegroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    child: submitting
+                        ? const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white))),
+                              SizedBox(width: 10),
+                              Text("Gönderiliyor...", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                            ],
+                          )
+                        : const Text("Onaya Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
             ),
           ),
-        ),
+        );
+        },
       ),
     );
   }
