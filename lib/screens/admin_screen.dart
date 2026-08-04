@@ -8,6 +8,7 @@ import '../services/social_sync.dart';
 import '../services/community_sync.dart';
 import '../data/community_store.dart';
 import '../data/food_database.dart';
+import '../data/seasonal_database.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -32,6 +33,11 @@ class _AdminScreenState extends State<AdminScreen> {
   static const _red = Color(0xFFFF4D6A);
 
   int _section = 0;
+
+  // Mevsimlik gıdalar bölümü: seçili mevsim + üzerinde çalışılan kopya.
+  // Kopya üzerinde düzenlenir, "Kaydet" denince yayınlanır.
+  String _seasonSel = kSeasons.first;
+  Map<String, Map<String, List<SeasonalItem>>>? _seasonEdit;
 
   final _foodSearch = TextEditingController();
   bool _onlyPendingFoods = false;
@@ -256,6 +262,7 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.menu_book_outlined, "Tarif Onayı"),
       (Icons.verified_outlined, "Uzman Onayı"),
       (Icons.forum_outlined, "Topluluk"),
+      (Icons.eco_outlined, "Mevsimlik"),
     ];
 
     return Scaffold(
@@ -365,6 +372,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _expertApprovalManager();
       case 11:
         return _communityManager();
+      case 12:
+        return _seasonalManager();
       default:
         return _dashboard();
     }
@@ -2775,6 +2784,195 @@ class _AdminScreenState extends State<AdminScreen> {
           ],
         ),
       ),
+    ]);
+  }
+
+  // ---------- mevsimlik gıdalar ----------
+
+  /// Üzerinde çalışılan kopya (ilk açılışta yürürlükteki listeden kurulur).
+  Map<String, Map<String, List<SeasonalItem>>> get _seasonData {
+    _seasonEdit ??= {
+      for (final s in kSeasons)
+        s: {
+          for (final c in kSeasonCategories)
+            c: List<SeasonalItem>.from(effectiveSeasonalFoods()[s]?[c] ?? const <SeasonalItem>[])
+        }
+    };
+    return _seasonEdit!;
+  }
+
+  Future<void> _saveSeasonal() async {
+    setSeasonalFoodsOverride(_seasonData);
+    StorageService.instance.saveAdminContent();
+    final err = await _runSaving(() => CatalogSync.instance.push());
+    _toast(err == null
+        ? "Mevsimlik liste kaydedildi ve tüm kullanıcılara yayınlandı"
+        : "Cihaza kaydedildi ama yayınlanamadı: $err");
+  }
+
+  /// Tek bir ürünü ekler/düzenler. [index] null ise yeni ürün.
+  void _editSeasonalItem(String cat, int? index) {
+    final existing = index == null ? null : _seasonData[_seasonSel]![cat]![index];
+    final nameCtrl = TextEditingController(text: existing?.name ?? "");
+    final emojiCtrl = TextEditingController(text: existing?.emoji ?? "");
+    final monthCtrl = TextEditingController(text: (existing?.startMonth ?? 6).toString());
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(index == null ? "Ürün Ekle · $cat" : "Ürünü Düzenle",
+            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: SizedBox(
+          width: 340,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _field(nameCtrl, "Ürün adı", hint: "ör. Brokoli"),
+              _field(emojiCtrl, "Emoji", hint: "ör. 🥦"),
+              _field(monthCtrl, "Başlangıç ayı (bebeğin ayı)",
+                  hint: "ör. 6", keyboard: TextInputType.number),
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  "Başlangıç ayı, bebeğe bu gıdanın kaçıncı aydan itibaren verilebileceğidir — "
+                  "ürünün hasat ayı değildir. Tıbbi bilgi olduğu için kaynaklarla tutarlı olmalı.",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, height: 1.35),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            onPressed: () {
+              final name = nameCtrl.text.trim();
+              if (name.isEmpty) {
+                _toast("Ürün adı boş olamaz");
+                return;
+              }
+              final month = int.tryParse(monthCtrl.text.trim());
+              if (month == null || month < 4 || month > 36) {
+                _toast("Başlangıç ayı 4 ile 36 arasında olmalı");
+                return;
+              }
+              final emoji = emojiCtrl.text.trim().isEmpty ? "🥕" : emojiCtrl.text.trim();
+              final item = SeasonalItem(name, emoji, month);
+              setState(() {
+                final list = _seasonData[_seasonSel]![cat]!;
+                if (index == null) {
+                  list.add(item);
+                } else {
+                  list[index] = item;
+                }
+              });
+              Navigator.pop(dctx);
+            },
+            child: const Text("Tamam", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _seasonalManager() {
+    final isOverridden = globalAdminConfig["seasonalFoods"] != null;
+    return _pane([
+      _sectionHeader(
+        "Mevsimlik Gıdalar",
+        "Ana sayfadaki \"Mevsiminde Beslenme\" listesi. Kaydedince yeni sürüm gerekmeden herkese ulaşır.",
+        action: TextButton.icon(
+          onPressed: () async {
+            clearSeasonalFoodsOverride();
+            setState(() => _seasonEdit = null);
+            StorageService.instance.saveAdminContent();
+            final err = await _runSaving(() => CatalogSync.instance.push());
+            _toast(err == null ? "Varsayılana sıfırlandı" : "Sıfırlandı ama yayınlanamadı: $err");
+          },
+          icon: const Icon(Icons.restart_alt, size: 16, color: _light),
+          label: const Text("Sıfırla", style: TextStyle(fontFamily: 'Inter', color: _light, fontWeight: FontWeight.bold)),
+        ),
+      ),
+      if (!isOverridden)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Text(
+            "Şu an koddaki varsayılan liste kullanılıyor. İlk kaydetmeden sonra bu liste yönetimden kontrol edilir.",
+            style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light.withOpacity(0.95)),
+          ),
+        ),
+      // Mevsim seçimi
+      Wrap(
+        spacing: 8,
+        children: kSeasons.map((s) {
+          final sel = s == _seasonSel;
+          return ChoiceChip(
+            label: Text(s, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+            selected: sel,
+            selectedColor: _primary,
+            backgroundColor: Colors.white,
+            onSelected: (_) => setState(() => _seasonSel = s),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 16),
+      ...kSeasonCategories.map((cat) {
+        final items = _seasonData[_seasonSel]![cat]!;
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text("$cat  ·  ${items.length} ürün",
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _editSeasonalItem(cat, null),
+                    icon: const Icon(Icons.add, size: 16, color: _primary),
+                    label: const Text("Ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                  ),
+                ],
+              ),
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text("Bu mevsimde bu kategoride ürün yok.",
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: items.asMap().entries.map((e) {
+                    final i = e.key;
+                    final it = e.value;
+                    return InputChip(
+                      backgroundColor: _bg,
+                      label: Text("${it.emoji} ${it.name} · +${it.startMonth} ay",
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _text)),
+                      onPressed: () => _editSeasonalItem(cat, i),
+                      onDeleted: () => setState(() => items.removeAt(i)),
+                      deleteIcon: const Icon(Icons.close, size: 15, color: _red),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      }),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
+        child: _primaryBtn("Kaydet ve Yayınla", Icons.cloud_upload_outlined, _saveSeasonal),
+      ),
+      const SizedBox(height: 24),
     ]);
   }
 }

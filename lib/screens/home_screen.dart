@@ -1059,7 +1059,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildSeasonalSection() {
-    final data = kSeasonalFoods[_selectedSeason] ?? const {};
+    // Admin panelinden düzenlenebilir (yoksa koddaki varsayılan).
+    final data = effectiveSeasonalFoods()[_selectedSeason] ?? const {};
     final currentSeason = seasonForMonth(DateTime.now().month);
     final cats = _seasonOrder.where((c) => (data[c] ?? const []).isNotEmpty).toList();
     if (cats.isEmpty) return const SizedBox.shrink();

@@ -5,6 +5,7 @@
 // the admin hasn't customised anything.
 
 import 'food_database.dart';
+import 'seasonal_database.dart';
 import '../screens/articles_screen.dart';
 
 // ---- Built-in defaults (fallbacks) ----
@@ -162,6 +163,51 @@ double ntv(String key) {
   final v = (cfg is Map ? cfg[key] : null) ?? kDefaultNutritionTargets[key];
   return (v as num?)?.toDouble() ?? 0;
 }
+
+// ---- Mevsimlik gıdalar (admin düzenlenebilir) ----
+//
+// Varsayılan liste kodda (kSeasonalFoods). Admin panelden düzenlerse sonuç
+// globalAdminConfig["seasonalFoods"] altında saklanır ve `admin_config`
+// anahtarıyla /catalog üzerinden TÜM kullanıcılara senkronlanır — yani
+// düzeltmeler yeni sürüm gerektirmez.
+//
+// JSON şekli: { mevsim: { kategori: [ {name, emoji, startMonth}, ... ] } }
+
+/// Yürürlükteki mevsimlik gıda listesi: admin düzenlemesi varsa o, yoksa
+/// koddaki varsayılan.
+Map<String, Map<String, List<SeasonalItem>>> effectiveSeasonalFoods() {
+  final raw = globalAdminConfig["seasonalFoods"];
+  if (raw is! Map || raw.isEmpty) return kSeasonalFoods;
+  final out = <String, Map<String, List<SeasonalItem>>>{};
+  raw.forEach((season, cats) {
+    if (cats is! Map) return;
+    final catMap = <String, List<SeasonalItem>>{};
+    cats.forEach((cat, items) {
+      if (items is! List) return;
+      catMap[cat.toString()] = items
+          .whereType<Map>()
+          .map((m) => SeasonalItem.fromJson(Map<String, dynamic>.from(m)))
+          .where((it) => it.name.trim().isNotEmpty)
+          .toList();
+    });
+    out[season.toString()] = catMap;
+  });
+  return out.isEmpty ? kSeasonalFoods : out;
+}
+
+/// Admin düzenlemesini yazar (JSON'a çevirerek). Kaydetmek ve yaymak için
+/// çağıran taraf StorageService.saveAdminContent() + CatalogSync.push() yapar.
+void setSeasonalFoodsOverride(Map<String, Map<String, List<SeasonalItem>>> data) {
+  globalAdminConfig["seasonalFoods"] = data.map(
+    (season, cats) => MapEntry(
+      season,
+      cats.map((cat, items) => MapEntry(cat, items.map((e) => e.toJson()).toList())),
+    ),
+  );
+}
+
+/// Mevsimlik listeyi koddaki varsayılana döndürür.
+void clearSeasonalFoodsOverride() => globalAdminConfig.remove("seasonalFoods");
 
 // ---- Content edit/delete helpers (used by the admin managers) ----
 bool isCustomFood(String name) => globalCustomFoods.any((m) => m["name"] == name);

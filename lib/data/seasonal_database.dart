@@ -8,9 +8,25 @@ class SeasonalItem {
   final String emoji;
   final int startMonth; // baby age (months) from which it can be given
   const SeasonalItem(this.name, this.emoji, this.startMonth);
+
+  Map<String, dynamic> toJson() => {"name": name, "emoji": emoji, "startMonth": startMonth};
+
+  /// Admin panelinden gelen/senkronlanan JSON'dan okur. Bozuk kayıt uygulamayı
+  /// düşürmesin diye her alan savunmacı biçimde çözülür.
+  static SeasonalItem fromJson(Map<String, dynamic> j) {
+    final m = j["startMonth"];
+    return SeasonalItem(
+      (j["name"] ?? "").toString(),
+      (j["emoji"] ?? "").toString().isEmpty ? "🥕" : j["emoji"].toString(),
+      m is num ? m.toInt() : (int.tryParse("$m") ?? 6),
+    );
+  }
 }
 
 const List<String> kSeasons = ["Kış", "İlkbahar", "Yaz", "Sonbahar"];
+
+/// Mevsim ızgarasında kullanılan kategori sırası (admin paneli de bunu kullanır).
+const List<String> kSeasonCategories = ["Sebze", "Meyve", "Otlar", "Balık"];
 
 /// season -> category ("Sebze" | "Meyve" | "Balık" | "Otlar") -> items.
 const Map<String, Map<String, List<SeasonalItem>>> kSeasonalFoods = {
