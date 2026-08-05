@@ -61,22 +61,20 @@
 	<string>Gıda veya tarif fotoğrafı çekmek isterseniz kameraya erişim gerekir.</string>
 
 	<!-- ================= REKLAM (AdMob) ================= -->
-	<!-- NSUserTrackingUsageDescription BİLİNÇLİ OLARAK YOK.
-	     Uygulama App Tracking Transparency izni İSTEMİYOR (app_tracking_transparency
-	     paketi kullanılmıyor), dolayısıyla IDFA'ya erişmiyor ve AdMob
-	     kişiselleştirilmemiş reklam sunuyor.
+	<!-- App Tracking Transparency: izin penceresinde gosterilen aciklama.
 
-	     Bu anahtar burada dururken App Store Connect gizlilik anketinde
-	     "izleme yapılmıyor" beyanı KABUL EDİLMİYOR; Apple şu hatayı veriyor:
-	       "Your app contains NSUserTrackingUsageDescription, indicating that it
-	        may request permission to track users. To submit for review, update
-	        your App Privacy response... or update your app binary and upload a
-	        new build."
-	     Yani anahtar ile beyan çelişiyor ve gönderim engelleniyor.
+	     UCU BIRLIKTE TUTARLI OLMALI, yoksa gonderim reddedilir:
+	       1. Bu anahtar (burada),
+	       2. Kod izni GERCEKTEN istemeli (lib/services/tracking_consent.dart),
+	       3. App Store Connect > App Privacy anketi "veriler izleme icin
+	          kullaniliyor" demeli.
 
-	     İleride kişiselleştirilmiş reklam istenirse: app_tracking_transparency
-	     paketi eklenip izin İSTENDİKTEN sonra bu anahtar geri konmalı ve
-	     gizlilik anketi de izleme yapıldığını söyleyecek şekilde güncellenmeli. -->
+	     1 Agustos 2026'da tam tersi yasandi: anahtar vardi ama izin hic
+	     istenmiyordu ve ankette "izleme yok" deniyordu; Apple gonderimi
+	     engelledi, anahtar gecici olarak kaldirildi. 4 Agustos 2026'da
+	     kisisellestirilmis reklam (daha yuksek eCPM) icin ucu birden yapildi. -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>İzin verirsen reklamları ilgi alanlarına daha uygun hale getirebiliriz. İzin vermesen de uygulamanın tamamını aynı şekilde kullanabilirsin.</string>
 
 	<!-- BabyBites iOS AdMob App ID (gerçek). -->
 	<key>GADApplicationIdentifier</key>

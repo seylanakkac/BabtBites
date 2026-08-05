@@ -10,6 +10,7 @@ import '../services/analytics.dart';
 import '../services/auth_gate.dart';
 import '../services/account_service.dart';
 import '../services/push_notifications.dart';
+import '../services/tracking_consent.dart';
 import '../config/premium_config.dart';
 import '../config/push_config.dart';
 import '../services/file_storage.dart';
@@ -119,6 +120,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // iOS izleme izni (ATT). Burada isteniyor çünkü sistem penceresi ancak
+    // uygulama ön plandayken çıkar ve yeni kullanıcı buraya onboarding'den
+    // SONRA gelir — uygulamayı görmüş biri izne daha sıcak bakıyor.
+    // Reklam istekleri bu sonuçlanana kadar bekler (bkz. mobile_ads_io.dart).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) TrackingConsent.instance.requestIfNeeded(context);
+    });
     // Diğer (pushed) sayfalardaki üst nav'dan gelen sekme isteklerini dinle.
     homeTabRequest.addListener(_onTabRequest);
     _selectedDay = _formatDateKey(DateTime.now());

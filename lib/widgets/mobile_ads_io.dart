@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../config/ads_config.dart';
+import '../services/tracking_consent.dart';
 
 /// Platforma göre doğru banner/ödüllü reklam birimini seçer.
 String get _bannerUnit =>
@@ -32,6 +33,8 @@ Widget mobileBannerAd() => const _AdmobBanner();
 /// (çağıran tarafta yer-tutucuya düşülür), gösterildi ama ödül yoksa false.
 Future<bool?> showRewardedMobile() async {
   final completer = Completer<bool?>();
+  // ATT sonuçlanmadan istek atarsak reklam kişiselleştirilmemiş sayılır.
+  await TrackingConsent.instance.settled;
   try {
     RewardedAd.load(
       adUnitId: _rewardedUnit,
@@ -75,6 +78,14 @@ class _AdmobBannerState extends State<_AdmobBanner> {
   @override
   void initState() {
     super.initState();
+    _startLoad();
+  }
+
+  /// ATT sorusu sonuçlanmadan reklam istemez. Aksi halde ilk açılıştaki ilk
+  /// banner IDFA'sız istenir ve kişiselleştirilmemiş sayılır (gelir kaybı).
+  Future<void> _startLoad() async {
+    await TrackingConsent.instance.settled;
+    if (!mounted) return;
     _ad = BannerAd(
       adUnitId: _bannerUnit,
       size: AdSize.banner,
@@ -83,7 +94,10 @@ class _AdmobBannerState extends State<_AdmobBanner> {
         onAdLoaded: (_) {
           if (mounted) setState(() => _loaded = true);
         },
-        onAdFailedToLoad: (ad, err) => ad.dispose(),
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('Banner yuklenemedi: $err');
+          ad.dispose();
+        },
       ),
     )..load();
   }
