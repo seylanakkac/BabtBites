@@ -1,0 +1,6 @@
+# babybites.com.tr
+# Tarayıcılara açık. app-ads.txt / ads.txt doğrulaması yapan Google (AdMob,
+# AdSense) tarayıcıları engellenmemeli. Bu dosya yokken /robots.txt isteği
+# Flutter'ın index.html'ini döndürüyordu (HTML gelen bir robots.txt).
+User-agent: *
+Allow: /
