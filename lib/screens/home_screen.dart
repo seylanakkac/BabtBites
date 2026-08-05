@@ -3716,6 +3716,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ids.isNotEmpty;
   }
 
+  /// ISO tarihi "5 Ağustos 2026" biçiminde yazar (çözülemezse boş).
+  String _formatTrDate(String iso) {
+    final d = DateTime.tryParse(iso);
+    if (d == null) return "";
+    const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    return "${d.day} ${months[(d.month - 1).clamp(0, 11)]} ${d.year}";
+  }
+
   /// "yyyy-MM-dd" günü + "HH:mm" saatini tek bir yerel DateTime'a çevirir.
   /// Gün çözülemezse bugüne düşer.
   DateTime _dayTimeToDateTime(String dayKey, String hm) {
@@ -5312,6 +5320,53 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 16),
         AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 16),
+        // Reklamsız dönem GÖRÜNÜR olsun.
+        //
+        // "Reklamlar görünmüyor" şikâyetinin sessiz sebebi bu olabiliyordu:
+        // ödüllü reklam (1 gün) ya da kurucu üye hediyesi globalAdFreeUntil'i
+        // ileri bir tarihe çekiyor ve TÜM reklam alanları gizleniyor — ama
+        // hiçbir yerde bunun açık olduğu yazmıyordu. Artık hem yazıyor hem de
+        // elle kapatılabiliyor.
+        if (adFreeActive()) ...[
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _green.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _green.withOpacity(0.35)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.block, size: 18, color: _green),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Reklamsız dönem açık", style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _text)),
+                      Text(
+                        "${_formatTrDate(globalAdFreeUntil ?? "")} tarihine kadar reklam gösterilmiyor.",
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    globalAdFreeUntil = null;
+                    _persist();
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Reklamsız dönem kapatıldı.")),
+                    );
+                  },
+                  child: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         _notificationCard(),
         // Parent card
         Container(

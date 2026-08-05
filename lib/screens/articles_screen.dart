@@ -845,8 +845,11 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                                       ),
                                       const SizedBox(height: 10),
                                       ShareButtons(
-                                        text: "${article.title} • BabyBites",
+                                        text: article.title,
+                                        subtitle: article.summary,
                                         url: articleShareUrl(article),
+                                        imageUrl: article.imageUrl,
+                                        emoji: article.emoji,
                                       ),
                                     ],
                                   ),
