@@ -16,6 +16,7 @@ import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/articles_screen.dart';
+import 'screens/article_detail_screen.dart';
 import 'screens/admin_screen.dart';
 import 'screens/recipe_detail_screen.dart';
 import 'data/food_database.dart';
@@ -168,6 +169,20 @@ class BabyBitesApp extends StatelessWidget {
           if (idx >= 0) {
             return MaterialPageRoute(
               builder: (_) => RecipeDetailScreen(recipe: globalRecipesDatabase[idx]),
+              settings: settings,
+            );
+          }
+        }
+        // Makale derin linki: babybites.com.tr/#/a/<id> → yazı detayını açar.
+        // Paylaşım düğmeleri bu adresi kullanır; olmasaydı her yazı aynı ana
+        // sayfayı paylaşırdı ve paylaşımın anlamı kalmazdı.
+        if (name.startsWith('/a/')) {
+          final id = name.substring(3);
+          final all = getAllArticles();
+          final idx = all.indexWhere((a) => a.id == id);
+          if (idx >= 0) {
+            return MaterialPageRoute(
+              builder: (_) => ArticleDetailScreen(article: all[idx]),
               settings: settings,
             );
           }

@@ -3,6 +3,7 @@ import '../data/admin_store.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/share_buttons.dart';
 import '../widgets/sponsored_badge.dart';
 import '../widgets/web_embed.dart';
 import '../widgets/web_shell.dart';
@@ -146,6 +147,9 @@ List<Widget> renderArticleBlocks(Article a) {
 
 /// Admin-added articles, merged into the list shown by ArticlesScreen.
 final List<Article> globalCustomArticles = [];
+
+/// Bir yazının paylaşılabilir adresi (derin link; bkz. main.dart onGenerateRoute).
+String articleShareUrl(Article a) => "https://babybites.com.tr/#/a/${a.id}";
 
 /// Built-in + admin-added articles, with admin overrides applied and deleted
 /// ones hidden. Shared by ArticlesScreen and the admin panel.
@@ -837,6 +841,11 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                                           color: textColor.withOpacity(0.7),
                                           height: 1.3,
                                         ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      ShareButtons(
+                                        text: "${article.title} • BabyBites",
+                                        url: articleShareUrl(article),
                                       ),
                                     ],
                                   ),

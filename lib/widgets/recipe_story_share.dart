@@ -1,16 +1,23 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import '../data/food_database.dart';
+import 'image_helpers.dart';
 import 'web_embed.dart';
 
 const _primary = Color(0xFFFF7A45);
 const _danger = Color(0xFFFF4D6A);
+const _text = Color(0xFF2D2D3A);
 
-/// Tarif için Instagram hikayesi (9:16) paylaşımı: önizleme kartı + "Paylaş".
-/// Web Share API ile görseli paylaşır (mobil), linki de panoya kopyalar.
+/// Paylaşım biçimi. Instagram hikayesi 9:16, akış gönderisi 1:1 ister; yanlış
+/// orandaki görsel kırpılıyor veya kenarları boş kalıyordu.
+enum ShareFormat { story, post }
+
+/// Tarif paylaşım kartı: tarif fotoğrafı + adı. Hikaye (9:16) veya gönderi
+/// (1:1) olarak paylaşılır; paylaşım menüsünden Instagram seçilebilir.
 Future<void> showRecipeStoryShare(BuildContext context, Recipe recipe) {
   return showDialog(
     context: context,
@@ -32,11 +39,19 @@ class _StoryShareDialog extends StatefulWidget {
 class _StoryShareDialogState extends State<_StoryShareDialog> {
   final GlobalKey _boundaryKey = GlobalKey();
   bool _busy = false;
+  ShareFormat _format = ShareFormat.story;
+
+  /// Web'de ağdan gelen tarif fotoğrafı canvas'ı "kirletiyor" (CORS) ve
+  /// toImage() patlıyor. Yakalama başarısız olursa fotoğrafsız (markalı
+  /// degrade) karta düşüp tekrar deniyoruz — böylece native'de gerçek fotoğraf
+  /// görünür, web'de de paylaşım hiç çalışmamaktansa degradeyle çalışır.
+  bool _photoBlocked = false;
+
+  bool get _hasPhoto => !_photoBlocked && isPhotoUrl(widget.recipe.imageUrl);
 
   Future<Uint8List?> _capture() async {
     try {
       final boundary = _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      // Hikaye için yüksek çözünürlük.
       final image = await boundary.toImage(pixelRatio: 3.0);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       return data?.buffer.asUint8List();
@@ -45,16 +60,21 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     }
   }
 
-  /// "Paylaş": önce hikaye görselini native paylaşım ekranıyla paylaşmayı dener;
-  /// tarayıcı dosya paylaşımını desteklemiyorsa BAĞLANTIYI paylaşım ekranıyla açar
-  /// (yine native menü çıkar); o da yoksa linki panoya kopyalar.
   Future<void> _share() async {
     setState(() => _busy = true);
     final r = widget.recipe;
     final url = recipeShareUrl(r);
-    await Clipboard.setData(ClipboardData(text: url)); // her ihtimale karşı kopyala
-    await Future.delayed(const Duration(milliseconds: 120));
-    final bytes = await _capture();
+    await Clipboard.setData(ClipboardData(text: url)); // her ihtimale karşı
+    await Future.delayed(const Duration(milliseconds: 150));
+
+    var bytes = await _capture();
+    // Fotoğraflı kart yakalanamadıysa (web/CORS) degradeye düşüp tekrar dene.
+    if (bytes == null && _hasPhoto) {
+      setState(() => _photoBlocked = true);
+      await Future.delayed(const Duration(milliseconds: 250));
+      bytes = await _capture();
+    }
+
     var sharedImage = false;
     if (bytes != null) {
       // Görseli METİNSİZ paylaş: görselle birlikte URL gidince Instagram bunu
@@ -62,7 +82,7 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
       // "Hikayene Ekle / Akış / DM" seçeneklerini sunar.
       sharedImage = await shareImageViaWebShareApi(
         bytes,
-        filename: "babybites_${r.id}.png",
+        filename: "babybites_${r.id}_${_format == ShareFormat.story ? 'story' : 'post'}.png",
       );
     }
     var sharedLink = false;
@@ -77,9 +97,11 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     setState(() => _busy = false);
     if (sharedImage) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Hazır! Hikayene ekleyebilirsin. 🎉"),
-        duration: Duration(seconds: 3),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(_format == ShareFormat.story
+            ? "Hazır! Instagram'da \"Hikayene Ekle\"yi seç. 🎉"
+            : "Hazır! Instagram'da \"Akış\"ı seç. 🎉"),
+        duration: const Duration(seconds: 4),
       ));
     } else if (sharedLink) {
       Navigator.pop(context);
@@ -89,18 +111,17 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Tarayıcın paylaşımı desteklemiyor. Bağlantı panoya kopyalandı."),
+        content: Text("Paylaşım açılamadı. Bağlantı panoya kopyalandı."),
         duration: Duration(seconds: 4),
       ));
     }
   }
 
-  /// Bağlantıyı panoya kopyalar (her platformda çalışır).
   Future<void> _copyLink() async {
     await Clipboard.setData(ClipboardData(text: recipeShareUrl(widget.recipe)));
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-      content: Text("Bağlantı kopyalandı. Hikayene 'bağlantı' çıkartması olarak ekleyebilirsin."),
+      content: Text("Bağlantı kopyalandı."),
       duration: Duration(seconds: 3),
     ));
   }
@@ -108,105 +129,159 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    // Kart 9:16; ekrana sığacak şekilde ölçekle.
-    final maxH = media.size.height * 0.62;
+    final ratio = _format == ShareFormat.story ? 16 / 9 : 1.0; // yükseklik/genişlik
+    final maxH = media.size.height * 0.56;
     double w = media.size.width * 0.74;
-    if (w * 16 / 9 > maxH) w = maxH * 9 / 16;
+    if (w * ratio > maxH) w = maxH / ratio;
 
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          RepaintBoundary(
-            key: _boundaryKey,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: SizedBox(
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _formatPicker(w),
+            const SizedBox(height: 12),
+            RepaintBoundary(
+              key: _boundaryKey,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  width: w,
+                  height: w * ratio,
+                  child: _shareCard(widget.recipe),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: w,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : _copyLink,
+                icon: const Icon(Icons.link, size: 18, color: Colors.white),
+                label: const Text("Bağlantıyı Kopyala",
+                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.white54),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: w,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white24),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text("Kapat",
+                          style: TextStyle(fontFamily: 'Inter', color: Colors.white70, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: _busy ? null : _share,
+                      icon: _busy
+                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.ios_share, size: 18, color: Colors.white),
+                      label: Text(_format == ShareFormat.story ? "Hikayede Paylaş" : "Gönderi Olarak Paylaş",
+                          style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (kIsWeb) ...[
+              const SizedBox(height: 8),
+              SizedBox(
                 width: w,
-                height: w * 16 / 9,
-                child: _storyCard(widget.recipe),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          // Bağlantıyı Kopyala (her zaman görünür).
-          SizedBox(
-            width: w,
-            child: OutlinedButton.icon(
-              onPressed: _busy ? null : _copyLink,
-              icon: const Icon(Icons.link, size: 18, color: Colors.white),
-              label: const Text("Bağlantıyı Kopyala", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.white54),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: w,
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _busy ? null : () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white24),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                    child: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', color: Colors.white70, fontWeight: FontWeight.w600)),
-                  ),
+                child: const Text(
+                  "Masaüstü tarayıcıda paylaşım menüsü açılmayabilir; bağlantı panoya kopyalanır.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: Colors.white54, height: 1.35),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: _busy ? null : _share,
-                    icon: _busy
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.ios_share, size: 18, color: Colors.white),
-                    label: const Text("Paylaş", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _primary,
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _storyCard(Recipe recipe) {
-    // Paylaşım/indirme görseli her zaman MARKALI DEGRADE arka plan kullanır.
-    // Ağdan gelen tarif fotoğrafı (CORS) canvas'ı kirletip toImage()'i bozuyordu;
-    // bu yüzden yakalama bütün tarayıcılarda güvenilir olsun diye degrade kullanılır.
-    final bg = _gradientBg();
+  /// Hikaye / Gönderi seçimi.
+  Widget _formatPicker(double w) => SizedBox(
+        width: w,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+          child: Row(
+            children: [
+              _formatTab("Hikaye", "9:16", ShareFormat.story),
+              _formatTab("Gönderi", "1:1", ShareFormat.post),
+            ],
+          ),
+        ),
+      );
 
+  Widget _formatTab(String label, String ratio, ShareFormat f) {
+    final sel = _format == f;
+    return Expanded(
+      child: GestureDetector(
+        onTap: _busy ? null : () => setState(() => _format = f),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: sel ? _primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Text("$label · $ratio",
+              style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: sel ? Colors.white : _text)),
+        ),
+      ),
+    );
+  }
+
+  Widget _shareCard(Recipe recipe) {
+    final isStory = _format == ShareFormat.story;
     return Stack(
       fit: StackFit.expand,
       children: [
-        bg,
+        // Arka plan: tarif fotoğrafı (varsa), yoksa markalı degrade.
+        if (_hasPhoto)
+          photoOrFallback(recipe.imageUrl, fallback: _gradientBg(), fit: BoxFit.cover)
+        else
+          _gradientBg(),
         // Okunabilirlik için koyu degrade.
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Colors.black.withOpacity(0.35), Colors.transparent, Colors.black.withOpacity(0.78)],
-              stops: const [0.0, 0.42, 1.0],
+              colors: [Colors.black.withOpacity(0.38), Colors.transparent, Colors.black.withOpacity(0.80)],
+              stops: const [0.0, 0.40, 1.0],
             ),
           ),
         ),
-        // Üst: logo + marka.
         Positioned(
           top: 16,
           left: 16,
@@ -218,15 +293,20 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
                     errorBuilder: (_, __, ___) => const SizedBox(width: 34, height: 34)),
               ),
               const SizedBox(width: 8),
-              const Text("BabyBites", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black54, blurRadius: 6)])),
+              const Text("BabyBites",
+                  style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 6)])),
             ],
           ),
         ),
-        // Alt: tarif bilgisi.
         Positioned(
           left: 18,
           right: 18,
-          bottom: 20,
+          bottom: isStory ? 20 : 16,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -235,18 +315,33 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(20)),
                 child: Text("${recipe.startingMonth}+ ay • ${recipe.prepTime}",
-                    style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: const TextStyle(
+                        fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               const SizedBox(height: 10),
               Text(recipe.name,
-                  maxLines: 3,
+                  maxLines: isStory ? 3 : 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 26, height: 1.1, fontWeight: FontWeight.w800, color: Colors.white, shadows: [Shadow(color: Colors.black87, blurRadius: 8)])),
-              const SizedBox(height: 8),
-              if (recipe.author.trim().isNotEmpty)
+                  style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: isStory ? 26 : 22,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      shadows: const [Shadow(color: Colors.black87, blurRadius: 8)])),
+              if (recipe.author.trim().isNotEmpty) ...[
+                const SizedBox(height: 8),
                 Text("Hazırlayan: ${recipe.author}",
-                    style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white, shadows: [Shadow(color: Colors.black87, blurRadius: 6)])),
-              const SizedBox(height: 14),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        shadows: [Shadow(color: Colors.black87, blurRadius: 6)])),
+              ],
+              const SizedBox(height: 12),
               const Row(
                 children: [
                   Icon(Icons.touch_app, size: 16, color: Colors.white),
@@ -255,7 +350,12 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
                     child: Text("Tarifin tamamı: babybites.com.tr",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black87, blurRadius: 6)])),
+                        style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            shadows: [Shadow(color: Colors.black87, blurRadius: 6)])),
                   ),
                 ],
               ),

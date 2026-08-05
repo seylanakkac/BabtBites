@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -1370,22 +1369,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
       return;
     }
 
-    // Instagram: mobil web'de tarifin hikaye (9:16) görselini oluşturup Web
-    // Share API ile paylaş (Instagram hikayesine eklenebilir). Masaüstünde bu
-    // mümkün değil → metni/linki kopyalayıp Instagram'ı aç.
-    final isMobile = MediaQuery.of(context).size.width < 600;
-    if (isMobile) {
-      await showRecipeStoryShare(context, r);
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: "$text ${recipeShareUrl(r)}"));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Hikaye paylaşımı mobil tarayıcıda çalışır. Tarif linki panoya kopyalandı."),
-        duration: Duration(seconds: 3),
-      ));
-    }
-    await _open(Uri.parse("https://www.instagram.com"));
+    // Instagram: tarif kartını (hikaye 9:16 / gönderi 1:1) oluşturup paylaşım
+    // menüsüyle gönder; kullanıcı menüden Instagram'ı seçer.
+    //
+    // Eskiden bu ekran YALNIZCA ekran genişliği < 600 iken açılıyordu; tablette
+    // ve geniş ekranda buton sadece linki kopyalayıp instagram.com'u açıyordu
+    // ve "Instagram'a yönlendirmiyor" gibi görünüyordu. Artık paylaşım kartı
+    // her platformda açılıyor; paylaşım menüsü desteklenmiyorsa kartın kendi
+    // içinde bağlantıyı panoya kopyalamaya düşüyor.
+    await showRecipeStoryShare(context, r);
   }
 
   Future<void> _open(Uri uri) async {
