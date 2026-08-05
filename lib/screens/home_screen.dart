@@ -11,6 +11,8 @@ import '../services/auth_gate.dart';
 import '../services/account_service.dart';
 import '../services/push_notifications.dart';
 import '../services/tracking_consent.dart';
+import '../services/founding_member.dart';
+import '../widgets/founding_thanks_sheet.dart';
 import '../config/premium_config.dart';
 import '../config/push_config.dart';
 import '../services/file_storage.dart';
@@ -124,8 +126,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // uygulama ön plandayken çıkar ve yeni kullanıcı buraya onboarding'den
     // SONRA gelir — uygulamayı görmüş biri izne daha sıcak bakıyor.
     // Reklam istekleri bu sonuçlanana kadar bekler (bkz. mobile_ads_io.dart).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) TrackingConsent.instance.requestIfNeeded(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await TrackingConsent.instance.requestIfNeeded(context);
+      // Kurucu üye teşekkürü ATT'den SONRA gösterilir; iki pencere üst üste
+      // binmesin ve izin sorusu teşekkürün altında kaybolmasın.
+      if (!mounted) return;
+      if (await FoundingMember.shouldShowThanks() && mounted) {
+        await showFoundingThanks(context);
+      }
     });
     // Diğer (pushed) sayfalardaki üst nav'dan gelen sekme isteklerini dinle.
     homeTabRequest.addListener(_onTabRequest);
