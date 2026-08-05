@@ -11,9 +11,10 @@ library;
 /// Kaynak: Firebase Auth'un kendi `user.metadata.creationTime` alanı — ek bir
 /// veritabanı kaydı gerekmez ve ileride sunucu tarafında da doğrulanabilir.
 ///
-/// ⚠️ SÜRÜM YAYINA ÇIKMADAN ÖNCE yayın gününe güncelle. Tarih geçmişte
-/// kalırsa aradaki yeni kullanıcılar hediyeyi alamaz; ileride kalırsa
-/// "kurucu üye" anlamını yitirir.
+/// ⚠️ ABONELİK YAYINA ÇIKTIĞI GÜNE güncellenmeli — bu sürümün yayın gününe
+/// değil. Hediye "ücretli döneme geçmeden önce bizimle olanlar" için; ücretli
+/// dönem başlamadan konan bir tarih, aradaki yeni kullanıcıları haksız yere
+/// kapsam dışında bırakır. Ekran zaten [kFoundingThanksEnabled] ile kapalı.
 final DateTime kFoundingCutoff = DateTime.utc(2026, 8, 5);
 
 /// Kurucu üyelere verilen reklamsız kullanım süresi (gün).

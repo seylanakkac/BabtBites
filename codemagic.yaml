@@ -90,8 +90,12 @@ workflows:
 
       - name: IPA derle
         script: |
+          # --build-name BILEREK YOK: surum adi pubspec.yaml'daki `version:`
+          # alanindan gelir. Eskiden burada "1.0.0" sabit yaziliydi ve her
+          # surumde elle guncellenmesi gerekiyordu; unutuldugunda yeni build
+          # App Store Connect'te yine "1.0.0" gorunup yeni surum kaydina
+          # BAGLANAMIYORDU. Tek kaynak: pubspec.yaml.
           flutter build ipa --release \
-            --build-name=1.0.0 \
             --build-number=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID") + 1)) \
             --export-options-plist=/Users/builder/export_options.plist
 
