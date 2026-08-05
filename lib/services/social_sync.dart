@@ -12,6 +12,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/recipe_social_store.dart';
 import '../data/user_profile_store.dart';
@@ -412,18 +413,76 @@ class SocialSync {
     }
   }
 
+  /// Herkese açık duyuruların hedefi. Tek doküman yazılır, herkes okur.
+  static const String kBroadcastUid = 'ALL';
+  static const String _kReadBroadcasts = 'read_broadcast_notifications';
+
+  /// Tüm kullanıcılara duyuru gönderir (admin: indirim, yenilik, bakım...).
+  ///
+  /// 205 kullanıcıya 205 doküman yazmak yerine `toUid: "ALL"` ile TEK doküman
+  /// yazılır. Başarılıysa doküman kimliği, değilse null döner.
+  Future<String?> broadcastNotification(String title, String body,
+      {String type = 'announcement'}) async {
+    try {
+      final ref = await _notifs.add({
+        'toUid': kBroadcastUid,
+        'title': title,
+        'body': body,
+        'type': type,
+        'read': false,
+        'date': _today(),
+        'ts': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.broadcastNotification failed: $e');
+      return null;
+    }
+  }
+
+  /// Duyuruların okundu bilgisi CİHAZDA tutulur: doküman paylaşıldığı için
+  /// üzerine yazmak herkes adına okundu demek olurdu.
+  Future<Set<String>> _readBroadcastIds() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getStringList(_kReadBroadcasts) ?? const []).toSet();
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  Future<void> _markBroadcastsRead(Iterable<String> ids) async {
+    if (ids.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final set = (prefs.getStringList(_kReadBroadcasts) ?? const []).toSet()..addAll(ids);
+      await prefs.setStringList(_kReadBroadcasts, set.toList());
+    } catch (e) {
+      debugPrint('SocialSync._markBroadcastsRead failed: $e');
+    }
+  }
+
   /// Loads the current user's notifications (newest first) into [globalNotifications].
+  /// Kullanıcıya özel bildirimler + herkese açık duyurular birlikte alınır.
   Future<void> loadNotifications() async {
     final uid = _uid;
     if (uid == null) return;
     try {
-      final snap = await _notifs.where('toUid', isEqualTo: uid).get();
-      final list = snap.docs.map((d) {
-        final m = Map<String, dynamic>.from(d.data());
-        m['id'] = d.id;
-        m['_ms'] = (d.data()['ts'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-        return m;
-      }).toList();
+      final results = await Future.wait([
+        _notifs.where('toUid', isEqualTo: uid).get(),
+        _notifs.where('toUid', isEqualTo: kBroadcastUid).get(),
+      ]);
+      final readIds = await _readBroadcastIds();
+      final list = <Map<String, dynamic>>[];
+      for (final snap in results) {
+        for (final d in snap.docs) {
+          final m = Map<String, dynamic>.from(d.data());
+          m['id'] = d.id;
+          m['_ms'] = (d.data()['ts'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
+          if (m['toUid'] == kBroadcastUid) m['read'] = readIds.contains(d.id);
+          list.add(m);
+        }
+      }
       list.sort((a, b) => (b['_ms'] as int).compareTo(a['_ms'] as int));
       globalNotifications
         ..clear()
@@ -435,15 +494,22 @@ class SocialSync {
 
   /// Marks all of the user's unread notifications as read (locally + cloud).
   Future<void> markAllNotificationsRead() async {
+    final broadcastIds = <String>[];
     for (final n in globalNotifications.where((n) => n['read'] != true).toList()) {
       n['read'] = true;
       final id = n['id']?.toString();
-      if (id != null) {
-        try {
-          await _notifs.doc(id).update({'read': true});
-        } catch (_) {}
+      if (id == null) continue;
+      // Duyuru dokümanı PAYLAŞILIYOR: üzerine yazmak herkes adına okundu
+      // demek olurdu (kurallar da izin vermiyor). Okundu bilgisi cihazda.
+      if (n['toUid'] == kBroadcastUid) {
+        broadcastIds.add(id);
+        continue;
       }
+      try {
+        await _notifs.doc(id).update({'read': true});
+      } catch (_) {}
     }
+    await _markBroadcastsRead(broadcastIds);
   }
 
   /// Loads a public profile by its @username; caches it in globalKnownProfiles.

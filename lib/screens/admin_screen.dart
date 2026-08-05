@@ -51,6 +51,11 @@ class _AdminScreenState extends State<AdminScreen> {
   final _newCartUnit = TextEditingController();
   final _newRecipeUnit = TextEditingController();
   final _newRecipeCat = TextEditingController();
+  // Duyuru (tüm kullanıcılara bildirim)
+  final _bcTitle = TextEditingController();
+  final _bcBody = TextEditingController();
+  String _bcType = 'announcement';
+  bool _bcSending = false;
   final _newCommunityCat = TextEditingController();
   final _newFormulaName = TextEditingController();
   final _newFeedingUnit = TextEditingController();
@@ -267,6 +272,7 @@ class _AdminScreenState extends State<AdminScreen> {
       // (eco_outlined ile bu yaşandı). Bu yüzden uygulamada başka yerlerde de
       // kullanılan bir ikon seçildi.
       (Icons.wb_sunny_outlined, "Mevsimlik"),
+      (Icons.campaign_outlined, "Duyuru"),
     ];
 
     return Scaffold(
@@ -378,6 +384,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _communityManager();
       case 12:
         return _seasonalManager();
+      case 13:
+        return _broadcastManager();
       default:
         return _dashboard();
     }
@@ -2977,6 +2985,110 @@ class _AdminScreenState extends State<AdminScreen> {
       SizedBox(
         width: double.infinity,
         child: _primaryBtn("Kaydet ve Yayınla", Icons.cloud_upload_outlined, _saveSeasonal),
+      ),
+      const SizedBox(height: 24),
+    ]);
+  }
+
+  // ---------- duyuru (tüm kullanıcılara bildirim) ----------
+
+  Future<void> _sendBroadcast() async {
+    final title = _bcTitle.text.trim();
+    final body = _bcBody.text.trim();
+    if (title.isEmpty || body.isEmpty) {
+      _toast("Başlık ve mesaj boş olamaz");
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text("Duyuru gönderilsin mi?",
+            style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: Text(
+          "Bu bildirim TÜM kullanıcılara gider ve geri alınamaz.\n\n“$title”",
+          style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: _light, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(dctx, true),
+            child: const Text("Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _bcSending = true);
+    final id = await SocialSync.instance.broadcastNotification(title, body, type: _bcType);
+    if (!mounted) return;
+    setState(() => _bcSending = false);
+    if (id == null) {
+      _toast("Duyuru gönderilemedi. Bağlantını kontrol et.");
+      return;
+    }
+    _bcTitle.clear();
+    _bcBody.clear();
+    setState(() {});
+    _toast("Duyuru gönderildi 🔔");
+  }
+
+  Widget _broadcastManager() {
+    const types = [
+      ('announcement', 'Duyuru'),
+      ('discount', 'İndirim'),
+      ('info', 'Bilgi'),
+    ];
+    return _pane([
+      _sectionHeader("Duyuru Gönder",
+          "Tüm kullanıcılara uygulama içi bildirim. Zil ikonunda görünür."),
+      _card(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _field(_bcTitle, "Başlık", hint: "ör. Yaz indirimi başladı 🎉"),
+            _field(_bcBody, "Mesaj", hint: "Kısa ve net yaz; bildirim listesinde tam görünür.", maxLines: 3),
+            const Text("Tür", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: types.map((t) {
+                final sel = _bcType == t.$1;
+                return ChoiceChip(
+                  label: Text(t.$2,
+                      style: TextStyle(
+                          fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text)),
+                  selected: sel,
+                  selectedColor: _primary,
+                  backgroundColor: Colors.white,
+                  onSelected: (_) => setState(() => _bcType = t.$1),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: _bcSending
+                  ? const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(color: _primary)))
+                  : _primaryBtn("Tüm Kullanıcılara Gönder", Icons.campaign_outlined, _sendBroadcast),
+            ),
+          ],
+        ),
+      ),
+      const Padding(
+        padding: EdgeInsets.only(top: 4),
+        child: Text(
+          "Not: Duyuru tek bir kayıt olarak yazılır ve herkes okur; kullanıcı başına "
+          "kayıt oluşturulmaz. Okundu bilgisi her cihazda ayrı tutulur. Bu bildirim "
+          "uygulama İÇİNDE görünür — telefon bildirimi olarak göndermek için "
+          "Firebase Console → Cloud Messaging kullanılır.",
+          style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light, height: 1.45),
+        ),
       ),
       const SizedBox(height: 24),
     ]);

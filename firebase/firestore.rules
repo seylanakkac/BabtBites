@@ -75,8 +75,15 @@ service cloud.firestore {
     }
 
     // Bildirimler: yalnızca alıcı okur/günceller (okundu işaretler); admin oluşturur.
+    // toUid == "ALL" → admin duyurusu (indirim, yenilik...). Tek doküman
+    // yazılır ve herkes okur; 205 kullanıcıya 205 doküman yazmak yerine.
+    // Okundu bilgisi paylaşılan dokümana YAZILAMAZ (herkes için okundu olurdu),
+    // bu yüzden duyurularda okundu durumu cihazda tutulur ve update yalnızca
+    // kullanıcının KENDİ bildiriminde serbest bırakılır.
     match /notifications/{id} {
-      allow read, update: if request.auth != null && resource.data.toUid == request.auth.uid;
+      allow read: if request.auth != null &&
+                     (resource.data.toUid == request.auth.uid || resource.data.toUid == "ALL");
+      allow update: if request.auth != null && resource.data.toUid == request.auth.uid;
       allow create: if isAdmin();
       allow delete: if isAdmin() || (request.auth != null && resource.data.toUid == request.auth.uid);
     }

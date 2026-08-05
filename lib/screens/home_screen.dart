@@ -470,7 +470,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       body: SafeArea(child: body),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
+        onTap: (i) => setState(() {
+          // Nav bardan "Tarifler"e basınca tarif alt sekmesi açılsın; eskiden
+          // hep gıdalar açılıyordu ve kullanıcı bir kez daha dokunmak
+          // zorundaydı.
+          if (i == 1) _explorerSubTab = 1;
+          _currentIndex = i;
+        }),
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
         selectedItemColor: _primary,
@@ -496,7 +502,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _onTabRequest() {
     final i = homeTabRequest.value;
     if (i >= 0 && i != _currentIndex && mounted) {
-      setState(() => _currentIndex = i);
+      setState(() {
+        // Web üst nav'ında da "Tarifler" doğrudan tarif alt sekmesini açsın.
+        if (i == 1) _explorerSubTab = 1;
+        _currentIndex = i;
+      });
     }
   }
 
@@ -668,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _dashSectionHeader("Günün Tarifleri", onMore: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; })),
+                    _dashSectionHeader("Son Eklenen Tarifler", onMore: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; })),
                     const SizedBox(height: 12),
                     GridView.builder(
                       shrinkWrap: true,
@@ -678,6 +688,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       itemBuilder: (context, i) => _recipeGridCard(todaysRecipes[i]),
                     ),
                     _userRecipesSection(),
+                    _topRatedSection(),
                     const SizedBox(height: 22),
                     _dashSectionHeader("Gıdaları Keşfet", onMore: () => setState(() => _currentIndex = 1)),
                     const SizedBox(height: 12),
@@ -748,7 +759,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return matchesSearch && matchesCat;
     }).toList();
     final gridFoods = _searchQuery.isEmpty ? filteredFoods.take(6).toList() : filteredFoods;
-    final todaysRecipes = globalRecipesDatabase.take(6).toList();
+    // "Son Eklenen Tarifler": BabyBites'ın eklediği tarifler, en yeniden
+    // eskiye. Kullanıcı tarifleri (user_*) burada değil — onların kendi
+    // bölümü var. Yeni tarifler listenin SONUNA eklendiği için ters çevrilir.
+    final todaysRecipes = globalRecipesDatabase
+        .where((r) => !r.id.startsWith("user_"))
+        .toList()
+        .reversed
+        .take(6)
+        .toList();
+    // Arama yapılıyorsa tarifler de sonuçlara girsin (eskiden yalnızca
+    // gıdalar aranıyordu; kullanıcı tarif arayınca hiçbir şey bulamıyordu).
+    final searchedRecipes = _searchQuery.isEmpty
+        ? const <Recipe>[]
+        : globalRecipesDatabase
+            .where((r) => r.name.toLowerCase().contains(_searchQuery))
+            .toList();
     final babyName = _activeBaby?["name"]?.toString() ?? "Bebeğin";
 
     // Web/masaüstü geniş ekran → kontrol paneli (dashboard) düzeni.
@@ -859,14 +885,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   );
                 },
               ),
+        // Arama yapılıyorsa eşleşen tarifler (gıdaların hemen altında).
+        if (searchedRecipes.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: Text("\"$_searchQuery\" için tarifler (${searchedRecipes.length})",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 252,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: searchedRecipes.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 14),
+              itemBuilder: (context, i) => SizedBox(width: 250, child: _recipeGridCard(searchedRecipes[i])),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         // Ad banner (hidden for BabyBites+ members)
         AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 14),
-        // Günün Tarifleri header
+        // Son eklenen tarifler
         Row(
           children: [
-            const Expanded(child: Text("Günün Tarifleri", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text))),
+            const Expanded(child: Text("Son Eklenen Tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text))),
             GestureDetector(
               onTap: () => setState(() { _currentIndex = 1; _explorerSubTab = 1; }),
               child: Text("Daha Fazla", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _primary.withOpacity(0.55))),
@@ -884,6 +934,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         _userRecipesSection(),
+        _topRatedSection(),
         const SizedBox(height: 18),
         // Mevsiminde Beslenme
         _buildSeasonalSection(),
@@ -2144,11 +2195,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildFoodsAndRecipesTab() {
     return Column(
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
           child: Row(
             children: [
-              Expanded(child: Text("Gıda Dene", style: TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: _text))),
+              // Başlık alt sekmeyle birlikte değişir; sabit "Gıda Dene" yazınca
+              // tarifler açıkken yanlış başlık kalıyordu.
+              Expanded(
+                child: Text(_explorerSubTab == 0 ? "Gıda Dene" : "Tarif Bul",
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 22, fontWeight: FontWeight.bold, color: _text)),
+              ),
             ],
           ),
         ),
@@ -2364,6 +2420,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       return matchesSearch && recipe.startingMonth <= maxAge;
     }).toList();
+    // "Kullanıcıların eklediği tarifler" filtresi açıkken en yeniden eskiye
+    // sırala. Liste veritabanına ekleme sırasıyla geliyordu; ana sayfadaki
+    // bölümden "Tümü"ne basıp buraya gelince en yeni tarif en altta kalıyordu.
+    // (Ana sayfadaki yatay bölüm zaten sıralıydı.) Genel tarif listesinin
+    // sırasına bilerek dokunulmuyor.
+    if (_onlyUserRecipes) {
+      filteredRecipes.sort((a, b) => _userRecipeMillis(b.id).compareTo(_userRecipeMillis(a.id)));
+    }
 
     // Kullanıcı tariflerini ekleyen farklı yazarlar (kullanıcı filtresi seçimi için).
     final userAuthors = globalRecipesDatabase
@@ -4078,6 +4142,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .toList();
     list.sort((a, b) => _userRecipeMillis(b.id).compareTo(_userRecipeMillis(a.id)));
     return list;
+  }
+
+  /// Ana sayfada "En Çok Beğenilenler" yatay bölümü.
+  ///
+  /// Kullanıcıların verdiği yıldız puanlarına göre sıralanır. Tek bir 5 yıldız
+  /// listeyi tepeye taşımasın diye en az 2 puan almış tarifler alınır; hiç
+  /// puanlanan yoksa bölüm hiç çizilmez (boş/uydurma sıralama göstermeyiz).
+  Widget _topRatedSection() {
+    const minVotes = 2;
+    final rated = globalRecipesDatabase
+        .where((r) => recipeRatingCount(r.id) >= minVotes)
+        .toList()
+      ..sort((a, b) {
+        final c = recipeRatingAverage(b.id).compareTo(recipeRatingAverage(a.id));
+        // Ortalama eşitse çok oy alan önce.
+        return c != 0 ? c : recipeRatingCount(b.id).compareTo(recipeRatingCount(a.id));
+      });
+    if (rated.isEmpty) return const SizedBox.shrink();
+    final list = rated.take(10).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        const Row(
+          children: [
+            Icon(Icons.star_rounded, size: 20, color: Color(0xFFF5A623)),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text("En Çok Beğenilenler",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text("Kullanıcıların en yüksek puan verdiği tarifler",
+            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => SizedBox(width: 250, child: _recipeGridCard(list[i])),
+          ),
+        ),
+      ],
+    );
   }
 
   /// Ana sayfada "Kullanıcılardan Yeni Tarifler" yatay bölümü.
