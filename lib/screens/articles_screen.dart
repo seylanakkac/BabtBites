@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/admin_store.dart';
+import '../data/search_text.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
@@ -548,8 +549,8 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
     // Filter articles based on search and category
     final filteredArticles = fullArticles.where((art) {
       final matchesCategory = _selectedCategory == "Tümü" || art.category == _selectedCategory;
-      final matchesSearch = art.title.toLowerCase().contains(_searchQuery) ||
-          art.summary.toLowerCase().contains(_searchQuery);
+      final matchesSearch = searchKey(art.title).contains(_searchQuery) ||
+          searchKey(art.summary).contains(_searchQuery);
       return matchesCategory && matchesSearch;
     }).toList();
 
@@ -590,7 +591,7 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
                 controller: _searchController,
                 onChanged: (val) {
                   setState(() {
-                    _searchQuery = val.trim().toLowerCase();
+                    _searchQuery = searchKey(val);
                   });
                 },
                 decoration: InputDecoration(

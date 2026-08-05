@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/community_store.dart';
+import '../data/search_text.dart';
 import '../widgets/ad_banner.dart';
 import '../data/user_profile_store.dart';
 import '../services/community_sync.dart';
@@ -44,7 +45,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return globalCommunityPosts.where((p) {
       if (!p.anonymous && isBlockedUser(p.authorName)) return false; // engellenen yazar
       if (_category != "Tümü" && p.category != _category) return false;
-      if (_query.isNotEmpty && !("${p.title} ${p.body}".toLowerCase().contains(_query))) return false;
+      if (_query.isNotEmpty && !searchKey("${p.title} ${p.body}").contains(_query)) return false;
       return true;
     }).toList();
   }
@@ -70,7 +71,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   Container(
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
                     child: TextField(
-                      onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                      onChanged: (v) => setState(() => _query = searchKey(v)),
                       style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
                       decoration: const InputDecoration(
                         hintText: "Toplulukta ara...",

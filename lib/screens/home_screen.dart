@@ -22,6 +22,7 @@ import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/seasonal_database.dart';
 import '../data/sample_menu.dart';
+import '../data/search_text.dart';
 import '../data/tracking_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
@@ -759,7 +760,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildHomeTab() {
     final filteredFoods = globalFoodsDatabase.where((food) {
-      final matchesSearch = food.name.toLowerCase().contains(_searchQuery);
+      final matchesSearch = searchKey(food.name).contains(_searchQuery);
       final matchesCat = _selectedCategory == "Tümü" || food.category == _selectedCategory;
       return matchesSearch && matchesCat;
     }).toList();
@@ -778,7 +779,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final searchedRecipes = _searchQuery.isEmpty
         ? const <Recipe>[]
         : globalRecipesDatabase
-            .where((r) => r.name.toLowerCase().contains(_searchQuery))
+            .where((r) => searchKey(r.name).contains(_searchQuery))
             .toList();
     final babyName = _activeBaby?["name"]?.toString() ?? "Bebeğin";
 
@@ -821,7 +822,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(16)),
           child: TextField(
             controller: _searchController,
-            onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+            onChanged: (v) => setState(() => _searchQuery = searchKey(v)),
             style: const TextStyle(fontFamily: 'Inter', fontSize: 15, color: _text),
             decoration: const InputDecoration(
               hintText: "Gıda veya tarif ara...",
@@ -2328,7 +2329,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildFoodsExplorer() {
     final triedNames = triedFoodNames(_activeBabyId);
     final filteredFoods = globalFoodsDatabase.where((food) {
-      final matchesSearch = food.name.toLowerCase().contains(_searchQuery);
+      final matchesSearch = searchKey(food.name).contains(_searchQuery);
       final matchesCat = _selectedCategory == "Tümü" || food.category == _selectedCategory;
       final isTried = triedNames.contains(food.name);
       final matchesTried = _foodTriedFilter == "Tümü" ||
@@ -2393,7 +2394,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
       child: TextField(
         controller: _searchController,
-        onChanged: (v) => setState(() => _searchQuery = v.trim().toLowerCase()),
+        onChanged: (v) => setState(() => _searchQuery = searchKey(v)),
         style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
         decoration: const InputDecoration(
           hintText: "Gıda ara...",
@@ -2409,7 +2410,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildRecipesExplorer() {
     final triedNames = triedFoodNames(_activeBabyId);
     final filteredRecipes = globalRecipesDatabase.where((recipe) {
-      final matchesSearch = recipe.name.toLowerCase().contains(_recipeSearchQuery);
+      final matchesSearch = searchKey(recipe.name).contains(_recipeSearchQuery);
       if (_onlyTriedRecipes && !recipe.ingredients.any((ing) => triedNames.contains(ing))) return false;
       if (_onlyExpertRecipes && expertTypeForAuthor(recipe.author) == null) return false;
       if (_onlyUserRecipes && !recipe.id.startsWith("user_")) return false;
@@ -2537,7 +2538,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
               child: TextField(
                 controller: _recipeSearchController,
-                onChanged: (v) => setState(() => _recipeSearchQuery = v.trim().toLowerCase()),
+                onChanged: (v) => setState(() => _recipeSearchQuery = searchKey(v)),
                 style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
                 decoration: const InputDecoration(
                   hintText: "Tarif ara...",
@@ -2710,8 +2711,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
-          final q = searchCtrl.text.trim().toLowerCase();
-          final foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
+          final q = searchKey(searchCtrl.text);
+          final foods = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).toList();
           return Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
             child: SizedBox(
@@ -3219,9 +3220,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
-          final q = searchCtrl.text.trim().toLowerCase();
-          final foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).map((f) => {"name": f.name, "emoji": f.emoji, "img": f.imageUrl}).toList();
-          final recipes = globalRecipesDatabase.where((r) => r.name.toLowerCase().contains(q)).map((r) => {"name": r.name, "emoji": "🍲", "img": ""}).toList();
+          final q = searchKey(searchCtrl.text);
+          final foods = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).map((f) => {"name": f.name, "emoji": f.emoji, "img": f.imageUrl}).toList();
+          final recipes = globalRecipesDatabase.where((r) => searchKey(r.name).contains(q)).map((r) => {"name": r.name, "emoji": "🍲", "img": ""}).toList();
           final all = [...foods, ...recipes];
           return Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
@@ -3248,7 +3249,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   // (ev yemeği, dışarıda yenen bir şey, marka ürünü...).
                   // Besin değeri hesabına girmez; çözülemeyen malzeme zaten
                   // atlanıyor, uydurma değer üretilmiyor.
-                  if (q.isNotEmpty && !all.any((e) => e["name"]!.toLowerCase() == q))
+                  if (q.isNotEmpty && !all.any((e) => searchKey(e["name"]!) == q))
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: ListTile(
@@ -5309,7 +5310,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (dctx) => StatefulBuilder(
         builder: (dctx, setD) {
-          final matches = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).take(60).toList();
+          final matches = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).take(60).toList();
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             title: const Text("Gıda Seç", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
@@ -5319,7 +5320,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: Column(
                 children: [
                   TextField(
-                    onChanged: (v) => setD(() => q = v.trim().toLowerCase()),
+                    onChanged: (v) => setD(() => q = searchKey(v)),
                     decoration: InputDecoration(hintText: "Gıda ara...", isDense: true, prefixIcon: const Icon(Icons.search, size: 18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   ),
                   const SizedBox(height: 8),

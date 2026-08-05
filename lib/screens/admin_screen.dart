@@ -10,6 +10,7 @@ import '../data/community_store.dart';
 import '../data/food_database.dart';
 import '../data/seasonal_database.dart';
 import '../data/sample_menu.dart';
+import '../data/search_text.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -673,9 +674,9 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Widget _foodsManager() {
-    final q = _foodSearch.text.trim().toLowerCase();
+    final q = searchKey(_foodSearch.text);
     final pendingCount = globalFoodsDatabase.where(effectiveFoodNeedsReview).length;
-    var foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
+    var foods = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).toList();
     if (_onlyPendingFoods) foods = foods.where(effectiveFoodNeedsReview).toList();
     return _pane([
       _sectionHeader("Gıdalar", "${globalFoodsDatabase.length} gıda • $pendingCount uzman onayı bekliyor",
@@ -937,8 +938,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
   // ---------- recipes manager ----------
   Widget _recipesManager() {
-    final q = _recipeSearch.text.trim().toLowerCase();
-    final recipes = globalRecipesDatabase.where((r) => r.name.toLowerCase().contains(q)).toList();
+    final q = searchKey(_recipeSearch.text);
+    final recipes = globalRecipesDatabase.where((r) => searchKey(r.name).contains(q)).toList();
     return _pane([
       _sectionHeader("Tarifler", "${globalRecipesDatabase.length} tarif • düzenle, sil veya yeni ekle",
           action: _primaryBtn("Yeni Tarif", Icons.add, () => _recipeDialog(null))),
@@ -1283,9 +1284,9 @@ class _AdminScreenState extends State<AdminScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) {
-          final q = searchCtrl.text.trim().toLowerCase();
-          final foods = globalFoodsDatabase.where((f) => f.name.toLowerCase().contains(q)).toList();
-          final exact = globalFoodsDatabase.any((f) => f.name.toLowerCase() == q);
+          final q = searchKey(searchCtrl.text);
+          final foods = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).toList();
+          final exact = globalFoodsDatabase.any((f) => searchKey(f.name) == q);
           return Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
             child: SizedBox(
@@ -1336,8 +1337,8 @@ class _AdminScreenState extends State<AdminScreen> {
 
   // ---------- articles manager ----------
   Widget _articlesManager() {
-    final q = _articleSearch.text.trim().toLowerCase();
-    final all = getAllArticles().where((a) => a.title.toLowerCase().contains(q) || a.summary.toLowerCase().contains(q)).toList();
+    final q = searchKey(_articleSearch.text);
+    final all = getAllArticles().where((a) => searchKey(a.title).contains(q) || searchKey(a.summary).contains(q)).toList();
     return _pane([
       _sectionHeader("Yazılar", "${getAllArticles().length} yazı • düzenle, sil veya yeni ekle",
           action: _primaryBtn("Yeni Yazı", Icons.add, () => _articleDialog(null))),
