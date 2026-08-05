@@ -70,6 +70,8 @@ Future<void> main() async {
     await SocialSync.instance.loadStats().timeout(const Duration(seconds: 10), onTimeout: () {});
     // Onaylı uzmanlar (rozetler + uzman içerik filtresi için) — public read.
     await SocialSync.instance.loadExperts().timeout(const Duration(seconds: 8), onTimeout: () {});
+    // Onaylı influencer'lar (tarife ürün linki ekleme yetkisi) — public read.
+    await SocialSync.instance.loadInfluencers().timeout(const Duration(seconds: 8), onTimeout: () {});
   }
   StorageService.instance.loadInto();
   runApp(const BabyBitesApp());

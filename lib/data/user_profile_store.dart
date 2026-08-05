@@ -93,6 +93,39 @@ String? expertTypeForAuthor(String author) {
   return globalExperts[a];
 }
 
+// ---- Influencer (içerik üretici) onayı ----
+//
+// Onaylı influencer'lar kendi tariflerine "Bu Tarifte Kullandıklarım" ürün /
+// işbirliği linki ekleyebilir — admin'in tariflere eklediğiyle aynı alan
+// ([Recipe.productLinks]). Onay ŞART: aksi hâlde herkes tarifin içine reklam
+// linki koyabilirdi.
+//
+// İki kapı üst üste: kullanıcı önce influencer onayı alır, sonra eklediği HER
+// tarif ayrıca yayın onayından geçer. Yani hiçbir link admin görmeden yayına
+// çıkamaz.
+
+/// Beyan edilebilecek platformlar (talep ekranındaki seçim listesi).
+/// [kSocialPlatforms] ile aynı anahtarlar — [socialUrl] doğrudan çalışsın diye.
+const List<String> kInfluencerPlatforms = ["instagram", "tiktok", "youtube"];
+
+/// Admin onaylı influencer'lar: username (küçük harf) -> beyan edilen hesap
+/// adı (ör. "annecocukmutfagi"). SocialSync.loadInfluencers() ile Firestore
+/// /influencers'tan doldurulur.
+final Map<String, String> globalInfluencers = {};
+
+/// Bu kullanıcı onaylı influencer mı?
+bool isInfluencer(String username) {
+  final u = username.trim().toLowerCase();
+  return u.isNotEmpty && globalInfluencers.containsKey(u);
+}
+
+/// Onaylı influencer'ın beyan ettiği hesap adı; onaylı değilse null.
+String? influencerHandleFor(String author) {
+  final a = author.trim().toLowerCase();
+  if (a.isEmpty) return null;
+  return globalInfluencers[a];
+}
+
 /// The current user's @username. Falls back to a slug of [fallbackName] (e.g.
 /// the parent name) when no profile/username has been set yet.
 String myUsername({String fallbackName = ""}) {

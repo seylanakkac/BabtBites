@@ -344,6 +344,134 @@ class SocialSync {
     }
   }
 
+  // ---- Influencer onayı (ürün/işbirliği linki yetkisi) ----
+  //
+  // Uzman doğrulamayla aynı desen. Onaylananlar tariflerine "Bu Tarifte
+  // Kullandıklarım" linki ekleyebilir; tarif yine yayın onayından geçer.
+  CollectionReference<Map<String, dynamic>> get _influencers => _db.collection('influencers');
+  CollectionReference<Map<String, dynamic>> get _influencerReqs => _db.collection('influencerRequests');
+
+  /// Onaylı influencer'ları yükler → globalInfluencers[username] = handle.
+  Future<void> loadInfluencers() async {
+    try {
+      final snap = await _influencers.get();
+      globalInfluencers.clear();
+      for (final d in snap.docs) {
+        final m = d.data();
+        final u = (m['username']?.toString() ?? '').toLowerCase().trim();
+        final h = m['handle']?.toString() ?? '';
+        if (u.isNotEmpty) globalInfluencers[u] = h;
+      }
+    } catch (e) {
+      debugPrint('SocialSync.loadInfluencers failed: $e');
+    }
+  }
+
+  /// Kullanıcı influencer yetkisi talep eder (admin onayına gider).
+  Future<String?> submitInfluencerRequest({
+    required String username,
+    required String platform,
+    required String handle,
+    required String followers,
+    required String note,
+  }) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final ref = await _influencerReqs.add({
+        'uid': uid,
+        'username': username,
+        'platform': platform,
+        'handle': handle,
+        'followers': followers,
+        'note': note,
+        'approved': false,
+        'ts': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.submitInfluencerRequest failed: $e');
+      return null;
+    }
+  }
+
+  /// Onay bekleyen influencer talepleri (admin). Her birinde '_docId'.
+  Future<List<Map<String, dynamic>>> loadPendingInfluencerRequests() async {
+    try {
+      final snap = await _influencerReqs.where('approved', isEqualTo: false).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['_docId'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadPendingInfluencerRequests failed: $e');
+      return [];
+    }
+  }
+
+  /// Talebi onaylar: /influencers/{uid} yazar, talebi siler, kullanıcıya bildirir.
+  Future<void> approveInfluencerRequest(
+    String docId, {
+    required String uid,
+    required String username,
+    required String platform,
+    required String handle,
+  }) async {
+    try {
+      await _influencers.doc(uid).set({
+        'uid': uid,
+        'username': username,
+        'platform': platform,
+        'handle': handle,
+        'ts': FieldValue.serverTimestamp(),
+      });
+      await _influencerReqs.doc(docId).delete();
+      globalInfluencers[username.toLowerCase().trim()] = handle;
+      await sendNotification(
+        uid,
+        "Influencer başvurun onaylandı ✨",
+        "Artık eklediğin tariflere 'Bu Tarifte Kullandıklarım' ürün linki ekleyebilirsin. Tariflerin yine yayın onayından geçecek.",
+      );
+    } catch (e) {
+      debugPrint('SocialSync.approveInfluencerRequest failed: $e');
+    }
+  }
+
+  Future<void> rejectInfluencerRequest(String docId) async {
+    try {
+      await _influencerReqs.doc(docId).delete();
+    } catch (e) {
+      debugPrint('SocialSync.rejectInfluencerRequest failed: $e');
+    }
+  }
+
+  /// Onaylı influencer listesi (admin ekranı). Her birinde '_docId' = uid.
+  Future<List<Map<String, dynamic>>> loadApprovedInfluencers() async {
+    try {
+      final snap = await _influencers.get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['_docId'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadApprovedInfluencers failed: $e');
+      return [];
+    }
+  }
+
+  /// Bir influencer'ın yetkisini geri alır. Yayınlanmış tariflerdeki mevcut
+  /// linkler kalır (admin onayından geçmişlerdi); yeni link ekleyemez.
+  Future<void> revokeInfluencer(String uid, String username) async {
+    try {
+      await _influencers.doc(uid).delete();
+      globalInfluencers.remove(username.toLowerCase().trim());
+    } catch (e) {
+      debugPrint('SocialSync.revokeInfluencer failed: $e');
+    }
+  }
+
   // ---- Public profiles ----
   CollectionReference<Map<String, dynamic>> get _profiles => _db.collection('profiles');
 

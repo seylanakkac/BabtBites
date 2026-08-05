@@ -12,8 +12,93 @@
 ///   "status": "sorunsuz" | "reaksiyon" | null,
 ///   "triedDate": "yyyy-MM-dd" | null,
 ///   "reactionNote": String | null,
-///   "retryDate": "yyyy-MM-dd" | null }
+///   "retryDate": "yyyy-MM-dd" | null,
+///   "taste": "sevdi" | "sevmedi" | null }   // bebeğin beğenisi
 final Map<String, Map<String, dynamic>> globalBabyFoodStates = {};
+
+/// babyId -> (recipeId -> "sevdi" | "sevmedi").
+///
+/// Gıdaların beğenisi [globalBabyFoodStates] içindeki "taste" alanında tutulur;
+/// tariflerin ayrı bir kaydı yok, bu yüzden burada. İkisi de BEBEK BAŞINA:
+/// "favori" (ebeveynin yer imi) ile karıştırılmamalı — bu, bebeğin tepkisi.
+final Map<String, Map<String, String>> globalBabyRecipeTastes = {};
+
+/// Şu anda seçili bebeğin kimliği.
+///
+/// HomeScreen aktif bebeği her değiştirdiğinde günceller. Bebek kimliğini
+/// parametre olarak taşımayan ekranların (derin bağlantıyla açılan tarif
+/// detayı, örnek menü, kullanıcı profili) beğeni yazabilmesi için gerekli.
+/// Boşken beğeni arayüzü hiç gösterilmez — sahipsiz kayıt oluşmaz.
+String globalActiveBabyId = "";
+
+/// Beğeni seçenekleri: (anahtar, emoji, etiket).
+const List<(String, String, String)> kTasteOptions = [
+  ("sevdi", "😍", "Sevdi"),
+  ("sevmedi", "😖", "Sevmedi"),
+];
+
+/// Bir gıdanın beğenisi; yoksa null.
+String? foodTaste(String babyId, String foodName) {
+  final v = readFoodState(babyId, foodName)?["taste"]?.toString() ?? "";
+  return v.isEmpty ? null : v;
+}
+
+/// Gıda beğenisini yazar; [value] null ise işareti kaldırır.
+void setFoodTaste(String babyId, String foodName, String? value) {
+  final st = ensureFoodState(babyId, foodName);
+  if (value == null) {
+    st.remove("taste");
+  } else {
+    st["taste"] = value;
+  }
+}
+
+/// Bir tarifin beğenisi; yoksa null.
+String? recipeTaste(String babyId, String recipeId) =>
+    globalBabyRecipeTastes[babyId]?[recipeId];
+
+/// Tarif beğenisini yazar; [value] null ise işareti kaldırır.
+void setRecipeTaste(String babyId, String recipeId, String? value) {
+  final forBaby = globalBabyRecipeTastes.putIfAbsent(babyId, () => {});
+  if (value == null) {
+    forBaby.remove(recipeId);
+  } else {
+    forBaby[recipeId] = value;
+  }
+}
+
+/// Beğeni anahtarının emojisi (bilinmeyen → boş).
+String tasteEmoji(String? key) {
+  for (final o in kTasteOptions) {
+    if (o.$1 == key) return o.$2;
+  }
+  return "";
+}
+
+/// Beğeni anahtarının etiketi (bilinmeyen → boş).
+String tasteLabel(String? key) {
+  for (final o in kTasteOptions) {
+    if (o.$1 == key) return o.$3;
+  }
+  return "";
+}
+
+/// Bebeğin sevdiği gıdaların adları.
+Set<String> likedFoodNames(String babyId) {
+  final forBaby = globalBabyFoodStates[babyId];
+  if (forBaby == null) return {};
+  return forBaby.entries
+      .where((e) => (e.value as Map)["taste"] == "sevdi")
+      .map((e) => e.key)
+      .toSet();
+}
+
+/// Bebeğin sevdiği tariflerin kimlikleri.
+Set<String> likedRecipeIds(String babyId) {
+  final forBaby = globalBabyRecipeTastes[babyId];
+  if (forBaby == null) return {};
+  return forBaby.entries.where((e) => e.value == "sevdi").map((e) => e.key).toSet();
+}
 
 /// babyId -> list of reminder maps.
 /// Reminder shape:
@@ -30,7 +115,9 @@ final Map<String, List<Map<String, dynamic>>> globalBabyMeds = {};
 ///   "cisList":  [ {"color": "koyu"|"orta"|"açık"} ],   // one per wet diaper
 ///   "kakaList": [ {"consistency": "Sulu"|"Yumuşak"|"Normal"|"Katı"} ], // per poop
 ///   "su": int,                  // water intake in millilitres (ml)
-///   "taken": { defId: bool }    // medication taken toggles
+///   "taken": { defId: bool },   // medication taken toggles
+///   "feeds": [ ... ],           // emzirme/sağılmış süt/mama kayıtları
+///   "mealStatus": { slot: "hepsi"|"biraz"|"tadi"|"yemedi" }  // öğünü yedi mi
 /// }
 final Map<String, Map<String, dynamic>> globalDailyLogs = {};
 
@@ -38,8 +125,14 @@ final Map<String, Map<String, dynamic>> globalDailyLogs = {};
 /// beslenme takibi açılır menüsünde görünür). Kullanıcı verisi olarak senkronlanır.
 final List<String> globalUserFormulaNames = [];
 
-/// A (baby, day) feeding list — emzirme/formül kayıtları. Mutable.
-/// Entry shape: {"type":"emzirme"|"formul", "formula":String, "amount":num, "unit":String, "time":"HH:mm"}
+/// A (baby, day) feeding list — emzirme / sağılmış süt / mama kayıtları.
+/// Entry shape: {"type":"emzirme"|"sagilmis"|"formul", "formula":String,
+///               "amount":String, "unit":String, "breast":String,
+///               "duration":String, "time":"HH:mm"}
+/// Miktar (ml) hem "formul" hem "sagilmis" için geçerli — sağılmış anne sütü de
+/// biberonla verildiğinden ölçülebiliyor.
+///
+/// Döndürülen liste CANLI: üzerine `add`/`removeAt` yapmak günlüğe yazar.
 List<Map<String, dynamic>> feedsFor(String babyId, String dateKey) {
   final log = dailyLog(babyId, dateKey);
   return (log["feeds"] as List).cast<Map<String, dynamic>>();
@@ -62,34 +155,100 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
       "taken": <String, dynamic>{},
       "mood": "", // "uzgun" | "normal" | "mutlu" — baby's general mood that day
       "note": "", // mother's free-text note for the day
-      "feeds": <Map<String, dynamic>>[], // emzirme/formül kayıtları
+      "feeds": <Map<String, dynamic>>[], // emzirme/sağılmış süt/mama kayıtları
+      "mealStatus": <String, dynamic>{}, // öğün -> "hepsi"|"biraz"|"tadi"|"yemedi"
     };
     forBaby[dateKey] = log;
     return log;
   }
   // Migrate / ensure keys (handles legacy int counts).
-  if (log["cisList"] == null) {
+  //
+  // ⚠️ NORMALLEŞTİRME YALNIZCA BİR KEZ: eskiden bu üç liste HER çağrıda
+  // `.map(...).toList()` ile yeniden üretiliyordu; yani `dailyLog()` her
+  // çağrıldığında liste KİMLİĞİ değişiyordu. Bir ekran listeyi alıp elinde
+  // tutarken (ör. "Beslenme Ekle" penceresi açıkken) araya bir yeniden çizim
+  // girince eldeki liste öksüz kalıyor, "Kaydet" o öksüz listeye yazdığı için
+  // kayıt ne ekranda görünüyor ne de diske yazılıyordu — kullanıcı tarafında
+  // "buton çalışmıyor" olarak görülen hata buydu.
+  //
+  // Çözüm: liste zaten doğru tipteyse dokunma. `.map((e) => Map<String,
+  // dynamic>.from(e)).toList()` sonucu `List<Map<String, dynamic>>` olduğundan
+  // ilk dönüşümden sonra bu kontrol hep true döner → kimlik sabit kalır.
+  final cis = log["cisList"];
+  if (cis == null) {
     final c = (log["cis"] as num?)?.toInt() ?? 0;
     log["cisList"] = List<Map<String, dynamic>>.generate(c, (_) => {"color": "orta"});
-  } else {
-    log["cisList"] = (log["cisList"] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } else if (cis is! List<Map<String, dynamic>>) {
+    log["cisList"] = (cis as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
-  if (log["kakaList"] == null) {
+  final kaka = log["kakaList"];
+  if (kaka == null) {
     final k = (log["kaka"] as num?)?.toInt() ?? 0;
     log["kakaList"] = List<Map<String, dynamic>>.generate(k, (_) => {"consistency": "Normal"});
-  } else {
-    log["kakaList"] = (log["kakaList"] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } else if (kaka is! List<Map<String, dynamic>>) {
+    log["kakaList"] = (kaka as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
   log["su"] = (log["su"] as num?)?.toInt() ?? 0;
   log["taken"] ??= <String, dynamic>{};
   log["mood"] ??= "";
   log["note"] ??= "";
-  if (log["feeds"] == null) {
+  final feeds = log["feeds"];
+  if (feeds == null) {
     log["feeds"] = <Map<String, dynamic>>[];
-  } else {
-    log["feeds"] = (log["feeds"] as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  } else if (feeds is! List<Map<String, dynamic>>) {
+    log["feeds"] = (feeds as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+  final ms = log["mealStatus"];
+  if (ms == null) {
+    log["mealStatus"] = <String, dynamic>{};
+  } else if (ms is! Map<String, dynamic>) {
+    log["mealStatus"] = Map<String, dynamic>.from(ms as Map);
   }
   return log;
+}
+
+// ---- Öğün tamamlama durumu (kahvaltı/öğle/… için "yedi mi?") ----
+
+/// Geçerli durum anahtarları ve kullanıcıya görünen karşılıkları.
+/// Sıra bilinçli: en olumludan en olumsuza.
+const List<(String, String, String)> kMealStatusOptions = [
+  ("hepsi", "😋", "Hepsini yedi"),
+  ("biraz", "🙂", "Bir kısmını yedi"),
+  ("tadi", "😐", "Tadına baktı"),
+  ("yemedi", "🙁", "Yemedi"),
+];
+
+/// Bir (bebek, gün, öğün) için kayıtlı durum; yoksa null.
+String? mealStatus(String babyId, String dateKey, String slot) {
+  final v = (dailyLog(babyId, dateKey)["mealStatus"] as Map)[slot];
+  final s = v?.toString() ?? "";
+  return s.isEmpty ? null : s;
+}
+
+/// Durumu yazar; [value] null ise kaydı siler (yanlış dokunuş geri alınabilsin).
+void setMealStatus(String babyId, String dateKey, String slot, String? value) {
+  final m = dailyLog(babyId, dateKey)["mealStatus"] as Map;
+  if (value == null) {
+    m.remove(slot);
+  } else {
+    m[slot] = value;
+  }
+}
+
+/// Durum anahtarının emojisi (bilinmeyen anahtar → boş).
+String mealStatusEmoji(String? key) {
+  for (final o in kMealStatusOptions) {
+    if (o.$1 == key) return o.$2;
+  }
+  return "";
+}
+
+/// Durum anahtarının etiketi (bilinmeyen anahtar → boş).
+String mealStatusLabel(String? key) {
+  for (final o in kMealStatusOptions) {
+    if (o.$1 == key) return o.$3;
+  }
+  return "";
 }
 
 /// Days (newest first) that have a recorded mood or note, for the report.

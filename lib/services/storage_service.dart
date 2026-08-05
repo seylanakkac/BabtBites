@@ -93,6 +93,7 @@ class StorageService {
   static const String _kFeatureUnlocks = 'feature_unlocks';
   static const String _kReportFiles = 'report_files';
   static const String _kUserFormulaNames = 'user_formula_names';
+  static const String _kRecipeTastes = 'baby_recipe_tastes';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
   // (Catalog/admin/social keys are intentionally excluded — those become the
@@ -101,7 +102,7 @@ class StorageService {
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kMyFollowing, _kBlockedUsers, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
-    _kReportFiles, _kPremiumUntil,
+    _kReportFiles, _kPremiumUntil, _kRecipeTastes,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
@@ -423,6 +424,16 @@ class StorageService {
         });
       }
 
+      // Bebek başına tarif beğenileri (sevdi / sevmedi).
+      final tasteRaw = prefs.getString(_kRecipeTastes);
+      if (tasteRaw != null) {
+        globalBabyRecipeTastes.clear();
+        (jsonDecode(tasteRaw) as Map<String, dynamic>).forEach((babyId, m) {
+          globalBabyRecipeTastes[babyId] =
+              (m as Map).map((k, v) => MapEntry(k.toString(), v.toString()));
+        });
+      }
+
       // Kullanıcının kendi formül mama adları (beslenme takibi açılır menüsü).
       final ufn = prefs.getStringList(_kUserFormulaNames);
       if (ufn != null) {
@@ -572,6 +583,24 @@ class StorageService {
     } catch (e) {
       debugPrint('StorageService.saveRecipeSocial failed: $e');
     }
+  }
+
+  /// Persists only the per-baby taste marks (sevdi / sevmedi).
+  ///
+  /// Tarif detayı bebek listesini taşımadığı için [saveAll] çağıramıyor; bu
+  /// ekran derin bağlantıyla ya da profil sayfasından da açılabildiğinden
+  /// üstteki `onStateChanged` her zaman bağlı değil. Gıda beğenisi
+  /// [globalBabyFoodStates] içinde durduğu için o anahtar da yazılıyor.
+  Future<void> saveTastes() async {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      await prefs.setString(_kRecipeTastes, jsonEncode(globalBabyRecipeTastes));
+      await prefs.setString(_kBabyFoodStates, jsonEncode(globalBabyFoodStates));
+    } catch (e) {
+      debugPrint('StorageService.saveTastes failed: $e');
+    }
+    _triggerCloud();
   }
 
   /// Persists the current user's public profile + the known-profiles cache.
@@ -773,6 +802,7 @@ class StorageService {
       await prefs.setString(_kReminders, jsonEncode(globalReminders));
       await prefs.setString(_kBabyMeds, jsonEncode(globalBabyMeds));
       await prefs.setString(_kDailyLogs, jsonEncode(globalDailyLogs));
+      await prefs.setString(_kRecipeTastes, jsonEncode(globalBabyRecipeTastes));
       await prefs.setStringList(_kUserFormulaNames, globalUserFormulaNames);
       await prefs.setString(_kGrowth, jsonEncode(globalGrowthRecords));
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
@@ -873,6 +903,7 @@ class StorageService {
     globalReminders.clear();
     globalBabyMeds.clear();
     globalDailyLogs.clear();
+    globalBabyRecipeTastes.clear();
     globalUserFormulaNames.clear();
     globalMyProfile = null;
   }

@@ -105,6 +105,26 @@ service cloud.firestore {
         || (request.auth != null && resource.data.uid == request.auth.uid);
     }
 
+    // Onaylı influencer'lar: herkes okur (uygulama açılışta yetkiyi buradan
+    // öğrenir), YALNIZ admin yazar. Yetki kapısı budur — kullanıcı kendini
+    // buraya yazamaz, dolayısıyla tarife ürün linki ekleme hakkını kendi
+    // kendine veremez.
+    match /influencers/{uid} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Influencer başvuruları: kullanıcı kendi başvurusunu oluşturur/görür/siler;
+    // admin tümünü okur ve onaylar/siler.
+    match /influencerRequests/{id} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.approved == false;
+      allow update, delete: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid);
+    }
+
     // Topluluk gönderileri: onaylananı herkes okur (admin/yazar onaysızı da okur).
     // Kullanıcı kendi onaysız gönderisini oluşturur (admin onayı şart).
     // Beğeni/anket/şikayet/yanıt sayacı için giriş yapmış kullanıcı günceller

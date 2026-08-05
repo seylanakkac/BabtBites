@@ -4,10 +4,12 @@ import '../data/admin_store.dart';
 import '../data/tracking_store.dart';
 import '../services/analytics.dart';
 import '../services/auth_gate.dart';
+import '../services/storage_service.dart';
 import '../widgets/ad_banner.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
 import '../widgets/nutrition_card.dart';
+import '../widgets/taste_picker.dart';
 import '../widgets/web_shell.dart';
 import 'premium_screen.dart';
 import 'recipe_detail_screen.dart';
@@ -731,6 +733,19 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 14),
+                // Bebeğin beğenisi — "denendi" durumundan bağımsız işaretlenir
+                // (bir gıda reaksiyonsuz denenip yine de sevilmemiş olabilir).
+                TastePicker(
+                  subject: food.name,
+                  value: foodTaste(widget.babyId, food.name),
+                  onChanged: (v) {
+                    if (requireLogin(context)) return;
+                    setState(() => setFoodTaste(widget.babyId, food.name, v));
+                    StorageService.instance.saveTastes();
+                    widget.onStateChanged?.call();
+                  },
                 ),
                 const SizedBox(height: 14),
                 SizedBox(

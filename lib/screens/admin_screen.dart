@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../data/admin_store.dart';
+import '../data/user_profile_store.dart';
 import '../data/recipe_social_store.dart';
 import '../services/file_storage.dart';
 import '../services/catalog_sync.dart';
@@ -280,6 +282,9 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.wb_sunny_outlined, "Mevsimlik"),
       (Icons.campaign_outlined, "Duyuru"),
       (Icons.event_note_outlined, "Örnek Menü"),
+      // auto_awesome: uygulamada başka yerlerde de kullanılıyor (yukarıdaki
+      // tree-shaking notu), bu yüzden güvenli.
+      (Icons.auto_awesome, "Influencer"),
     ];
 
     return Scaffold(
@@ -395,6 +400,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _broadcastManager();
       case 14:
         return _sampleMenuManager();
+      case 15:
+        return _influencerApprovalManager();
       default:
         return _dashboard();
     }
@@ -2225,6 +2232,51 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(height: 8),
                 Text("⚠️ ${p["allergyWarning"]}", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _red)),
               ],
+              // Ürün / işbirliği linkleri KARTTA görünsün: "Onayla"ya basmadan
+              // önce fark edilmeli. (İncele/Düzenle içinde de düzenlenebiliyor
+              // ama oraya girmeden onaylamak mümkün.)
+              ...(() {
+                final links = (p["productLinks"] as List?) ?? const [];
+                final shown = links.where((e) => ((e as Map)["url"]?.toString() ?? "").trim().isNotEmpty).toList();
+                if (shown.isEmpty) return <Widget>[];
+                return <Widget>[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7A5CFF).withOpacity(0.07),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF7A5CFF).withOpacity(0.35)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("🔗 ${shown.length} ürün / işbirliği linki içeriyor",
+                            style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF5B3FD6))),
+                        const SizedBox(height: 4),
+                        ...shown.map((e) {
+                          final m = e as Map;
+                          final label = (m["label"]?.toString() ?? "").trim();
+                          final url = m["url"].toString().trim();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: InkWell(
+                              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+                              child: Text(
+                                label.isEmpty ? url : "$label — $url",
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light, decoration: TextDecoration.underline),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                ];
+              }()),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -2576,6 +2628,157 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         );
       }),
+    ]);
+  }
+
+  // ---------- influencer approval ----------
+  //
+  // Onaylananlar kendi tariflerine "Bu Tarifte Kullandıklarım" ürün linki
+  // ekleyebilir. Tarifleri yine Tarif Onayı kuyruğundan geçer — yani linkler
+  // burada onay verilse bile sen görmeden yayına çıkmaz.
+  List<Map<String, dynamic>>? _pendingInfluencerList;
+  List<Map<String, dynamic>>? _approvedInfluencerList;
+
+  Future<void> _reloadInfluencers() async {
+    final pending = await SocialSync.instance.loadPendingInfluencerRequests();
+    final approved = await SocialSync.instance.loadApprovedInfluencers();
+    if (mounted) {
+      setState(() {
+        _pendingInfluencerList = pending;
+        _approvedInfluencerList = approved;
+      });
+    }
+  }
+
+  Widget _influencerApprovalManager() {
+    if (_pendingInfluencerList == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pendingInfluencerList == null) _reloadInfluencers();
+      });
+      return _pane([
+        _sectionHeader("Influencer Onayı", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+    final pending = _pendingInfluencerList!;
+    final approved = _approvedInfluencerList ?? const <Map<String, dynamic>>[];
+    return _pane([
+      Row(children: [
+        Expanded(child: _sectionHeader("Influencer Onayı", "${pending.length} başvuru bekliyor · ${approved.length} onaylı")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadInfluencers),
+      ]),
+      _card(
+        child: const Text(
+          "Onaylanan kullanıcı, eklediği tariflere ürün / işbirliği linki koyabilir. "
+          "Tarifleri yine 'Tarif Onayı' kuyruğuna düşer — linkleri orada görüp yayınlamadan önce kontrol edebilirsin.",
+          style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.4),
+        ),
+      ),
+      const SizedBox(height: 6),
+      if (pending.isEmpty)
+        _card(child: const Text("Onay bekleyen başvuru yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...pending.map((p) {
+        final username = p["username"]?.toString() ?? "";
+        final platform = p["platform"]?.toString() ?? "";
+        final handle = p["handle"]?.toString() ?? "";
+        final followers = p["followers"]?.toString() ?? "";
+        final note = p["note"]?.toString() ?? "";
+        final url = socialUrl(platform, handle);
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7A5CFF)),
+                const SizedBox(width: 6),
+                Expanded(child: Text("@$username", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+              ]),
+              const SizedBox(height: 6),
+              Text("${kSocialLabels[platform] ?? platform}: @$handle", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              if (followers.isNotEmpty)
+                Text("Takipçi: $followers", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              if (note.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(note, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.35)),
+              ],
+              if (url.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.open_in_new, size: 14, color: _primary),
+                    SizedBox(width: 5),
+                    Text("Hesabı aç", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                  ]),
+                ),
+              ],
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
+                      final uid = p["uid"]?.toString() ?? "";
+                      await SocialSync.instance.approveInfluencerRequest(docId, uid: uid, username: username, platform: platform, handle: handle);
+                      await _reloadInfluencers();
+                      _toast("Influencer onaylandı: @$username");
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final docId = p["_docId"]?.toString() ?? "";
+                      if (docId.isNotEmpty) await SocialSync.instance.rejectInfluencerRequest(docId);
+                      if (mounted) setState(() => _pendingInfluencerList!.remove(p));
+                      _toast("Başvuru reddedildi");
+                    },
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text("Reddet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(foregroundColor: _red, side: const BorderSide(color: _red), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                  ),
+                ),
+              ]),
+            ],
+          ),
+        );
+      }),
+      if (approved.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        _sectionHeader("Onaylı Influencer'lar", "Yetkiyi geri alabilirsin"),
+        ...approved.map((a) {
+          final username = a["username"]?.toString() ?? "";
+          final handle = a["handle"]?.toString() ?? "";
+          final platform = a["platform"]?.toString() ?? "";
+          return _card(
+            child: Row(children: [
+              const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7A5CFF)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("@$username", style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _text)),
+                    Text("${kSocialLabels[platform] ?? platform}: @$handle", style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await SocialSync.instance.revokeInfluencer(a["_docId"]?.toString() ?? "", username);
+                  await _reloadInfluencers();
+                  _toast("Yetki geri alındı: @$username");
+                },
+                child: const Text("Yetkiyi al", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _red)),
+              ),
+            ]),
+          );
+        }),
+      ],
     ]);
   }
 

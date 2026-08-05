@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
+import '../data/tracking_store.dart';
+import '../widgets/taste_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/social_sync.dart';
@@ -514,6 +516,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                             ),
                           ],
                         ),
+                        // Bebeğin beğenisi. "Beğen" (kalp) ebeveynin yer imi;
+                        // bu satır bebeğin tepkisi ve tarif listesindeki
+                        // "sevdikleri" filtresini besliyor. Aktif bebek yoksa
+                        // (henüz bebek eklenmemişse) hiç gösterilmez.
+                        if (globalActiveBabyId.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          TastePicker(
+                            subject: recipe.name,
+                            value: recipeTaste(globalActiveBabyId, recipe.id),
+                            onChanged: (v) {
+                              if (requireLogin(context)) return;
+                              setState(() => setRecipeTaste(globalActiveBabyId, recipe.id, v));
+                              StorageService.instance.saveTastes();
+                              widget.onStateChanged?.call();
+                            },
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,

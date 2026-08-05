@@ -106,10 +106,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _foodSelectMode = false;
   final Set<String> _selectedFoodNames = {};
   bool _onlyTriedRecipes = false;
+  bool _onlyLikedRecipes = false; // bebeğin "sevdi" işaretlediği tarifler
   bool _onlyExpertRecipes = false;
   bool _onlyUserRecipes = false; // sadece kullanıcıların eklediği tarifler
   String? _selectedRecipeUser; // belirli bir kullanıcının tarifleri (null = tümü)
-  String _foodTriedFilter = "Tümü"; // "Tümü" | "Denendi" | "Denenmedi"
+  String _foodTriedFilter = "Tümü"; // "Tümü" | "Denendi" | "Denenmedi" | "Sevdi"
   final Set<String> _pantry = {};
 
   final _cartInputController = TextEditingController();
@@ -241,6 +242,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   void _syncGlobalFlagsToActiveBaby() {
     final id = _activeBabyId;
+    // Bebek kimliği taşımayan ekranlar (tarif detayı vb.) buradan okur.
+    globalActiveBabyId = id;
     for (final food in globalFoodsDatabase) {
       final st = readFoodState(id, food.name);
       food.tried = st?["tried"] == true;
@@ -2290,15 +2293,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
             const SizedBox(height: 12),
-            // Denenen / denenmeyen filtre çipleri (sayaçlar artık filtre).
-            Row(
-              children: [
-                _foodFilterChip(null, "Tümü", total),
-                const SizedBox(width: 8),
-                _foodFilterChip("Denendi", "Denenenler", tried),
-                const SizedBox(width: 8),
-                _foodFilterChip("Denenmedi", "Kalanlar", remaining),
-              ],
+            // Denenen / denenmeyen / beğeni filtre çipleri (sayaçlar filtre).
+            // Dört çip dar ekrana sığmadığı için yatay kaydırılabilir.
+            SizedBox(
+              height: 32,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _foodFilterChip(null, "Tümü", total),
+                  const SizedBox(width: 8),
+                  _foodFilterChip("Denendi", "Denenenler", tried),
+                  const SizedBox(width: 8),
+                  _foodFilterChip("Denenmedi", "Kalanlar", remaining),
+                  const SizedBox(width: 8),
+                  _foodFilterChip("Sevdi", "Sevdikleri 😍", likedFoodNames(_activeBabyId).length),
+                ],
+              ),
             ),
           ],
         ),
@@ -2328,13 +2338,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildFoodsExplorer() {
     final triedNames = triedFoodNames(_activeBabyId);
+    final likedNames = likedFoodNames(_activeBabyId);
     final filteredFoods = globalFoodsDatabase.where((food) {
       final matchesSearch = searchKey(food.name).contains(_searchQuery);
       final matchesCat = _selectedCategory == "Tümü" || food.category == _selectedCategory;
       final isTried = triedNames.contains(food.name);
       final matchesTried = _foodTriedFilter == "Tümü" ||
           (_foodTriedFilter == "Denendi" && isTried) ||
-          (_foodTriedFilter == "Denenmedi" && !isTried);
+          (_foodTriedFilter == "Denenmedi" && !isTried) ||
+          (_foodTriedFilter == "Sevdi" && likedNames.contains(food.name));
       return matchesSearch && matchesCat && matchesTried;
     }).toList();
 
@@ -2409,9 +2421,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildRecipesExplorer() {
     final triedNames = triedFoodNames(_activeBabyId);
+    final likedIds = likedRecipeIds(_activeBabyId);
     final filteredRecipes = globalRecipesDatabase.where((recipe) {
       final matchesSearch = searchKey(recipe.name).contains(_recipeSearchQuery);
       if (_onlyTriedRecipes && !recipe.ingredients.any((ing) => triedNames.contains(ing))) return false;
+      if (_onlyLikedRecipes && !likedIds.contains(recipe.id)) return false;
       if (_onlyExpertRecipes && expertTypeForAuthor(recipe.author) == null) return false;
       if (_onlyUserRecipes && !recipe.id.startsWith("user_")) return false;
       if (_selectedRecipeUser != null && recipe.author.trim().toLowerCase() != _selectedRecipeUser) return false;
@@ -2467,6 +2481,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(width: 10),
                   const Expanded(child: Text("Sadece denediğim gıdaları içerenler", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text))),
                   Switch(value: _onlyTriedRecipes, activeColor: _green, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (v) => setState(() => _onlyTriedRecipes = v)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Bebeğin sevdiği tarifler (tarif detayındaki 😍 işaretinden gelir).
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
+              child: Row(
+                children: [
+                  const Text("😍", style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text("Sadece bebeğimin sevdiği tarifler", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text))),
+                  Switch(value: _onlyLikedRecipes, activeColor: const Color(0xFF10B981), materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, onChanged: (v) => setState(() => _onlyLikedRecipes = v)),
                 ],
               ),
             ),
@@ -3160,9 +3191,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   )).toList(),
             ),
+            const SizedBox(height: 12),
+            _mealStatusRow(slot),
           ],
         ],
       ),
+    );
+  }
+
+  /// "Öğünü tamamladım" satırı: bebeğin bu öğünü ne kadar yediği.
+  ///
+  /// Yalnızca planda kalem varken görünür (yiyecek yoksa değerlendirecek bir
+  /// şey de yok). Seçili çipe yeniden dokunmak işareti kaldırır — yanlış
+  /// dokunuş geri alınabilsin diye.
+  Widget _mealStatusRow(String slot) {
+    final babyId = _activeBabyId;
+    final current = mealStatus(babyId, _selectedDay, slot);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.restaurant, size: 14, color: _light),
+            const SizedBox(width: 6),
+            Text(
+              current == null ? "Bu öğünü yedi mi?" : "Durum: ${mealStatusLabel(current)}",
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.w600, color: _light),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: kMealStatusOptions.map((o) {
+            final sel = current == o.$1;
+            return GestureDetector(
+              onTap: () {
+                setMealStatus(babyId, _selectedDay, slot, sel ? null : o.$1);
+                _persist();
+                setState(() {});
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: sel ? _primary : const Color(0xFFF3F3F5),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(o.$2, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(width: 5),
+                    Text(
+                      o.$3,
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.w600, color: sel ? Colors.white : _text),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 
@@ -3307,16 +3399,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // ---------- feeding (emzirme / formül mama) ----------
   Widget _feedTile(Map f, VoidCallback onDelete) {
-    final isFormula = f["type"] == "formul";
+    final type = (f["type"] ?? "emzirme").toString();
+    final isFormula = type == "formul";
+    final isExpressed = type == "sagilmis"; // sağılmış anne sütü (biberonla)
     final formula = (f["formula"] ?? "").toString().trim();
-    final title = isFormula ? (formula.isNotEmpty ? "Mama: $formula" : "Formül Mama") : "Emzirme";
+    final title = isFormula
+        ? (formula.isNotEmpty ? "Mama: $formula" : "Formül Mama")
+        : (isExpressed ? "Sağılmış Süt" : "Emzirme");
     final amount = (f["amount"] ?? "").toString().trim();
     final unit = (f["unit"] ?? "").toString().trim();
     final time = (f["time"] ?? "").toString().trim();
     final breast = (f["breast"] ?? "").toString().trim();
     final duration = (f["duration"] ?? "").toString().trim();
     final parts = <String>[];
-    if (isFormula) {
+    if (isFormula || isExpressed) {
+      // Miktar hem mamada hem sağılmış sütte ml (ya da seçilen birim) olarak.
       if (amount.isNotEmpty) parts.add("$amount $unit".trim());
     } else {
       const breastLabels = {"sol": "Sol meme", "sag": "Sağ meme", "iki": "İki meme"};
@@ -3325,14 +3422,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
     if (time.isNotEmpty) parts.add(time);
     final sub = parts.join(" • ");
-    final color = isFormula ? const Color(0xFF7A5CFF) : const Color(0xFFEC4899);
+    final color = isFormula
+        ? const Color(0xFF7A5CFF)
+        : (isExpressed ? const Color(0xFF0EA5A5) : const Color(0xFFEC4899));
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
       child: Row(
         children: [
-          Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle), child: Icon(isFormula ? Icons.local_drink : Icons.child_friendly, color: color, size: 20)),
+          Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle), child: Icon(isFormula ? Icons.local_drink : (isExpressed ? Icons.water_drop_outlined : Icons.child_friendly), color: color, size: 20)),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -3349,7 +3448,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showAddFeedDialog(List feeds) {
+  /// Beslenme ekleme penceresi.
+  ///
+  /// Liste parametre olarak DEĞİL, kaydederken [feedsFor] ile yeniden okunur:
+  /// pencere açıkken araya bir yeniden çizim girerse elde tutulan liste öksüz
+  /// kalabiliyordu ve kayıt hiçbir yere yazılmıyordu (bkz. tracking_store'daki
+  /// normalleştirme notu). Gün ve bebek de pencere açıldığı andaki değerlerine
+  /// sabitlenir — kullanıcı arkada günü değiştirse bile kayıt doğru güne gider.
+  void _showAddFeedDialog() {
+    final babyId = _activeBabyId;
+    final dayKey = _selectedDay;
     String type = "emzirme";
     final allFormulas = <String>{...formulaNameOptions, ...globalUserFormulaNames}.toList();
     bool customName = allFormulas.isEmpty;
@@ -3376,9 +3484,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         child: GestureDetector(
           onTap: () => setD(() => type = value),
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
             decoration: BoxDecoration(color: sel ? _primary : const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
-            child: Center(child: Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: sel ? Colors.white : _light))),
+            // Üç seçenek yan yana: "Sağılmış Süt" sığsın diye punto küçük ve
+            // gerekirse iki satıra kırılıyor.
+            child: Center(child: Text(label, textAlign: TextAlign.center, maxLines: 2, style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, height: 1.15, fontWeight: FontWeight.bold, color: sel ? Colors.white : _light))),
           ),
         ),
       );
@@ -3427,7 +3537,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [typeChip("Emzirme", "emzirme", setD), const SizedBox(width: 8), typeChip("Formül Mama", "formul", setD)]),
+                    Row(children: [
+                      typeChip("Emzirme", "emzirme", setD),
+                      const SizedBox(width: 6),
+                      typeChip("Sağılmış Süt", "sagilmis", setD),
+                      const SizedBox(width: 6),
+                      typeChip("Mama", "formul", setD),
+                    ]),
                     if (type == "formul") ...[
                       const SizedBox(height: 14),
                       const Text("Mama adı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
@@ -3457,6 +3573,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       const SizedBox(height: 6),
                       TextField(controller: durationCtrl, keyboardType: TextInputType.number, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 15")),
                     ] else ...[
+                      // Hem formül mama hem sağılmış anne sütü biberonla
+                      // verildiği için ikisinde de miktar (ml) girilebilir.
                       const Text("Miktar", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
                       const SizedBox(height: 6),
                       Row(
@@ -3488,16 +3606,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   }
                   final now = DateTime.now();
                   final time = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
-                  setState(() => feeds.add({
-                        "type": type,
-                        "formula": formula,
-                        "amount": type == "emzirme" ? "" : amountCtrl.text.trim(),
-                        "unit": type == "emzirme" ? "" : unit,
-                        "breast": type == "emzirme" ? breast : "",
-                        "duration": type == "emzirme" ? durationCtrl.text.trim() : "",
-                        "time": time,
-                      }));
+                  final isBottle = type != "emzirme"; // mama veya sağılmış süt
+                  // Listeyi BURADA, kaydederken tazeliyoruz (bkz. yöntem notu).
+                  final target = feedsFor(babyId, dayKey);
+                  target.add({
+                    "type": type,
+                    "formula": formula,
+                    "amount": isBottle ? amountCtrl.text.trim() : "",
+                    "unit": isBottle ? unit : "",
+                    "breast": type == "emzirme" ? breast : "",
+                    "duration": type == "emzirme" ? durationCtrl.text.trim() : "",
+                    "time": time,
+                  });
                   _persist();
+                  setState(() {});
                   Navigator.pop(ctx);
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -3641,12 +3763,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (feeds.isEmpty)
           emptyHint("Henüz beslenme kaydı yok. 'Ekle' ile emzirme veya mama girin.")
         else
-          ...feeds.asMap().entries.map((e) => _feedTile(e.value as Map, () { setState(() => feeds.removeAt(e.key)); _persist(); })),
+          ...feeds.asMap().entries.map((e) => _feedTile(e.value as Map, () {
+                // Silmede de listeyi tazele: elde tutulan kopya bayatlamış olabilir.
+                final target = feedsFor(id, _selectedDay);
+                if (e.key < target.length) target.removeAt(e.key);
+                _persist();
+                setState(() {});
+              })),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => _showAddFeedDialog(feeds),
+            onPressed: _showAddFeedDialog,
             icon: const Icon(Icons.add, size: 18),
             label: const Text("Beslenme Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -5109,9 +5237,150 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2BB673), side: const BorderSide(color: Color(0xFF7FD0A6)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               ),
             ),
+          const SizedBox(height: 8),
+          // Influencer yetkisi durumu / başvuru
+          if (isInfluencer(uname))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(color: const Color(0xFF7A5CFF).withOpacity(0.10), borderRadius: BorderRadius.circular(12)),
+              child: Row(children: [
+                const Icon(Icons.auto_awesome, color: Color(0xFF7A5CFF), size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("Onaylı Influencer ✨", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF5B3FD6))),
+                      const SizedBox(height: 2),
+                      Text(
+                        "Tariflerine ürün / işbirliği linki ekleyebilirsin.",
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: const Color(0xFF5B3FD6).withOpacity(0.75)),
+                      ),
+                    ],
+                  ),
+                ),
+              ]),
+            )
+          else
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showInfluencerRequestDialog(uname),
+                icon: const Icon(Icons.auto_awesome, size: 16),
+                label: const Text("Influencer Onayı Başvur", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 12)),
+                style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF7A5CFF), side: const BorderSide(color: Color(0xFFB9A8FF)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  /// Influencer yetkisi başvurusu. Onaylanınca kullanıcı kendi tariflerine
+  /// "Bu Tarifte Kullandıklarım" ürün linki ekleyebilir.
+  void _showInfluencerRequestDialog(String username) {
+    String platform = kInfluencerPlatforms.first;
+    final handleCtrl = TextEditingController();
+    final followersCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    InputDecoration dec(String h) => InputDecoration(
+          hintText: h,
+          hintStyle: const TextStyle(color: _light, fontSize: 14),
+          filled: true,
+          fillColor: const Color(0xFFF3F3F5),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        );
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text("Influencer Onayı ✨", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 360,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Onaylanırsan eklediğin tariflere \"Bu Tarifte Kullandıklarım\" başlığı altında ürün / işbirliği linki ekleyebilirsin.\n\nTariflerin yine yönetici onayından geçer.",
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.4),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text("Platform", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: platform,
+                        items: kInfluencerPlatforms
+                            .map((p) => DropdownMenuItem(value: p, child: Text(kSocialLabels[p] ?? p, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text))))
+                            .toList(),
+                        onChanged: (v) => setD(() => platform = v ?? platform),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("Hesap adı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  TextField(controller: handleCtrl, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. annecocukmutfagi")),
+                  const SizedBox(height: 12),
+                  const Text("Takipçi sayısı (yaklaşık)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  TextField(controller: followersCtrl, keyboardType: TextInputType.number, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("ör. 12000")),
+                  const SizedBox(height: 12),
+                  const Text("Eklemek istediklerin (isteğe bağlı)", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  TextField(controller: noteCtrl, maxLines: 3, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text), decoration: dec("Kendinden kısaca bahset")),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () async {
+                final handle = handleCtrl.text.trim().replaceAll("@", "");
+                if (handle.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Hesap adını gir.")));
+                  return;
+                }
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(ctx);
+                final id = await SocialSync.instance.submitInfluencerRequest(
+                  username: username,
+                  platform: platform,
+                  handle: handle,
+                  followers: followersCtrl.text.trim(),
+                  note: noteCtrl.text.trim(),
+                );
+                nav.pop();
+                // submitInfluencerRequest hatayı yutup null döner — başarısızken
+                // "alındı" demek kullanıcıyı boşuna bekletirdi.
+                messenger.showSnackBar(SnackBar(
+                  content: Text(id == null
+                      ? "Başvuru gönderilemedi. Bağlantını kontrol edip tekrar dene."
+                      : "Başvurun alındı. Yönetici onayından sonra haber vereceğiz. ✨"),
+                ));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7A5CFF), foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text("Gönder", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    ).then((_) {
+      handleCtrl.dispose();
+      followersCtrl.dispose();
+      noteCtrl.dispose();
+    });
   }
 
   void _showExpertRequestDialog(String username) {
@@ -5366,6 +5635,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final defaultUnit = units.isNotEmpty ? units.first : "adet";
     final ingredients = <Map<String, String>>[{"name": "", "qty": "", "unit": defaultUnit}];
     final stepCtrls = <TextEditingController>[TextEditingController()];
+    // Ürün / işbirliği linkleri — YALNIZCA onaylı influencer'lara açık.
+    // Yetki sunucudaki /influencers listesinden gelir; onay olmadan bu alan
+    // hiç çizilmez ve gönderilen tarife productLinks eklenmez.
+    final myName = myUsername(fallbackName: _parent?["name"] ?? "");
+    final canAddLinks = isInfluencer(myName);
+    final productLinks = <Map<String, String>>[];
 
     InputDecoration dec(String label) => InputDecoration(labelText: label, isDense: true, border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)));
 
@@ -5556,6 +5831,83 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       TextField(controller: storageCtrl, decoration: dec("Saklama koşulları (ör. Buzdolabında 3 gün)")),
                       const SizedBox(height: 8),
                       TextField(controller: videoCtrl, keyboardType: TextInputType.url, decoration: dec("Video linki (YouTube/Shorts, isteğe bağlı)")),
+                      if (canAddLinks) ...[
+                        const SizedBox(height: 18),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF7A5CFF).withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFF7A5CFF).withOpacity(0.28)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF7A5CFF)),
+                                  const SizedBox(width: 6),
+                                  const Expanded(
+                                    child: Text("Bu Tarifte Kullandıklarım",
+                                        style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                                  ),
+                                  TextButton.icon(
+                                    onPressed: () => setSheet(() => productLinks.add({"label": "", "url": ""})),
+                                    icon: const Icon(Icons.add, size: 16),
+                                    label: const Text("Link", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                                    style: TextButton.styleFrom(foregroundColor: const Color(0xFF7A5CFF), padding: EdgeInsets.zero),
+                                  ),
+                                ],
+                              ),
+                              const Text(
+                                "Onaylı influencer olduğun için tarifine ürün linki ekleyebilirsin. Tarif detayında \"işbirliği/reklam içerebilir\" notuyla gösterilir.",
+                                style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, height: 1.35),
+                              ),
+                              const SizedBox(height: 10),
+                              if (productLinks.isEmpty)
+                                const Text("Henüz link yok — 'Link' ile ekle.",
+                                    style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                              ...productLinks.asMap().entries.map((e) {
+                                final i = e.key;
+                                final l = e.value;
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: TextField(
+                                          controller: TextEditingController(text: l["label"])
+                                            ..selection = TextSelection.collapsed(offset: (l["label"] ?? "").length),
+                                          decoration: dec("Etiket"),
+                                          onChanged: (v) => l["label"] = v,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        flex: 4,
+                                        child: TextField(
+                                          controller: TextEditingController(text: l["url"])
+                                            ..selection = TextSelection.collapsed(offset: (l["url"] ?? "").length),
+                                          decoration: dec("https://..."),
+                                          keyboardType: TextInputType.url,
+                                          onChanged: (v) => l["url"] = v,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.remove_circle_outline, color: _danger, size: 20),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        onPressed: () => setSheet(() => productLinks.removeAt(i)),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                     ],
                   ),
@@ -5610,6 +5962,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       } else if (stepsList.isEmpty) {
                         err = "En az bir hazırlanış adımı girin.";
                       }
+                      // Ürün linkleri: yalnızca http(s) kabul edilir. Yarım
+                      // bırakılmış satırlar sessizce atılır (aşağıda filtre),
+                      // ama YANLIŞ yazılmış bir adres uyarılmalı — kullanıcı
+                      // linkinin yayında olduğunu sanıp tıklanmadığını görmesin.
+                      final filledLinks = canAddLinks
+                          ? productLinks.where((l) => (l["url"] ?? "").trim().isNotEmpty).toList()
+                          : const <Map<String, String>>[];
+                      if (err == null) {
+                        for (final l in filledLinks) {
+                          final u = l["url"]!.trim();
+                          if (!u.startsWith("http://") && !u.startsWith("https://")) {
+                            err = "Ürün linkleri https:// ile başlamalı: $u";
+                            break;
+                          }
+                        }
+                      }
                       if (err != null) {
                         setSheet(() => formError = err);
                         return;
@@ -5663,6 +6031,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "author": author,
                         "submittedBy": author,
                         "date": date,
+                        // Yalnızca onaylı influencer'da dolu olur; onay yoksa
+                        // liste zaten boş kalır (alan hiç çizilmedi).
+                        "productLinks": [
+                          for (final l in filledLinks)
+                            {"label": (l["label"] ?? "").trim(), "url": l["url"]!.trim()},
+                        ],
                       });
                       // submitRecipe hatayı yutup null döner — bunu başarı
                       // sayıp sheet'i kapatmak, tarif hiç kaydedilmemişken
