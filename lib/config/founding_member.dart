@@ -21,7 +21,11 @@ const int kFoundingAdFreeDays = 90;
 
 /// Teşekkür ekranı gösterilsin mi?
 ///
-/// Metin "bazı özellikleri ücretli hâle getiriyoruz" diyor; premium satışı
-/// gerçekten başlamadan çok önce göstermek kafa karıştırır. IAP hazır
-/// olmadığında kapatmak için bu bayrağı false yap.
-const bool kFoundingThanksEnabled = true;
+/// KAPALI (04.08.2026): metin "bazı özellikleri ücretli hâle getiriyoruz"
+/// diyor ama premium satışı henüz başlamadı (kPremiumEnabled == false, IAP
+/// yok). Olmayan bir değişikliği duyurmak kafa karıştırır ve verilen sözü
+/// erkene çeker.
+///
+/// ABONELİK YAYINA ALINDIĞINDA true yap — kurucu üye tespiti, hediye ve ekran
+/// hazır, tek yapılacak bu bayrak ve [kFoundingCutoff] tarihini güncellemek.
+const bool kFoundingThanksEnabled = false;
