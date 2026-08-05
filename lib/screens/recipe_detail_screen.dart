@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -15,6 +16,7 @@ import '../services/auth_gate.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
 import '../widgets/expert_badge.dart';
+import '../widgets/web_embed.dart';
 import '../widgets/youtube_util.dart';
 import '../widgets/youtube_embed.dart';
 import '../widgets/recipe_story_share.dart';
@@ -1389,9 +1391,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     }
 
     if (platform == "facebook") {
-      // Facebook sharer yalnızca URL alır (quote artık yok sayılıyor); gerçek
-      // site adresiyle link kartı paylaşılır.
-      await _open(Uri.parse("https://www.facebook.com/sharer/sharer.php?u=$encUrl"));
+      // sharer.php MOBİLDE ÇALIŞMIYOR: Facebook uygulaması açılıyor ama
+      // paylaşım penceresi hiç gelmiyordu ("gidiyor, eylem yok"). O sayfa
+      // masaüstü tarayıcı için tasarlanmış.
+      //
+      // Doğru yol işletim sisteminin paylaşım sayfası: Facebook orada bir
+      // hedef olarak görünür ve bağlantıyı düzgün alır. Aynı menüden
+      // Mesajlar, Mail, X, "Bağlantıyı Kopyala" da kullanılabiliyor.
+      final ok = await shareViaWebShareApi(title: "BabyBites", text: text, url: _siteUrl);
+      if (!ok && mounted) {
+        await Clipboard.setData(const ClipboardData(text: _siteUrl));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text("Paylaşım menüsü açılamadı. Bağlantı panoya kopyalandı."),
+          ));
+        }
+      }
       return;
     }
 

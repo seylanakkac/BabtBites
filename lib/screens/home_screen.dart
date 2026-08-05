@@ -120,7 +120,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   DateTime _focusedDate = DateTime.now();
   late String _selectedDay;
   late String _selectedSeason;
-  final _seasonPageController = PageController();
+  // keepPage: false — VARSAYILAN (true) HATAYA YOL AÇIYORDU.
+  //
+  // PageController'ın `keepPage` belgesi birebir şunu yapıyor: "geçerli sayfayı
+  // PageStorage'a yazar ve scrollable YENİDEN OLUŞTURULURSA geri yükler".
+  //
+  // Mevsim karuseli ana sayfadaki uzun ListView'ın içinde. Kullanıcı aşağı
+  // kaydırınca PageView ağaçtan düşüyor, geri dönünce yeniden oluşturuluyor ve
+  // eski sayfaya (ör. Balıklar) atlıyordu; `onPageChanged` tetiklenip
+  // `_seasonPage`'i de oraya çekiyor, alt sekme Sebzeler yerine Balıklar
+  // görünüyordu. Üstelik PageStorage sekme değişimlerini de aştığı için
+  // kullanıcı "uygulamayı ilk açtığımda" böyle görüyordu.
+  //
+  // false: her yeniden oluşturmada initialPage (0 = Sebzeler) ile başlar.
+  final _seasonPageController = PageController(keepPage: false);
   int _seasonPage = 0;
   late Map<String, Map<String, List<String>>> _weeklyPlan;
 
@@ -6069,42 +6082,111 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   // ---- User-submitted recipe form (goes to admin approval queue) ----
+  /// Tarif malzemesi seçtirir.
+  ///
+  /// Listede olmayan bir malzeme de yazılabilir ("Tarhun", "Maydanoz sapı"…):
+  /// aranan ad bulunamazsa "… olarak ekle" seçeneği çıkar. Bu ad YALNIZCA
+  /// tarifin malzeme listesinde metin olarak durur — gıda veritabanına
+  /// EKLENMEZ (oradaki kayıtların besin/alerji bilgisi doğrulanmış olmalı).
+  ///
+  /// Sonuç: elle yazılan malzeme için besin değeri hesaplanamaz; kalori
+  /// tahmini yalnızca tanınan gıdalardan toplanır (computeEnergyFromIngredients
+  /// tanımadığı adı zaten atlıyor).
   void _pickFoodForRecipe(void Function(String name) onPick) {
+    final ctrl = TextEditingController();
     String q = "";
     showDialog(
       context: context,
       builder: (dctx) => StatefulBuilder(
         builder: (dctx, setD) {
+          final typed = ctrl.text.trim();
           final matches = globalFoodsDatabase.where((f) => searchKey(f.name).contains(q)).take(60).toList();
+          final exact = matches.any((f) => searchKey(f.name) == q);
+          final canAddCustom = typed.isNotEmpty && !exact;
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            title: const Text("Gıda Seç", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+            title: const Text("Malzeme Seç", style: TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
             content: SizedBox(
               width: 320,
               height: 380,
               child: Column(
                 children: [
                   TextField(
+                    controller: ctrl,
+                    autofocus: true,
+                    textInputAction: TextInputAction.done,
                     onChanged: (v) => setD(() => q = searchKey(v)),
-                    decoration: InputDecoration(hintText: "Gıda ara...", isDense: true, prefixIcon: const Icon(Icons.search, size: 18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
+                    onSubmitted: (v) {
+                      final t = v.trim();
+                      if (t.isEmpty) return;
+                      Navigator.pop(dctx);
+                      onPick(t);
+                    },
+                    decoration: InputDecoration(hintText: "Malzeme ara veya yaz...", isDense: true, prefixIcon: const Icon(Icons.search, size: 18), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12))),
                   ),
+                  if (canAddCustom) ...[
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () {
+                        Navigator.pop(dctx);
+                        onPick(typed);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: _primary.withOpacity(0.35)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_outlined, size: 16, color: _primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("\"$typed\" olarak ekle",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _primary)),
+                                  const Text("Listede yok — tarifte böyle yazılır",
+                                      style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   Expanded(
-                    child: ListView.builder(
-                      itemCount: matches.length,
-                      itemBuilder: (_, i) {
-                        final f = matches[i];
-                        return ListTile(
-                          dense: true,
-                          leading: Text(f.emoji, style: const TextStyle(fontSize: 20)),
-                          title: Text(f.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
-                          onTap: () {
-                            Navigator.pop(dctx);
-                            onPick(f.name);
-                          },
-                        );
-                      },
-                    ),
+                    child: matches.isEmpty
+                        ? Center(
+                            child: Text(
+                              typed.isEmpty ? "Aramaya başla" : "Eşleşen gıda yok.\nYukarıdan kendi malzemeni ekleyebilirsin.",
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light, height: 1.4),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: matches.length,
+                            itemBuilder: (_, i) {
+                              final f = matches[i];
+                              return ListTile(
+                                dense: true,
+                                leading: Text(f.emoji, style: const TextStyle(fontSize: 20)),
+                                title: Text(f.name, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
+                                onTap: () {
+                                  Navigator.pop(dctx);
+                                  onPick(f.name);
+                                },
+                              );
+                            },
+                          ),
                   ),
                 ],
               ),
@@ -6112,7 +6194,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           );
         },
       ),
-    );
+    ).then((_) => ctrl.dispose());
   }
 
   void _showAddUserRecipeDialog({String initialName = ""}) {

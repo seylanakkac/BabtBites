@@ -104,15 +104,24 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
         duration: const Duration(seconds: 4),
       ));
     } else if (sharedLink) {
+      // Görsel paylaşımı başarısız olup bağlantıya düştük. SEBEBİ GÖSTER:
+      // sessizce düşmek, "Instagram'a gitmiyor" şikâyetinin teşhisini
+      // imkânsız kılıyordu.
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Paylaşım menüsü açıldı (bağlantı). Bağlantı panoya da kopyalandı."),
-        duration: Duration(seconds: 3),
+      final why = lastShareError;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(why == null
+            ? "Görsel paylaşılamadı; bağlantı menüsü açıldı."
+            : "Görsel paylaşılamadı ($why). Bağlantı menüsü açıldı."),
+        duration: const Duration(seconds: 6),
       ));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Paylaşım açılamadı. Bağlantı panoya kopyalandı."),
-        duration: Duration(seconds: 4),
+      final why = lastShareError;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(why == null
+            ? "Paylaşım açılamadı. Bağlantı panoya kopyalandı."
+            : "Paylaşım açılamadı ($why). Bağlantı panoya kopyalandı."),
+        duration: const Duration(seconds: 6),
       ));
     }
   }

@@ -19,3 +19,9 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String
 /// Web'de PNG'yi indirir; mobilde paylaşım sayfasını açar.
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
     impl.downloadImage(bytes, filename: filename);
+
+/// Son paylaşım denemesinin hata metni; başarılıysa null.
+///
+/// Paylaşım başarısız olunca kod sessizce bağlantı paylaşımına düşüyordu ve
+/// kullanıcı yalnızca "olmuyor" diyebiliyordu. Arayüz bunu gösterebilsin.
+String? get lastShareError => impl.lastShareError;

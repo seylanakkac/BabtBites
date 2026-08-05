@@ -7,6 +7,10 @@ import 'package:flutter/material.dart';
 
 final Set<String> _registered = {};
 
+/// Mobil sürümle aynı API yüzeyi (bkz. web_embed_stub.dart). Koşullu import'un
+/// iki tarafı da aynı adları sunmak zorunda.
+String? lastShareError;
+
 /// Web Share API ile bir GÖRSEL paylaşır (mobil tarayıcı → Instagram hikaye vb.).
 /// Tarayıcı dosya paylaşımını desteklemiyorsa / vazgeçilirse false döner.
 Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) async {
