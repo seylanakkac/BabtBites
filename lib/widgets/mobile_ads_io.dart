@@ -119,3 +119,44 @@ class _AdmobBannerState extends State<_AdmobBanner> {
     );
   }
 }
+
+/// Geçiş (interstitial) reklamını yükleyip gösterir. Gösterildiyse true.
+///
+/// Sıklık sınırı burada DEĞİL, InterstitialAds servisinde — bu fonksiyon
+/// yalnızca "yükle ve göster" işini yapar.
+Future<bool> showInterstitialMobile() async {
+  final unit = Platform.isIOS ? kAdmobInterstitialUnitIOS : kAdmobInterstitialUnitAndroid;
+  if (unit.isEmpty) return false;
+  await TrackingConsent.instance.waitSettled();
+  final completer = Completer<bool>();
+  try {
+    InterstitialAd.load(
+      adUnitId: unit,
+      request: const AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              if (!completer.isCompleted) completer.complete(true);
+            },
+            onAdFailedToShowFullScreenContent: (ad, err) {
+              debugPrint('Interstitial gosterilemedi: $err');
+              ad.dispose();
+              if (!completer.isCompleted) completer.complete(false);
+            },
+          );
+          ad.show();
+        },
+        onAdFailedToLoad: (err) {
+          debugPrint('Interstitial yuklenemedi: $err');
+          if (!completer.isCompleted) completer.complete(false);
+        },
+      ),
+    );
+  } catch (e) {
+    debugPrint('Interstitial hata: $e');
+    if (!completer.isCompleted) completer.complete(false);
+  }
+  return completer.future;
+}

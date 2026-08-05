@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/community_store.dart';
+import '../widgets/ad_banner.dart';
 import '../data/user_profile_store.dart';
 import '../services/community_sync.dart';
 import '../services/auth_gate.dart';
@@ -64,6 +65,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text("Diğer ebeveynlerle deneyim paylaş, soru sor, tavsiye al. 🤝", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+                  const AdBanner(),
                   const SizedBox(height: 12),
                   Container(
                     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),

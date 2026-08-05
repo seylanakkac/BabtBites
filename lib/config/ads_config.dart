@@ -30,5 +30,32 @@ const String kAdmobRewardedUnitAndroid = "ca-app-pub-4036323836264136/6923534942
 const String kAdmobBannerUnitIOS = "ca-app-pub-4036323836264136/5608068364";
 const String kAdmobRewardedUnitIOS = "ca-app-pub-4036323836264136/8126420492";
 
+// GEÇİŞ (interstitial) reklam birimleri.
+// ⚠️ AdMob konsolunda HENÜZ OLUŞTURULMADI. Boş bırakıldığı sürece geçiş
+// reklamı hiç gösterilmez (uygulama bozulmaz). Oluşturunca buraya yaz:
+// AdMob → Uygulamalar → BabyBites (iOS/Android) → Reklam birimleri →
+// "Geçiş reklamı" → kimliği kopyala.
+const String kAdmobInterstitialUnitAndroid = "";
+const String kAdmobInterstitialUnitIOS = "";
+
 /// AdMob banner birimi girilmiş mi?
 bool get admobConfigured => kAdmobBannerUnitAndroid.isNotEmpty;
+
+/// Geçiş reklamı yapılandırılmış mı?
+bool get interstitialConfigured =>
+    kAdmobInterstitialUnitAndroid.isNotEmpty || kAdmobInterstitialUnitIOS.isNotEmpty;
+
+// ---- Geçiş reklamı sıklık sınırları ----
+//
+// NEDEN SINIR VAR: Google'ın kendi kuralları "beklenmedik anda" ve çok sık
+// geçiş reklamını politika ihlali sayıyor (hesap askıya alınabilir); Apple da
+// içeriği engelleyen reklamları 4.2'den reddedebiliyor. Ayrıca bu bir bebek
+// sağlığı uygulaması — her tarife girişte tam ekran reklam, kullanıcıyı
+// kaybettirir. Sınırlar bilinçli olarak muhafazakâr seçildi.
+
+/// İki geçiş reklamı arasında en az bu kadar süre geçmeli.
+const Duration kInterstitialMinGap = Duration(minutes: 4);
+
+/// Uygulama açılışından sonra ilk geçiş reklamı için beklenecek tarif açılışı
+/// sayısı (kullanıcı önce değer görsün).
+const int kInterstitialWarmupOpens = 3;

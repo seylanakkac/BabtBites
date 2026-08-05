@@ -8,3 +8,6 @@ Widget mobileBannerAd() => const SizedBox.shrink();
 
 /// Mobil ödüllü reklam — web'de kullanılamaz (null → çağıran yer-tutucuya düşer).
 Future<bool?> showRewardedMobile() async => null;
+
+/// Mobil geçiş (interstitial) reklamı — web'de kullanılamaz.
+Future<bool> showInterstitialMobile() async => false;

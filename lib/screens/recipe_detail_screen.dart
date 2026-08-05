@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/storage_service.dart';
 import '../services/social_sync.dart';
 import '../services/analytics.dart';
+import '../services/interstitial_ads.dart';
 import '../services/auth_gate.dart';
 import '../services/file_storage.dart';
 import '../data/user_profile_store.dart';
@@ -127,6 +128,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     addRecipeView(widget.recipe.id);
     SocialSync.instance.addView(widget.recipe.id);
     Analytics.instance.log('view_recipe', {'recipe': widget.recipe.name});
+    // Geçiş reklamı — sıklık sınırlı (bkz. InterstitialAds). İlk birkaç tarif
+    // açılışında ve reklamsız pencerede hiç gösterilmez.
+    InterstitialAds.instance.onRecipeOpened();
     // Load real cross-user comments (approved + this user's own pending).
     SocialSync.instance.loadComments(widget.recipe.id).then((_) {
       if (mounted) setState(() {});
@@ -447,6 +451,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ],
                         // Star rating (1..5) — taps record this user's vote.
                         _buildRatingRow(recipe),
+                        const SizedBox(height: 12),
+                        // Banner en altta, yorumlarin da asagisindaydi ve
+                        // pratikte hic gorulmuyordu. Yildiz puanin hemen
+                        // altinda, sayfanin gorunur kisminda duruyor.
+                        AdBanner(
+                          onUpgrade: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
+                          ),
+                        ),
                         const SizedBox(height: 14),
                         // Video tarif (YouTube / Shorts) — varsa göm.
                         if (isYoutubeUrl(recipe.videoUrl)) ...[
@@ -979,12 +992,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        AdBanner(
-                          onUpgrade: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: () {})),
                           ),
                         ),
                         const SizedBox(height: 24),

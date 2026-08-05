@@ -28,6 +28,7 @@ import '../widgets/ad_banner.dart';
 import '../widgets/web_shell.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
+import '../widgets/youtube_util.dart';
 import '../widgets/sponsored_badge.dart';
 import 'articles_screen.dart';
 import 'community_screen.dart';
@@ -689,6 +690,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                     _userRecipesSection(),
                     _topRatedSection(),
+                    _videoRecipesSection(),
                     const SizedBox(height: 22),
                     _dashSectionHeader("Gıdaları Keşfet", onMore: () => setState(() => _currentIndex = 1)),
                     const SizedBox(height: 12),
@@ -935,6 +937,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         _userRecipesSection(),
         _topRatedSection(),
+        _videoRecipesSection(),
         const SizedBox(height: 18),
         // Mevsiminde Beslenme
         _buildSeasonalSection(),
@@ -3158,6 +3161,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Öğün planına bir kalem ekler (kayıtlı gıda/tarif ya da elle yazılmış ad).
+  void _addPlanItem(String slot, String name) {
+    _weeklyPlan.putIfAbsent(_selectedDay, () => {for (final s in _mealSlots) s: <String>[]});
+    _weeklyPlan[_selectedDay]!.putIfAbsent(slot, () => <String>[]);
+    if (!_weeklyPlan[_selectedDay]![slot]!.contains(name)) {
+      _weeklyPlan[_selectedDay]![slot]!.add(name);
+    }
+    _persist();
+    setState(() {});
+  }
+
+  /// Elle eklenen bir yemekten sonra "bunu tarif olarak da ekleyelim mi?" diye
+  /// sorar. Hayır denirse öğün elle yazılmış hâliyle kalır.
+  void _askCreateRecipeFromManualEntry(String name) {
+    if (isGuest()) return; // tarif eklemek için zaten giriş gerekiyor
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Tarif olarak da ekleyelim mi?",
+            style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: Text(
+          "\"$name\" öğününe eklendi. İstersen tarifini de yazabilirsin; onaylandıktan sonra "
+          "diğer ebeveynler de görebilir.\n\nHayır dersen öğünde böyle kalır.",
+          style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: Color(0xFF5A5A6A), height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx),
+            child: const Text("Hayır, böyle kalsın", style: TextStyle(fontFamily: 'Inter', color: _light)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(dctx);
+              _showAddUserRecipeDialog(initialName: name);
+            },
+            child: const Text("Tarifini yaz", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddMealItemDialog(String slot, {VoidCallback? onChanged}) {
     final searchCtrl = TextEditingController();
     showModalBottomSheet(
@@ -3192,6 +3240,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  // Elle giriş: listede olmayan bir yemek de eklenebilsin
+                  // (ev yemeği, dışarıda yenen bir şey, marka ürünü...).
+                  // Besin değeri hesabına girmez; çözülemeyen malzeme zaten
+                  // atlanıyor, uydurma değer üretilmiyor.
+                  if (q.isNotEmpty && !all.any((e) => e["name"]!.toLowerCase() == q))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(color: _primary.withOpacity(0.12), shape: BoxShape.circle),
+                          child: const Icon(Icons.edit_outlined, size: 18, color: _primary),
+                        ),
+                        title: Text("\"${searchCtrl.text.trim()}\" olarak elle ekle",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                        subtitle: const Text("Listede yoksa kendi yazdığın adla eklenir",
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                        trailing: const Icon(Icons.add_circle, color: _primary),
+                        onTap: () {
+                          final name = searchCtrl.text.trim();
+                          if (name.isEmpty) return;
+                          _addPlanItem(slot, name);
+                          onChanged?.call();
+                          Navigator.pop(ctx);
+                          _askCreateRecipeFromManualEntry(name);
+                        },
+                      ),
+                    ),
                   Expanded(
                     child: ListView.builder(
                       itemCount: all.length,
@@ -3202,13 +3283,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           title: Text(item["name"]!, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
                           trailing: const Icon(Icons.add_circle_outline, color: _primary),
                           onTap: () {
-                            _weeklyPlan.putIfAbsent(_selectedDay, () => {for (final s in _mealSlots) s: <String>[]});
-                            _weeklyPlan[_selectedDay]!.putIfAbsent(slot, () => <String>[]);
-                            if (!_weeklyPlan[_selectedDay]![slot]!.contains(item["name"])) {
-                              _weeklyPlan[_selectedDay]![slot]!.add(item["name"]!);
-                            }
-                            _persist();
-                            setState(() {});
+                            _addPlanItem(slot, item["name"]!);
                             onChanged?.call();
                             Navigator.pop(ctx);
                           },
@@ -3918,6 +3993,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             GestureDetector(onTap: () => FocusScope.of(context).requestFocus(_cartFocus), child: const Icon(Icons.add_circle_outline, color: _primary, size: 26)),
           ],
         ),
+        AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 16),
         // Summary cards
         Row(
@@ -4143,6 +4219,50 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     list.sort((a, b) => _userRecipeMillis(b.id).compareTo(_userRecipeMillis(a.id)));
     return list;
   }
+
+  /// Ana sayfada "Videolu Tarifler" yatay bölümü — en son eklenenden başlar.
+  ///
+  /// Video içermeyen tarif çok olduğu için ayrı bölüm mantıklı; hiç videolu
+  /// tarif yoksa bölüm hiç çizilmez.
+  Widget _videoRecipesSection() {
+    final list = globalRecipesDatabase
+        .where((r) => isYoutubeUrl(r.videoUrl))
+        .toList()
+        .reversed // en son eklenen önce (yeni tarifler listenin sonuna eklenir)
+        .take(10)
+        .toList();
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        const Row(
+          children: [
+            Icon(Icons.play_circle_outline, size: 20, color: _primary),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text("Videolu Tarifler",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text("Adım adım izleyerek yapabileceğin tarifler",
+            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 300,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 14),
+            itemBuilder: (context, i) => SizedBox(width: 250, child: _recipeGridCard(list[i])),
+          ),
+        ),
+      ],
+    );
+  }
+
 
   /// Ana sayfada "En Çok Beğenilenler" yatay bölümü.
   ///
@@ -4483,7 +4603,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const Text("Profil ve Ayarlar 👤", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 4),
         const Text("Ebeveyn, bebek profilleri ve gelişim takibi.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        AdBanner(onUpgrade: _openPremium),
+        const SizedBox(height: 16),
         _notificationCard(),
         // Parent card
         Container(
@@ -4608,7 +4730,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 24),
-        Text(kPremiumEnabled ? "Gelişim & Premium" : "Gelişim", style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+        const Text(kPremiumEnabled ? "Gelişim & Premium" : "Gelişim", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 10),
         Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
@@ -5091,9 +5213,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  void _showAddUserRecipeDialog() {
+  void _showAddUserRecipeDialog({String initialName = ""}) {
     if (requireLogin(context)) return;
-    final nameCtrl = TextEditingController();
+    final nameCtrl = TextEditingController(text: initialName);
     final prepCtrl = TextEditingController();
     final kcalCtrl = TextEditingController();
     final allergyCtrl = TextEditingController();
