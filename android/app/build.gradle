@@ -47,6 +47,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications 19.x ZORUNLU kılıyor: zamanlanmış
+        // bildirimler java.time API'lerini kullanıyor, minSdk 23'te bunlar
+        // yok. Desugaring kapalıyken derleme "Call requires API level 26"
+        // hatasıyla patlar (bağımlılık aşağıda: desugar_jdk_libs).
+        coreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -82,6 +87,12 @@ android {
             shrinkResources = false
         }
     }
+}
+
+dependencies {
+    // coreLibraryDesugaringEnabled'ın karşılığı (yukarıdaki compileOptions).
+    // Sürüm 2.1.4+: flutter_local_notifications 19.x bunu istiyor.
+    coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
 }
 
 flutter {

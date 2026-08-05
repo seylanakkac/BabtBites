@@ -87,6 +87,78 @@ void main() {
     });
   });
 
+  group('öğün saati', () {
+    test('yaz / oku / temizle', () {
+      expect(mealTime('b1', '2026-08-05', 'Kahvaltı'), isNull);
+      setMealTime('b1', '2026-08-05', 'Kahvaltı', '08:30');
+      expect(mealTime('b1', '2026-08-05', 'Kahvaltı'), '08:30');
+      setMealTime('b1', '2026-08-05', 'Kahvaltı', null);
+      expect(mealTime('b1', '2026-08-05', 'Kahvaltı'), isNull);
+    });
+
+    test('durum ve saat birbirini ezmez', () {
+      setMealStatus('b1', '2026-08-05', 'Öğle', 'biraz');
+      setMealTime('b1', '2026-08-05', 'Öğle', '12:15');
+      expect(mealStatus('b1', '2026-08-05', 'Öğle'), 'biraz');
+      expect(mealTime('b1', '2026-08-05', 'Öğle'), '12:15');
+    });
+  });
+
+  group('takviye / ilaç verilişleri', () {
+    test('birden çok doz saatiyle kaydedilir', () {
+      addDose('b1', '2026-08-05', 'med1', {'time': '08:00', 'remindAt': null, 'notifId': null});
+      addDose('b1', '2026-08-05', 'med1', {'time': '14:00', 'remindAt': null, 'notifId': null});
+
+      final doses = dosesFor('b1', '2026-08-05', 'med1');
+      expect(doses, hasLength(2));
+      expect(doses.map((d) => d['time']), ['08:00', '14:00']);
+      expect(doseTakenToday('b1', '2026-08-05', 'med1'), isTrue);
+    });
+
+    test('doz listesi canlı — kimlik sabit kalır', () {
+      final held = dosesFor('b1', '2026-08-05', 'med1');
+      dailyLog('b1', '2026-08-05'); // araya giren yeniden çizim
+      held.add({'time': '09:00'});
+      expect(dosesFor('b1', '2026-08-05', 'med1'), hasLength(1));
+    });
+
+    test('silme bildirim kimliğini döner ve son dozda taken false olur', () {
+      addDose('b1', '2026-08-05', 'med1', {'time': '08:00', 'notifId': 4242});
+      expect(doseTakenToday('b1', '2026-08-05', 'med1'), isTrue);
+
+      final notifId = removeDose('b1', '2026-08-05', 'med1', 0);
+      expect(notifId, 4242);
+      expect(dosesFor('b1', '2026-08-05', 'med1'), isEmpty);
+      expect(doseTakenToday('b1', '2026-08-05', 'med1'), isFalse);
+    });
+
+    test('geçersiz indeks güvenle yok sayılır', () {
+      expect(removeDose('b1', '2026-08-05', 'med1', 0), isNull);
+      expect(removeDose('b1', '2026-08-05', 'med1', -1), isNull);
+    });
+
+    test('saatsiz eski kayıtlar (taken bayrağı) hâlâ verildi sayılır', () {
+      globalDailyLogs['b1'] = {
+        '2026-08-05': <String, dynamic>{
+          'taken': {'med1': true},
+        },
+      };
+      expect(dosesFor('b1', '2026-08-05', 'med1'), isEmpty);
+      expect(doseTakenToday('b1', '2026-08-05', 'med1'), isTrue);
+    });
+
+    test('ilaçlar ve günler birbirine karışmaz', () {
+      addDose('b1', '2026-08-05', 'med1', {'time': '08:00'});
+      addDose('b1', '2026-08-06', 'med1', {'time': '09:00'});
+      addDose('b1', '2026-08-05', 'med2', {'time': '10:00'});
+
+      expect(dosesFor('b1', '2026-08-05', 'med1').single['time'], '08:00');
+      expect(dosesFor('b1', '2026-08-06', 'med1').single['time'], '09:00');
+      expect(dosesFor('b1', '2026-08-05', 'med2').single['time'], '10:00');
+      expect(dosesFor('b2', '2026-08-05', 'med1'), isEmpty);
+    });
+  });
+
   group('sevdi / sevmedi', () {
     test('gıda beğenisi bebek başına tutulur', () {
       setFoodTaste('b1', 'Elma', 'sevdi');

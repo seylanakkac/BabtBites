@@ -117,7 +117,9 @@ final Map<String, List<Map<String, dynamic>>> globalBabyMeds = {};
 ///   "su": int,                  // water intake in millilitres (ml)
 ///   "taken": { defId: bool },   // medication taken toggles
 ///   "feeds": [ ... ],           // emzirme/sağılmış süt/mama kayıtları
-///   "mealStatus": { slot: "hepsi"|"biraz"|"tadi"|"yemedi" }  // öğünü yedi mi
+///   "mealStatus": { slot: "hepsi"|"biraz"|"tadi"|"yemedi" }, // öğünü yedi mi
+///   "mealTime": { slot: "HH:mm" },                     // öğün saati
+///   "doses": { defId: [ {"time","remindAt","notifId"} ] } // takviye/ilaç verilişleri
 /// }
 final Map<String, Map<String, dynamic>> globalDailyLogs = {};
 
@@ -157,6 +159,8 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
       "note": "", // mother's free-text note for the day
       "feeds": <Map<String, dynamic>>[], // emzirme/sağılmış süt/mama kayıtları
       "mealStatus": <String, dynamic>{}, // öğün -> "hepsi"|"biraz"|"tadi"|"yemedi"
+      "mealTime": <String, dynamic>{}, // öğün -> "HH:mm"
+      "doses": <String, dynamic>{}, // takviye/ilaç id -> veriliş kayıtları
     };
     forBaby[dateKey] = log;
     return log;
@@ -204,7 +208,88 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
   } else if (ms is! Map<String, dynamic>) {
     log["mealStatus"] = Map<String, dynamic>.from(ms as Map);
   }
+  final mt = log["mealTime"];
+  if (mt == null) {
+    log["mealTime"] = <String, dynamic>{};
+  } else if (mt is! Map<String, dynamic>) {
+    log["mealTime"] = Map<String, dynamic>.from(mt as Map);
+  }
+  final ds = log["doses"];
+  if (ds == null) {
+    log["doses"] = <String, dynamic>{};
+  } else if (ds is! Map<String, dynamic>) {
+    log["doses"] = Map<String, dynamic>.from(ds as Map);
+  }
   return log;
+}
+
+/// "HH:mm" biçiminde şimdiki saat.
+String nowHm() {
+  final n = DateTime.now();
+  return "${n.hour.toString().padLeft(2, '0')}:${n.minute.toString().padLeft(2, '0')}";
+}
+
+// ---- Öğün saati ----
+
+/// Bir (bebek, gün, öğün) için kayıtlı saat; yoksa null.
+String? mealTime(String babyId, String dateKey, String slot) {
+  final v = (dailyLog(babyId, dateKey)["mealTime"] as Map)[slot]?.toString() ?? "";
+  return v.isEmpty ? null : v;
+}
+
+/// Öğün saatini yazar; [value] null ise kaydı siler.
+void setMealTime(String babyId, String dateKey, String slot, String? value) {
+  final m = dailyLog(babyId, dateKey)["mealTime"] as Map;
+  if (value == null) {
+    m.remove(slot);
+  } else {
+    m[slot] = value;
+  }
+}
+
+// ---- Takviye / ilaç verilişleri ----
+//
+// Eskiden yalnızca `taken: {defId: bool}` vardı — "verildi mi?" sorusuna evet/
+// hayır cevabı. Antibiyotik gibi günde birkaç kez verilen ilaçlarda bu yetmiyor;
+// SAAT gerekiyor ("6 saat sonra tekrar" hesabı buna dayanıyor). Artık her
+// veriliş ayrı bir kayıt. `taken` geriye dönük uyumluluk için yazılmaya devam
+// ediyor (eski cihazlardaki kayıtlar ve raporlar bozulmasın).
+//
+// Kayıt şekli: {"time": "HH:mm", "remindAt": iso8601|null, "notifId": int|null}
+
+/// Bir (bebek, gün, takviye/ilaç) için veriliş listesi. CANLI liste.
+List<Map<String, dynamic>> dosesFor(String babyId, String dateKey, String defId) {
+  final all = dailyLog(babyId, dateKey)["doses"] as Map;
+  final cur = all[defId];
+  if (cur is List<Map<String, dynamic>>) return cur;
+  final fresh = (cur as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+      <Map<String, dynamic>>[];
+  all[defId] = fresh;
+  return fresh;
+}
+
+/// Veriliş ekler ve `taken` bayrağını güncel tutar.
+void addDose(String babyId, String dateKey, String defId, Map<String, dynamic> dose) {
+  dosesFor(babyId, dateKey, defId).add(dose);
+  (dailyLog(babyId, dateKey)["taken"] as Map)[defId] = true;
+}
+
+/// [index]'teki verilişi siler; son kayıt da silinirse `taken` false olur.
+/// Silinen kaydın (varsa) bildirim kimliğini döner — çağıran iptal etsin.
+int? removeDose(String babyId, String dateKey, String defId, int index) {
+  final list = dosesFor(babyId, dateKey, defId);
+  if (index < 0 || index >= list.length) return null;
+  final notifId = (list[index]["notifId"] as num?)?.toInt();
+  list.removeAt(index);
+  (dailyLog(babyId, dateKey)["taken"] as Map)[defId] = list.isNotEmpty;
+  return notifId;
+}
+
+/// Bugün bu takviye/ilaç verildi mi? (Eski `taken` bayrağını da onurlandırır:
+/// kayıtları saatsiz girilmiş eski günlerde tik yine dolu görünsün.)
+bool doseTakenToday(String babyId, String dateKey, String defId) {
+  if (dosesFor(babyId, dateKey, defId).isNotEmpty) return true;
+  return (dailyLog(babyId, dateKey)["taken"] as Map)[defId] == true;
 }
 
 // ---- Öğün tamamlama durumu (kahvaltı/öğle/… için "yedi mi?") ----

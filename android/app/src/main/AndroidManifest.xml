@@ -1,8 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Firebase / bulut senkronu için ağ erişimi gerekir. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Android 13+ bildirim izni (FCM push). -->
+    <!-- Android 13+ bildirim izni (FCM push + yerel hatırlatmalar). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- "X saat sonra hatırlat" (ilaç/takviye) için zamanlanmış yerel bildirim.
+         SCHEDULE_EXACT_ALARM kullanıcı onayı ister ve Play'de serbesttir;
+         USE_EXACT_ALARM BİLEREK KULLANILMIYOR — o yalnızca alarm/takvim
+         uygulamalarına açık, burada politika ihlali olurdu. İzin verilmezse
+         bildirim yine kurulur, sadece dakikalar mertebesinde gecikebilir. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <!-- Cihaz yeniden başlatıldığında kurulu hatırlatmalar kaybolmasın. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application
         android:label="BabyBites"
         android:name="${applicationName}"

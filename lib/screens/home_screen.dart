@@ -11,6 +11,7 @@ import '../services/auth_gate.dart';
 import '../services/account_service.dart';
 import '../services/push_notifications.dart';
 import '../services/tracking_consent.dart';
+import '../services/local_reminders.dart';
 import '../services/founding_member.dart';
 import '../widgets/founding_thanks_sheet.dart';
 import '../config/premium_config.dart';
@@ -3207,6 +3208,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _mealStatusRow(String slot) {
     final babyId = _activeBabyId;
     final current = mealStatus(babyId, _selectedDay, slot);
+    final time = mealTime(babyId, _selectedDay, slot);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3214,9 +3216,45 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             const Icon(Icons.restaurant, size: 14, color: _light),
             const SizedBox(width: 6),
-            Text(
-              current == null ? "Bu öğünü yedi mi?" : "Durum: ${mealStatusLabel(current)}",
-              style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.w600, color: _light),
+            Expanded(
+              child: Text(
+                current == null ? "Bu öğünü yedi mi?" : "Durum: ${mealStatusLabel(current)}",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.w600, color: _light),
+              ),
+            ),
+            // Öğün saati — dokununca seçilir, tekrar dokunup temizlenebilir.
+            GestureDetector(
+              onTap: () async {
+                final existing = mealTime(babyId, _selectedDay, slot);
+                final picked = await _pickTime(existing ?? nowHm());
+                if (picked == null) return;
+                setMealTime(babyId, _selectedDay, slot, picked);
+                _persist();
+                if (mounted) setState(() {});
+              },
+              onLongPress: () {
+                setMealTime(babyId, _selectedDay, slot, null);
+                _persist();
+                setState(() {});
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: time == null ? const Color(0xFFF3F3F5) : _primary.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.schedule, size: 13, color: time == null ? _light : _primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      time ?? "saat ekle",
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, fontWeight: FontWeight.bold, color: time == null ? _light : _primary),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
@@ -3459,6 +3497,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final babyId = _activeBabyId;
     final dayKey = _selectedDay;
     String type = "emzirme";
+    // Saat artık düzenlenebilir: kayıt çoğu zaman sonradan giriliyor
+    // ("sabah 7'de emzirdim" akşam yazılıyor), otomatik "şimdi" yanlış oluyordu.
+    String time = nowHm();
     final allFormulas = <String>{...formulaNameOptions, ...globalUserFormulaNames}.toList();
     bool customName = allFormulas.isEmpty;
     String? selectedFormula = allFormulas.isNotEmpty ? allFormulas.first : null;
@@ -3585,6 +3626,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ],
                       ),
                     ],
+                    const SizedBox(height: 14),
+                    const Text("Saat", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await _pickTime(time);
+                        if (picked != null) setD(() => time = picked);
+                      },
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+                        child: Row(children: [
+                          const Icon(Icons.schedule, size: 18, color: _primary),
+                          const SizedBox(width: 10),
+                          Text(time, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+                          const Spacer(),
+                          const Text("değiştir", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                        ]),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -3604,8 +3666,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       formula = selectedFormula ?? "";
                     }
                   }
-                  final now = DateTime.now();
-                  final time = "${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
                   final isBottle = type != "emzirme"; // mama veya sağılmış süt
                   // Listeyi BURADA, kaydederken tazeliyoruz (bkz. yöntem notu).
                   final target = feedsFor(babyId, dayKey);
@@ -3634,6 +3694,184 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       amountCtrl.dispose();
       durationCtrl.dispose();
     });
+  }
+
+  /// ISO8601 damgasından "HH:mm" çıkarır (bozuksa boş döner).
+  String _hmOf(String iso) {
+    final d = DateTime.tryParse(iso);
+    if (d == null) return "";
+    return "${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}";
+  }
+
+  /// "yyyy-MM-dd" günü + "HH:mm" saatini tek bir yerel DateTime'a çevirir.
+  /// Gün çözülemezse bugüne düşer.
+  DateTime _dayTimeToDateTime(String dayKey, String hm) {
+    final day = DateTime.tryParse(dayKey) ?? DateTime.now();
+    final parts = hm.split(":");
+    final h = int.tryParse(parts.isNotEmpty ? parts[0] : "") ?? 0;
+    final m = int.tryParse(parts.length > 1 ? parts[1] : "") ?? 0;
+    return DateTime(day.year, day.month, day.day, h, m);
+  }
+
+  /// Saat seçtirir; iptal edilirse null döner. [initial] "HH:mm".
+  Future<String?> _pickTime(String initial) async {
+    final parts = initial.split(":");
+    final now = TimeOfDay.now();
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: int.tryParse(parts.isNotEmpty ? parts[0] : "") ?? now.hour,
+        minute: int.tryParse(parts.length > 1 ? parts[1] : "") ?? now.minute,
+      ),
+      builder: (ctx, child) => MediaQuery(
+        // 24 saat düzeni: Türkçe kullanımda AM/PM kafa karıştırıyor.
+        data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (t == null) return null;
+    return "${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}";
+  }
+
+  /// "Verildi" penceresi: saat + isteğe bağlı "X saat sonra hatırlat".
+  ///
+  /// Hatırlatma CİHAZDA zamanlanır (LocalReminders). Web'de böyle bir imkân
+  /// olmadığı için o bölüm hiç gösterilmez.
+  void _showGiveDoseDialog(Map<String, dynamic> def) {
+    final mid = def["id"] as String;
+    final name = def["name"]?.toString() ?? "";
+    final babyId = _activeBabyId;
+    final dayKey = _selectedDay;
+    String time = nowHm();
+    int? remindHours; // null = hatırlatma yok
+    const hourOptions = [4, 6, 8, 12, 24];
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text("$name verildi", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 340,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Veriliş saati", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                  const SizedBox(height: 6),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await _pickTime(time);
+                      if (picked != null) setD(() => time = picked);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(color: const Color(0xFFF3F3F5), borderRadius: BorderRadius.circular(12)),
+                      child: Row(children: [
+                        const Icon(Icons.schedule, size: 18, color: _primary),
+                        const SizedBox(width: 10),
+                        Text(time, style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+                        const Spacer(),
+                        const Text("değiştir", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                      ]),
+                    ),
+                  ),
+                  if (LocalReminders.available) ...[
+                    const SizedBox(height: 16),
+                    const Text("Sonraki doz için hatırlat", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final h in hourOptions)
+                          GestureDetector(
+                            onTap: () => setD(() => remindHours = remindHours == h ? null : h),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: remindHours == h ? _primary : const Color(0xFFF3F3F5),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text("$h saat sonra",
+                                  style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: remindHours == h ? Colors.white : _text)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Hatırlatma telefonunda kurulur. Cihaz kapalıysa veya bildirim izni "
+                      "kapalıysa gelmeyebilir — ilaç saatinin tek dayanağı olarak kullanma.",
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, height: 1.35),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final nav = Navigator.of(ctx);
+                final hours = remindHours;
+                String? remindAt;
+                int? notifId;
+                var pastTarget = false;
+                if (hours != null) {
+                  // Hatırlatma ŞİMDİDEN değil, VERİLİŞ SAATİNDEN sayılır.
+                  // Kayıt çoğu zaman sonradan giriliyor: 08:00'de verilen ilaç
+                  // 14:00'te işaretlenirse "6 saat sonra" 20:00 değil 14:00'tür.
+                  final target = _dayTimeToDateTime(dayKey, time).add(Duration(hours: hours));
+                  final delay = target.difference(DateTime.now());
+                  if (delay.isNegative) {
+                    pastTarget = true;
+                  } else {
+                    // İzin verilmezse hatırlatma kurulmaz ama DOZ YİNE KAYDEDİLİR
+                    // — kullanıcı verdiği ilacı kaybetmesin.
+                    if (await LocalReminders.requestPermission()) {
+                      notifId = await LocalReminders.scheduleIn(
+                        after: delay,
+                        title: "$name zamanı 💊",
+                        body: "Son veriliş $time. $hours saat doldu.",
+                      );
+                      if (notifId != null) remindAt = target.toIso8601String();
+                    }
+                  }
+                }
+                addDose(babyId, dayKey, mid, {
+                  "time": time,
+                  "remindAt": remindAt,
+                  "notifId": notifId,
+                });
+                _persist();
+                nav.pop();
+                if (mounted) setState(() {});
+                final String msg;
+                if (hours == null) {
+                  msg = "$name $time olarak kaydedildi.";
+                } else if (pastTarget) {
+                  msg = "$name kaydedildi. $hours saatlik süre çoktan dolmuş, hatırlatma kurulmadı.";
+                } else if (notifId == null) {
+                  msg = "$name kaydedildi. Hatırlatma kurulamadı — bildirim izni kapalı olabilir.";
+                } else {
+                  msg = "$name kaydedildi. ${_hmOf(remindAt!)} için hatırlatma kuruldu 🔔";
+                }
+                messenger.showSnackBar(SnackBar(content: Text(msg)));
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // ---------- daily tracking (diaper / supplements / meds) ----------
@@ -3725,29 +3963,91 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
+    // Takviye / ilaç kartı.
+    //
+    // Eskiden tek bir onay kutusuydu ("verildi mi?"). Antibiyotik gibi günde
+    // birkaç kez verilen ilaçlarda saat gerekiyor — hem kayıt için hem de
+    // "6 saat sonra hatırlat" hesabı için. Artık her veriliş saatiyle ayrı
+    // satır; kutu yerine "Verildi" düğmesi var.
     Widget medTile(Map<String, dynamic> m) {
       final mid = m["id"] as String;
-      final isTaken = taken[mid] == true;
       final isMed = m["type"] == "ilac";
+      final color = isMed ? _danger : _primary;
+      final doses = dosesFor(id, _selectedDay, mid);
+      // Saatsiz eski kayıtlar: `taken` true ama doses boş olabilir.
+      final legacyTaken = doses.isEmpty && taken[mid] == true;
       final subtitle = [m["dose"], m["schedule"]].where((x) => x != null && x.toString().isNotEmpty).join(" • ");
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.6))),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(width: 38, height: 38, decoration: BoxDecoration(color: (isMed ? _danger : _primary).withOpacity(0.12), shape: BoxShape.circle), child: Icon(isMed ? Icons.medication_outlined : Icons.wb_sunny_outlined, color: isMed ? _danger : _primary, size: 20)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(m["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
-                  if (subtitle.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))],
-                ],
-              ),
+            Row(
+              children: [
+                Container(width: 38, height: 38, decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle), child: Icon(isMed ? Icons.medication_outlined : Icons.wb_sunny_outlined, color: color, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(m["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                      if (subtitle.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))],
+                    ],
+                  ),
+                ),
+                if (doses.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: _green.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+                    child: Text("${doses.length}×", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _green)),
+                  ),
+                TextButton.icon(
+                  onPressed: () => _showGiveDoseDialog(m),
+                  icon: const Icon(Icons.add_alarm, size: 16),
+                  label: const Text("Verildi", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: TextButton.styleFrom(foregroundColor: color, padding: const EdgeInsets.symmetric(horizontal: 6)),
+                ),
+              ],
             ),
-            Checkbox(value: isTaken, activeColor: _green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)), onChanged: (v) { setState(() => taken[mid] = v ?? false); _persist(); }),
+            if (legacyTaken)
+              const Padding(
+                padding: EdgeInsets.only(left: 50, top: 2),
+                child: Text("Verildi olarak işaretlenmiş (saat kaydedilmemiş)",
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+              ),
+            ...doses.asMap().entries.map((e) {
+              final d = e.value;
+              final time = d["time"]?.toString() ?? "";
+              final remindAt = d["remindAt"]?.toString() ?? "";
+              return Padding(
+                padding: const EdgeInsets.only(left: 50, top: 4),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, size: 14, color: _green.withOpacity(0.8)),
+                    const SizedBox(width: 6),
+                    Text(time, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text)),
+                    if (remindAt.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.notifications_active_outlined, size: 13, color: _light),
+                      const SizedBox(width: 3),
+                      Text(_hmOf(remindAt), style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                    ],
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () async {
+                        final notifId = removeDose(id, _selectedDay, mid, e.key);
+                        if (notifId != null) await LocalReminders.cancel(notifId);
+                        _persist();
+                        if (mounted) setState(() {});
+                      },
+                      child: const Icon(Icons.close, size: 15, color: _danger),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       );
