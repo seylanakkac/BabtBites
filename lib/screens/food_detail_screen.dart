@@ -680,16 +680,20 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> with SingleTickerPr
               children: [
                 Row(
                   children: [
-                    Icon(
-                      !tried
-                          ? Icons.radio_button_unchecked
-                          : (reactionStatus == "reaksiyon" ? Icons.warning_amber_rounded : Icons.check_circle),
-                      color: !tried
-                          ? lightTextColor
-                          : (reactionStatus == "reaksiyon" ? const Color(0xFFFF4D6A) : const Color(0xFF10B981)),
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
+                    // Denenmemişken hiçbir simge yok: eskiden boş bir yuvarlak
+                    // (radio_button_unchecked) duruyordu ve dokunulabilir bir
+                    // seçim kutusu gibi görünüyordu. Denendiğinde yalnızca tik,
+                    // reaksiyon varsa uyarı simgesi görünür.
+                    if (tried) ...[
+                      Icon(
+                        reactionStatus == "reaksiyon" ? Icons.warning_amber_rounded : Icons.check_rounded,
+                        color: reactionStatus == "reaksiyon"
+                            ? const Color(0xFFFF4D6A)
+                            : const Color(0xFF10B981),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -1080,7 +1080,9 @@ class _AdminScreenState extends State<AdminScreen> {
                             Row(children: [
                               SizedBox(
                                 width: 78,
-                                child: TextField(controller: qtyCtrls[i], keyboardType: const TextInputType.numberWithOptions(decimal: true), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text), decoration: _dec("Miktar")),
+                                // Sayı klavyesi DEĞİL: "1/2" için gereken "/"
+                                // tuşu yok ve "yarım" gibi ifadeler girilemiyor.
+                                child: TextField(controller: qtyCtrls[i], keyboardType: TextInputType.text, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text), decoration: _dec("Miktar", hint: "1, 1/2, yarım…")),
                               ),
                               const SizedBox(width: 8),
                               Expanded(

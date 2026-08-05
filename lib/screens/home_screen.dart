@@ -757,6 +757,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     return ListView(
+      key: const PageStorageKey('tab_home'),
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       children: [
         // Header: logo + favourites + baby chip
@@ -971,7 +972,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("Haftalık Menü Hazır!", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const Text("Haftalık Menü Hazırla!", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 3),
                       Text("$babyName için bu haftanın besleyici planına göz at.", style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: Colors.white)),
                     ],
@@ -2750,6 +2751,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final planned = _calculatePlannedNutrition();
 
     return ListView(
+      // Her sekmeye AYRI PageStorage anahtarı: anahtarsızken sekmeler ağaçta
+      // aynı konumu paylaştığı için kaydırma konumu birbirine taşınıyordu —
+      // ana sayfadan haftalık menü kartına basınca takvim sayfa başında değil
+      // ortasında açılıyordu.
+      key: const PageStorageKey('tab_calendar'),
       padding: const EdgeInsets.all(24),
       children: [
         const Row(
@@ -3839,6 +3845,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     Widget bigTitle(String t) => Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text));
 
     return ListView(
+      key: const PageStorageKey('tab_cart'),
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       children: [
         Row(
@@ -4358,6 +4365,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildProfileTab() {
     final targets = _calculateBabyTargets();
     return ListView(
+      key: const PageStorageKey('tab_profile'),
       padding: const EdgeInsets.all(24),
       children: [
         const Text("Profil ve Ayarlar 👤", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: _text)),
@@ -5113,8 +5121,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   Expanded(
                                     flex: 2,
                                     child: TextField(
-                                      keyboardType: TextInputType.number,
-                                      decoration: dec("Miktar"),
+                                      // Sayı klavyesi DEĞİL: "1/2" yazmak için
+                                      // gereken "/" tuşu sayı klavyesinde yok,
+                                      // "yarım" gibi ifadeler de girilemiyordu.
+                                      keyboardType: TextInputType.text,
+                                      decoration: dec("Miktar").copyWith(hintText: "1, 1/2, yarım…"),
                                       controller: TextEditingController(text: row["qty"])..selection = TextSelection.collapsed(offset: row["qty"]!.length),
                                       onChanged: (v) => row["qty"] = v,
                                     ),
@@ -6048,12 +6059,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ElevatedButton(
                 onPressed: () {
                   final name = nameC.text.trim();
+                  // Boy ve kilo ZORUNLU: eskiden boş bırakılınca sessizce
+                  // 8 kg / 68 cm varsayılıyordu ve büyüme grafiği ile günlük
+                  // besin hedefleri bu uydurma değerlere göre hesaplanıyordu.
+                  final weightIn = double.tryParse(weightC.text.trim().replaceAll(',', '.'));
+                  final heightIn = double.tryParse(heightC.text.trim().replaceAll(',', '.'));
+                  String? err;
                   if (name.isEmpty) {
-                    ScaffoldMessenger.of(dctx).showSnackBar(const SnackBar(content: Text("Lütfen bir isim girin.")));
+                    err = "Lütfen bir isim girin.";
+                  } else if (weightIn == null || weightIn <= 0) {
+                    err = "Lütfen kiloyu girin (kg).";
+                  } else if (weightIn > 40) {
+                    err = "Kilo değerini kontrol edin (en fazla 40 kg).";
+                  } else if (heightIn == null || heightIn <= 0) {
+                    err = "Lütfen boyu girin (cm).";
+                  } else if (heightIn > 140) {
+                    err = "Boy değerini kontrol edin (en fazla 140 cm).";
+                  }
+                  if (err != null) {
+                    ScaffoldMessenger.of(dctx).showSnackBar(SnackBar(content: Text(err)));
                     return;
                   }
-                  final weight = double.tryParse(weightC.text.trim().replaceAll(',', '.')) ?? (baby?["weight"] as num?)?.toDouble() ?? 8.0;
-                  final height = double.tryParse(heightC.text.trim().replaceAll(',', '.')) ?? (baby?["height"] as num?)?.toDouble() ?? 68.0;
+                  final weight = weightIn!;
+                  final height = heightIn!;
                   final dobF = dob != null ? "${dob!.day.toString().padLeft(2, '0')}.${dob!.month.toString().padLeft(2, '0')}.${dob!.year}" : (baby?["dob"]?.toString() ?? "");
                   if (baby != null) {
                     setState(() {

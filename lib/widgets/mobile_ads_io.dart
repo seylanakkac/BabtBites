@@ -34,7 +34,8 @@ Widget mobileBannerAd() => const _AdmobBanner();
 Future<bool?> showRewardedMobile() async {
   final completer = Completer<bool?>();
   // ATT sonuçlanmadan istek atarsak reklam kişiselleştirilmemiş sayılır.
-  await TrackingConsent.instance.settled;
+  // Bekleme sınırlı; bkz. waitSettled.
+  await TrackingConsent.instance.waitSettled();
   try {
     RewardedAd.load(
       adUnitId: _rewardedUnit,
@@ -84,7 +85,7 @@ class _AdmobBannerState extends State<_AdmobBanner> {
   /// ATT sorusu sonuçlanmadan reklam istemez. Aksi halde ilk açılıştaki ilk
   /// banner IDFA'sız istenir ve kişiselleştirilmemiş sayılır (gelir kaybı).
   Future<void> _startLoad() async {
-    await TrackingConsent.instance.settled;
+    await TrackingConsent.instance.waitSettled();
     if (!mounted) return;
     _ad = BannerAd(
       adUnitId: _bannerUnit,

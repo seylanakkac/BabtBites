@@ -30,11 +30,18 @@ class TrackingConsent {
   final _settled = Completer<void>();
 
   /// İzin sorusu sonuçlanınca tamamlanır (iOS dışında hemen).
-  ///
-  /// Reklam istekleri bunu BEKLER: ATT çözülmeden gönderilen ilk istek
-  /// IDFA'sız gider ve kişiselleştirilmemiş sayılır. Sadece ilk açılışta
-  /// birkaç saniyelik bir gecikme demek.
   Future<void> get settled => _settled.future;
+
+  /// Reklam isteklerinin beklediği yer.
+  ///
+  /// ATT çözülmeden gönderilen ilk istek IDFA'sız gider ve
+  /// kişiselleştirilmemiş sayılır; o yüzden bekliyoruz. Ama SONSUZA KADAR
+  /// DEĞİL: izin akışı hiç tetiklenmezse (ör. kullanıcı ana ekrana hiç
+  /// uğramadan derin linkle doğrudan bir tarife girerse) reklamlar kalıcı
+  /// olarak susardı. Süre dolarsa reklam yine istenir — kötü ihtimalde
+  /// kişiselleştirilmemiş olur, hiç reklam olmamasından iyidir.
+  Future<void> waitSettled() =>
+      _settled.future.timeout(const Duration(seconds: 8), onTimeout: () {});
 
   void _markSettled() {
     if (!_settled.isCompleted) _settled.complete();

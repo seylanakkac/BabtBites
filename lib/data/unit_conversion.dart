@@ -55,6 +55,20 @@ const double kDefaultPieceGrams = 80;
 double? parseQuantity(String raw) {
   final s = raw.trim();
   if (s.isEmpty) return null;
+
+  // Sözel ölçüler. Kullanıcılar tarif yazarken "yarım soğan", "çeyrek elma",
+  // "1 buçuk su bardağı" gibi ifadeleri doğal buluyor; sayı klavyesine
+  // sıkıştırmak yerine bunları da anlıyoruz.
+  final lower = s.toLowerCase();
+  // "<sayı> buçuk" → sayı + 0.5 (ör. "1 buçuk" = 1.5)
+  final bucuk = RegExp(r'^([\d]+[.,]?[\d]*)\s*bu[çc]uk').firstMatch(lower);
+  if (bucuk != null) {
+    final n = double.tryParse(bucuk.group(1)!.replaceAll(',', '.'));
+    if (n != null) return n + 0.5;
+  }
+  if (RegExp(r'^(bir\s+)?bu[çc]uk').hasMatch(lower)) return 1.5;
+  if (lower.startsWith('yarim') || lower.startsWith('yarım')) return 0.5;
+  if (lower.startsWith('çeyrek') || lower.startsWith('ceyrek')) return 0.25;
   // Aralık: "2-3", "2 - 3"
   final range = RegExp(r'^([\d.,]+)\s*-\s*([\d.,]+)').firstMatch(s);
   if (range != null) {
