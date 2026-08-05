@@ -6,5 +6,20 @@
 	<array>
 		<string>Default</string>
 	</array>
+
+	<!-- Push bildirimleri (APNs).
+	     Bu anahtar OLMADAN iOS uygulamayi APNs'e hic kaydetmez; APNs token
+	     olusmaz ve FirebaseMessaging.getToken() "apns-token-not-set" ile
+	     patlar. Kullanici tarafinda bu, "Bildirimleri Ac" dedigi halde hicbir
+	     sey olmamasi seklinde gorunuyordu.
+
+	     Deger "production": Codemagic yalnizca App Store dagitimi icin
+	     (release derleme, app-store export) uretiyor. Xcode ile yerel debug
+	     derlemesi yapilacaksa "development" gerekir.
+
+	     App ID'de (tr.com.babybites) Push Notifications yetkisi ACIK olmali;
+	     dogrulandi (04.08.2026). Kapali olsaydi imzalama basarisiz olurdu. -->
+	<key>aps-environment</key>
+	<string>production</string>
 </dict>
 </plist>

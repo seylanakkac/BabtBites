@@ -4294,7 +4294,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               final messenger = ScaffoldMessenger.of(context);
               final ok = await PushNotifications.instance.enable();
               if (!mounted) return;
-              messenger.showSnackBar(SnackBar(content: Text(ok ? "Bildirimler açıldı 🔔" : "Bildirim açılamadı (izin verilmedi ya da tarayıcı/iOS desteklemiyor).")));
+              // Genel "açılamadı" metni yerine gerçek sebebi göster — aksi
+              // halde ne kullanıcı ne biz nedenini görebiliyorduk.
+              final err = PushNotifications.instance.lastError;
+              messenger.showSnackBar(SnackBar(
+                content: Text(ok
+                    ? "Bildirimler açıldı 🔔"
+                    : "Bildirim açılamadı: ${err ?? 'bilinmeyen hata'}"),
+                duration: const Duration(seconds: 6),
+              ));
             },
             style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
             child: const Text("Aç", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
