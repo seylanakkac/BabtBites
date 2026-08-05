@@ -159,20 +159,21 @@ class LocalReminders {
     required int minute,
     required String title,
     required String body,
+    int? id,
   }) async {
     if (!await _ensureReady()) return null;
     final now = tz.TZDateTime.now(tz.local);
     var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
     if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
-    final id = _nextId();
+    final nid = id ?? _nextId();
     for (final mode in [AndroidScheduleMode.exactAllowWhileIdle, AndroidScheduleMode.inexactAllowWhileIdle]) {
       try {
         await _plugin.zonedSchedule(
-          id, title, body, when, _details,
+          nid, title, body, when, _details,
           androidScheduleMode: mode,
           matchDateTimeComponents: DateTimeComponents.time, // her gün tekrar
         );
-        return id;
+        return nid;
       } catch (e) {
         debugPrint('LocalReminders.scheduleDailyAt ($mode) failed: $e');
       }
@@ -187,6 +188,60 @@ class LocalReminders {
   static int _nextId() {
     _seq = (_seq + 1) % 100000;
     return (DateTime.now().millisecondsSinceEpoch + _seq).remainder(1 << 31);
+  }
+
+  /// Bir (ilaç, saat) çifti için DEĞİŞMEZ bildirim kimliği.
+  ///
+  /// Rastgele kimlik yerine türetilmiş kimlik kullanmak, aynı planı birden
+  /// çok kez zamanlamayı zararsız kılıyor (aynı kimlik üzerine yazılır,
+  /// kopya bildirim oluşmaz). [syncMedReminders] buna dayanıyor.
+  static int dailyIdFor(String medId, String hm) {
+    var h = 0;
+    for (final c in '$medId@$hm'.codeUnits) {
+      h = (h * 31 + c) & 0x3FFFFFFF; // 30 bit: 32-bit int sınırında kal
+    }
+    return h;
+  }
+
+  /// Cihazdaki günlük ilaç hatırlatmalarını kayıtlı planla EŞİTLER.
+  ///
+  /// NEDEN GEREKLİ: bildirim yalnızca "Kaydet" anında ve o cihazda kuruluyordu.
+  /// Planı web'den (yerel bildirim desteği yok) ya da başka bir telefondan
+  /// kuran kullanıcının bu cihazında hiçbir alarm olmuyordu — özellik sessizce
+  /// çalışmıyordu. Bu yüzden açılışta plan ile cihaz alarmları karşılaştırılıyor.
+  ///
+  /// [desired] her biri (medId, time, title, body) olan hedef liste.
+  /// [previousIds] bu cihazda en son kurulmuş kimlikler; artık planda olmayanlar
+  /// iptal edilir. Dönen küme çağıran tarafından saklanmalı.
+  ///
+  /// Tek seferlik doz hatırlatmalarına ("6 saat sonra") DOKUNMAZ — onların
+  /// kimlikleri bu türetilmiş kümede yer almaz.
+  static Future<Set<int>> syncMedReminders(
+    List<({String medId, String time, String title, String body})> desired, {
+    required Set<int> previousIds,
+  }) async {
+    if (!available) return const {};
+    final wanted = {for (final d in desired) dailyIdFor(d.medId, d.time)};
+    // Planda olmayan eski alarmlar (saat silinmiş / ilaç kaldırılmış).
+    await cancelAll(previousIds.difference(wanted));
+    if (desired.isEmpty) return const {};
+    if (!await _ensureReady()) return previousIds;
+    final ok = <int>{};
+    for (final d in desired) {
+      final p = d.time.split(':');
+      final h = int.tryParse(p.first);
+      final m = p.length > 1 ? int.tryParse(p[1]) : null;
+      if (h == null || m == null) continue;
+      final id = await scheduleDailyAt(
+        hour: h,
+        minute: m,
+        title: d.title,
+        body: d.body,
+        id: dailyIdFor(d.medId, d.time),
+      );
+      if (id != null) ok.add(id);
+    }
+    return ok;
   }
 
   /// Kurulmuş bir hatırlatmayı iptal eder.

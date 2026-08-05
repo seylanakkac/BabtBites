@@ -183,6 +183,51 @@ void main() {
     });
   });
 
+  group('plannedMedReminders', () {
+    setUp(globalBabyMeds.clear);
+
+    test('aktif + hatırlatmalı ilaçların her saati için kayıt üretir', () {
+      globalBabyMeds['b1'] = [
+        {
+          'id': 'm1', 'name': 'Demir Damlası', 'dose': '1,5 ml',
+          'active': true, 'reminder': true, 'times': ['09:00', '21:00'],
+        },
+      ];
+      final planned = plannedMedReminders();
+      expect(planned, hasLength(2));
+      expect(planned.map((p) => p.time), containsAll(['09:00', '21:00']));
+      expect(planned.first.title, contains('Demir Damlası'));
+      expect(planned.first.body, contains('1,5 ml'));
+    });
+
+    test('eski etiketli saatler de plana girer', () {
+      globalBabyMeds['b1'] = [
+        {'id': 'm1', 'name': 'D Vitamini', 'active': true, 'reminder': true, 'times': ['Sabah']},
+      ];
+      expect(plannedMedReminders().single.time, '09:00');
+    });
+
+    test('pasif, hatırlatmasız ve saatsizler dışarıda kalır', () {
+      globalBabyMeds['b1'] = [
+        {'id': 'm1', 'name': 'A', 'active': false, 'reminder': true, 'times': ['09:00']},
+        {'id': 'm2', 'name': 'B', 'active': true, 'reminder': false, 'times': ['09:00']},
+        {'id': 'm3', 'name': 'C', 'active': true, 'reminder': true, 'times': []},
+        {'id': 'm4', 'name': 'D', 'active': true, 'reminder': true, 'times': ['bilinmeyen']},
+      ];
+      expect(plannedMedReminders(), isEmpty);
+    });
+
+    test('birden çok bebeğin ilaçları birlikte döner', () {
+      globalBabyMeds['b1'] = [
+        {'id': 'm1', 'name': 'A', 'active': true, 'reminder': true, 'times': ['09:00']},
+      ];
+      globalBabyMeds['b2'] = [
+        {'id': 'm2', 'name': 'B', 'active': true, 'reminder': true, 'times': ['10:00']},
+      ];
+      expect(plannedMedReminders(), hasLength(2));
+    });
+  });
+
   group('sevdi / sevmedi', () {
     test('gıda beğenisi bebek başına tutulur', () {
       setFoodTaste('b1', 'Elma', 'sevdi');

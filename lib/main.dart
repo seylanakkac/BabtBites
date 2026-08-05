@@ -1,5 +1,6 @@
+import 'dart:async' show unawaited;
 import 'dart:ui';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -11,6 +12,8 @@ import 'services/cloud_sync.dart';
 import 'services/catalog_sync.dart';
 import 'services/social_sync.dart';
 import 'services/analytics.dart';
+import 'services/local_reminders.dart';
+import 'data/tracking_store.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
@@ -74,7 +77,31 @@ Future<void> main() async {
     await SocialSync.instance.loadInfluencers().timeout(const Duration(seconds: 8), onTimeout: () {});
   }
   StorageService.instance.loadInto();
+  // Kayıtlı ilaç planıyla bu cihazdaki alarmları eşitle.
+  //
+  // Bildirim eskiden yalnızca "Kaydet" anında ve o cihazda kuruluyordu: planı
+  // web'den (yerel bildirim yok) ya da başka bir telefondan kuran kullanıcının
+  // bu cihazında hiçbir alarm olmuyor, özellik sessizce çalışmıyordu.
+  //
+  // İlk frame'i bekletmemek için beklenmiyor (fire-and-forget); izin istemez,
+  // yalnızca zaten verilmiş izinle zamanlar.
+  if (LocalReminders.available) {
+    unawaited(_syncMedReminders());
+  }
   runApp(const BabyBitesApp());
+}
+
+Future<void> _syncMedReminders() async {
+  try {
+    final store = StorageService.instance;
+    final ids = await LocalReminders.syncMedReminders(
+      plannedMedReminders(),
+      previousIds: store.loadScheduledReminderIds(),
+    );
+    await store.saveScheduledReminderIds(ids);
+  } catch (e) {
+    debugPrint('med reminder sync failed: $e');
+  }
 }
 
 class AppScrollBehavior extends MaterialScrollBehavior {

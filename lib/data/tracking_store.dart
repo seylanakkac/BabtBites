@@ -252,6 +252,34 @@ String labelToTime(String v) {
   }
 }
 
+/// Tüm bebeklerdeki AKTİF takviye/ilaçların planlanmış hatırlatmaları.
+///
+/// Cihaz açılışta bunu kendi kurulu alarmlarıyla karşılaştırır: plan başka bir
+/// cihazdan (ör. web'den — orada yerel bildirim yok) kurulmuş olabilir.
+List<({String medId, String time, String title, String body})> plannedMedReminders() {
+  final out = <({String medId, String time, String title, String body})>[];
+  globalBabyMeds.forEach((_, meds) {
+    for (final m in meds) {
+      if (m["active"] != true || m["reminder"] != true) continue;
+      final id = m["id"]?.toString() ?? "";
+      final name = m["name"]?.toString() ?? "";
+      if (id.isEmpty || name.isEmpty) continue;
+      final dose = (m["dose"]?.toString() ?? "").trim();
+      for (final raw in (m["times"] as List?) ?? const []) {
+        final t = labelToTime(raw.toString());
+        if (t.isEmpty) continue;
+        out.add((
+          medId: id,
+          time: t,
+          title: "$name zamanı 💊",
+          body: dose.isEmpty ? "Saat $t" : "$dose · saat $t",
+        ));
+      }
+    }
+  });
+  return out;
+}
+
 /// "HH:mm" biçiminde şimdiki saat.
 String nowHm() {
   final n = DateTime.now();

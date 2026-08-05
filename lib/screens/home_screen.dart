@@ -3703,6 +3703,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return "${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}";
   }
 
+  /// Cihazdaki günlük ilaç alarmlarını kayıtlı planla eşitler.
+  /// En az bir alarm kurulduysa true döner. Web'de her zaman false.
+  Future<bool> _syncMedAlarms() async {
+    if (!LocalReminders.available) return false;
+    final store = StorageService.instance;
+    final ids = await LocalReminders.syncMedReminders(
+      plannedMedReminders(),
+      previousIds: store.loadScheduledReminderIds(),
+    );
+    await store.saveScheduledReminderIds(ids);
+    return ids.isNotEmpty;
+  }
+
   /// "yyyy-MM-dd" günü + "HH:mm" saatini tek bir yerel DateTime'a çevirir.
   /// Gün çözülemezse bugüne düşer.
   DateTime _dayTimeToDateTime(String dayKey, String hm) {
@@ -3983,7 +3996,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           .where((t) => t.isNotEmpty)
           .toList()
         ..sort();
-      final remindOn = m["reminder"] == true && ((m["notifIds"] as List?) ?? const []).isNotEmpty;
+      final remindOn = m["reminder"] == true && planTimes.isNotEmpty;
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -4212,12 +4225,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(m["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text)), Text(isMed ? "İlaç" : "Takviye", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: _light))])),
                                 IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: _primary), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () => _showAddEditMedDialog(existing: m, onDone: () => setD(() {}))),
                                 IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: _danger), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () async {
-                                  // Silinen ilacın hatırlatmaları da gitmeli;
-                                  // yoksa olmayan bir ilaç için bildirim çalardı.
-                                  final ids = ((m["notifIds"] as List?) ?? const []).map((e) => (e as num).toInt());
-                                  await LocalReminders.cancelAll(ids);
                                   meds.remove(m);
                                   _persist();
+                                  // Silinen ilacın alarmları da gitmeli; yoksa
+                                  // olmayan bir ilaç için bildirim çalardı.
+                                  await _syncMedAlarms();
                                   setD(() {});
                                   if (mounted) setState(() {});
                                 }),
@@ -4424,30 +4436,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     const SizedBox(height: 18),
                     // Reminder — ARTIK GERÇEKTEN ÇALIŞIYOR. Bu anahtar eskiden
                     // yalnızca kaydediliyordu, hiçbir yerde okunmuyordu (yani
-                    // dekoratifti). Şimdi yukarıdaki her saat için günlük
-                    // tekrarlı bir yerel bildirim kuruyor.
-                    if (LocalReminders.available)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(14)),
-                        child: Row(children: [
-                          const Icon(Icons.notifications_active_outlined, size: 20, color: _primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text("Her gün bu saatlerde hatırlat", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
-                                Text(
-                                  times.isEmpty ? "Önce saat ekle" : (times.toList()..sort()).join(" · "),
-                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light),
-                                ),
-                              ],
-                            ),
+                    // dekoratifti). Şimdi her saat için günlük tekrarlı bir
+                    // yerel bildirim kuruluyor.
+                    //
+                    // WEB'DE DE GÖSTERİLİYOR: yerel bildirim web'de kurulamaz
+                    // ama tercih kaydediliyor ve telefon açılışta planı görüp
+                    // alarmları kendisi kuruyor (main.dart'taki eşitleme).
+                    // Anahtarı web'de gizlemek, planını web'den yöneten
+                    // kullanıcının hatırlatmayı hiç açamaması demekti.
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(14)),
+                      child: Row(children: [
+                        const Icon(Icons.notifications_active_outlined, size: 20, color: _primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text("Her gün bu saatlerde hatırlat", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                              Text(
+                                times.isEmpty
+                                    ? "Önce saat ekle"
+                                    : (LocalReminders.available
+                                        ? (times.toList()..sort()).join(" · ")
+                                        : "${(times.toList()..sort()).join(" · ")} — bildirim telefonda çalışır"),
+                                style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light),
+                              ),
+                            ],
                           ),
-                          Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
-                        ]),
-                      ),
+                        ),
+                        Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
+                      ]),
+                    ),
                     const SizedBox(height: 12),
                     const MedicalDisclaimer(text: "Takviye ve ilaçlar yalnızca çocuk doktorunuzun önerisi ve dozuyla kullanılmalıdır. Bu uygulama tıbbi tavsiye vermez."),
                   ],
@@ -4470,35 +4491,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   final messenger = ScaffoldMessenger.of(context);
                   final nav = Navigator.of(dctx);
 
-                  // Eski hatırlatmaları her durumda iptal et: saatler değişmiş
-                  // ya da anahtar kapatılmış olabilir; kalanlar yanlış saatte
-                  // çalardı.
-                  final oldIds = ((existing?["notifIds"] as List?) ?? const [])
-                      .map((e) => (e as num).toInt())
-                      .toList();
-                  if (oldIds.isNotEmpty) await LocalReminders.cancelAll(oldIds);
-
-                  final newIds = <int>[];
-                  var permissionDenied = false;
-                  if (reminder && sorted.isNotEmpty && LocalReminders.available) {
-                    if (await LocalReminders.requestPermission()) {
-                      for (final t in sorted) {
-                        final p = t.split(":");
-                        final h = int.tryParse(p.first) ?? 0;
-                        final mnt = int.tryParse(p.length > 1 ? p[1] : "") ?? 0;
-                        final nid = await LocalReminders.scheduleDailyAt(
-                          hour: h,
-                          minute: mnt,
-                          title: "$finalName zamanı 💊",
-                          body: doseStr.isEmpty ? "Saat $t" : "$doseStr · saat $t",
-                        );
-                        if (nid != null) newIds.add(nid);
-                      }
-                    } else {
-                      permissionDenied = true;
-                    }
-                  }
-
                   final data = <String, dynamic>{
                     "name": finalName,
                     "type": type,
@@ -4507,7 +4499,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     "frequency": frequency,
                     "times": sorted,
                     "reminder": reminder,
-                    "notifIds": newIds,
                     "dose": doseStr,
                     "schedule": scheduleStr,
                     "active": true,
@@ -4519,6 +4510,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     medsFor(id).add(data);
                   }
                   _persist();
+
+                  // İzni sadece kullanıcı hatırlatma isterken sor.
+                  var permissionDenied = false;
+                  if (reminder && sorted.isNotEmpty && LocalReminders.available) {
+                    permissionDenied = !await LocalReminders.requestPermission();
+                  }
+                  // Alarmları TEK yerden eşitle: ekleme, saat değiştirme,
+                  // anahtarı kapatma ve silme aynı yoldan geçsin — yoksa her
+                  // biri için ayrı iptal mantığı gerekir ve biri unutulunca
+                  // yanlış saatte bildirim çalar.
+                  final scheduled = await _syncMedAlarms();
+
                   nav.pop();
                   onDone?.call();
                   if (mounted) setState(() {});
@@ -4526,7 +4529,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     messenger.showSnackBar(const SnackBar(
                       content: Text("Kaydedildi, ancak bildirim izni verilmediği için hatırlatma kurulamadı."),
                     ));
-                  } else if (newIds.isNotEmpty) {
+                  } else if (reminder && sorted.isNotEmpty && scheduled) {
                     messenger.showSnackBar(SnackBar(
                       content: Text("$finalName kaydedildi. Her gün ${sorted.join(", ")} için hatırlatma kuruldu 🔔"),
                     ));

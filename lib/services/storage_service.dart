@@ -94,6 +94,10 @@ class StorageService {
   static const String _kReportFiles = 'report_files';
   static const String _kUserFormulaNames = 'user_formula_names';
   static const String _kRecipeTastes = 'baby_recipe_tastes';
+  /// Bu CİHAZDA kurulu günlük ilaç hatırlatmalarının kimlikleri.
+  /// Buluta SENKRONLANMAZ (_userStringKeys'te yok): alarmlar cihaza ait,
+  /// başka telefonun kimliklerini buraya taşımak yanlış iptallere yol açardı.
+  static const String _kScheduledReminderIds = 'scheduled_reminder_ids';
 
   // ---- Cloud sync (Faz 2): which prefs keys are this USER's private data ----
   // (Catalog/admin/social keys are intentionally excluded — those become the
@@ -582,6 +586,20 @@ class StorageService {
       await prefs.setString(_kPendingRecipes, jsonEncode(globalPendingRecipes));
     } catch (e) {
       debugPrint('StorageService.saveRecipeSocial failed: $e');
+    }
+  }
+
+  /// Bu cihazda kurulu günlük hatırlatma kimlikleri.
+  Set<int> loadScheduledReminderIds() {
+    final raw = _prefs?.getStringList(_kScheduledReminderIds) ?? const [];
+    return raw.map(int.tryParse).whereType<int>().toSet();
+  }
+
+  Future<void> saveScheduledReminderIds(Set<int> ids) async {
+    try {
+      await _prefs?.setStringList(_kScheduledReminderIds, ids.map((e) => e.toString()).toList());
+    } catch (e) {
+      debugPrint('StorageService.saveScheduledReminderIds failed: $e');
     }
   }
 
