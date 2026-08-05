@@ -1136,13 +1136,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: _seasonGridWeb(data[cats[page]]!, cats[page]),
             )
           else ...[
-            SizedBox(
-              height: 315,
-              child: PageView(
-                controller: _seasonPageController,
-                onPageChanged: (i) => setState(() => _seasonPage = i),
-                children: cats.map((c) => _seasonGridPage(data[c]!, c)).toList(),
-              ),
+            // Yükseklik SABİT olamaz: 3 sütunda 8 ürün 3 satır eder ve gerçek
+            // yükseklik sabit değeri aşınca son satır alttan kırpılıp "+X ay"
+            // yazısı görünmez oluyordu. En çok satıra sahip kategoriye göre
+            // hesaplanır (PageView tüm sayfalar için tek yükseklik kullanır).
+            LayoutBuilder(
+              builder: (context, c) {
+                final cellW = (c.maxWidth - _kSeasonSpacing * (_kSeasonCols - 1)) / _kSeasonCols;
+                final cellH = cellW / _kSeasonRatio;
+                var maxRows = 1;
+                for (final cat in cats) {
+                  final rows = (_seasonPageItems(data[cat]!).length / _kSeasonCols).ceil();
+                  if (rows > maxRows) maxRows = rows;
+                }
+                return SizedBox(
+                  height: maxRows * cellH + (maxRows - 1) * _kSeasonSpacing,
+                  child: PageView(
+                    controller: _seasonPageController,
+                    onPageChanged: (i) => setState(() => _seasonPage = i),
+                    children: cats.map((c) => _seasonGridPage(data[c]!, c)).toList(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 12),
             // Page dots
@@ -1167,12 +1182,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // Mevsim ızgarasının ölçüleri — yükseklik hesabı ile ızgara aynı değerleri
+  // kullanmalı, yoksa son satır yine kırpılır.
+  static const int _kSeasonCols = 3;
+  static const double _kSeasonSpacing = 10;
+  static const double _kSeasonRatio = 0.95;
+
+  /// Bir kategoride ekranda gösterilecek ürünler. Yükseklik hesabı da bunu
+  /// kullanır ki satır sayısı çizilenle birebir aynı olsun.
+  List<SeasonalItem> _seasonPageItems(List<SeasonalItem> items) =>
+      items.where((it) => it.name.trim().isNotEmpty).toList();
+
   Widget _seasonGridPage(List<SeasonalItem> items, String cat) {
-    final list = items.where((it) => it.name.trim().isNotEmpty).toList();
+    final list = _seasonPageItems(items);
     return GridView.builder(
       padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, childAspectRatio: 0.95, crossAxisSpacing: 10, mainAxisSpacing: 10),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: _kSeasonCols, childAspectRatio: _kSeasonRatio, crossAxisSpacing: _kSeasonSpacing, mainAxisSpacing: _kSeasonSpacing),
       itemCount: list.length,
       itemBuilder: (context, i) => _seasonalGridCard(list[i], cat),
     );
