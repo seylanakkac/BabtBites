@@ -223,6 +223,35 @@ Map<String, dynamic> dailyLog(String babyId, String dateKey) {
   return log;
 }
 
+/// Eski "Sabah"/"Öğle"/"Akşam" etiketlerini saate çevirir; zaten "HH:mm"
+/// biçimindeyse normalleştirip aynen döner. Tanınmayan değer boş döner.
+///
+/// Takviye/ilaç "veriliş zamanı" eskiden bu üç etiketten ibaretti; etiketle
+/// hatırlatma kurulamıyor ve kullanıcı kartta saat göremiyordu. Kayıtlı eski
+/// veriler okunurken bir kez saate dönüşür ve ilk kaydetmede öyle yazılır.
+String labelToTime(String v) {
+  final s = v.trim();
+  final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(s);
+  if (m != null) {
+    final h = int.parse(m.group(1)!);
+    final mi = int.parse(m.group(2)!);
+    if (h > 23 || mi > 59) return "";
+    return "${h.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}";
+  }
+  switch (s.toLowerCase()) {
+    case "sabah":
+      return "09:00";
+    case "öğle":
+    case "ogle":
+      return "13:00";
+    case "akşam":
+    case "aksam":
+      return "20:00";
+    default:
+      return "";
+  }
+}
+
 /// "HH:mm" biçiminde şimdiki saat.
 String nowHm() {
   final n = DateTime.now();

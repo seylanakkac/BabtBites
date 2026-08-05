@@ -159,6 +159,30 @@ void main() {
     });
   });
 
+  group('veriliş zamanı göçü (labelToTime)', () {
+    test('eski etiketler saate çevrilir', () {
+      expect(labelToTime('Sabah'), '09:00');
+      expect(labelToTime('Öğle'), '13:00');
+      expect(labelToTime('Akşam'), '20:00');
+      // Türkçe karakter kaybolmuş kayıtlar da tanınmalı.
+      expect(labelToTime('ogle'), '13:00');
+      expect(labelToTime('aksam'), '20:00');
+    });
+
+    test('zaten saat olanlar normalleştirilir', () {
+      expect(labelToTime('09:00'), '09:00');
+      expect(labelToTime('9:05'), '09:05');
+      expect(labelToTime(' 21:30 '), '21:30');
+    });
+
+    test('geçersizler boş döner (atılır)', () {
+      expect(labelToTime(''), '');
+      expect(labelToTime('bilinmeyen'), '');
+      expect(labelToTime('25:00'), '');
+      expect(labelToTime('10:75'), '');
+    });
+  });
+
   group('sevdi / sevmedi', () {
     test('gıda beğenisi bebek başına tutulur', () {
       setFoodTaste('b1', 'Elma', 'sevdi');

@@ -116,8 +116,7 @@ class LocalReminders {
   }) async {
     if (!await _ensureReady()) return null;
     final when = tz.TZDateTime.now(tz.local).add(after);
-    // Kimlik 32-bit int olmalı; milisaniye damgası taşar.
-    final id = DateTime.now().millisecondsSinceEpoch.remainder(1 << 31);
+    final id = _nextId();
     try {
       await _plugin.zonedSchedule(
         id,
@@ -150,6 +149,46 @@ class LocalReminders {
     }
   }
 
+  /// HER GÜN aynı saatte tekrarlayan bir hatırlatma kurar (ör. "sabah 09:00
+  /// demir damlası"). Kurulamazsa null döner; dönen kimlik iptal için saklanmalı.
+  ///
+  /// Bugünkü saat geçmişse ilk bildirim YARIN çalar — `matchDateTimeComponents`
+  /// yalnızca saati eşleştirdiği için tarih kendiliğinden ilerler.
+  static Future<int?> scheduleDailyAt({
+    required int hour,
+    required int minute,
+    required String title,
+    required String body,
+  }) async {
+    if (!await _ensureReady()) return null;
+    final now = tz.TZDateTime.now(tz.local);
+    var when = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (!when.isAfter(now)) when = when.add(const Duration(days: 1));
+    final id = _nextId();
+    for (final mode in [AndroidScheduleMode.exactAllowWhileIdle, AndroidScheduleMode.inexactAllowWhileIdle]) {
+      try {
+        await _plugin.zonedSchedule(
+          id, title, body, when, _details,
+          androidScheduleMode: mode,
+          matchDateTimeComponents: DateTimeComponents.time, // her gün tekrar
+        );
+        return id;
+      } catch (e) {
+        debugPrint('LocalReminders.scheduleDailyAt ($mode) failed: $e');
+      }
+    }
+    return null;
+  }
+
+  /// Çakışmayan bildirim kimliği. Aynı milisaniyede birden çok hatırlatma
+  /// kurulabildiği için (bir ilacın 3 saati) sayaçla ayrıştırılıyor —
+  /// yoksa ikinci bildirim birincinin üzerine yazardı.
+  static int _seq = 0;
+  static int _nextId() {
+    _seq = (_seq + 1) % 100000;
+    return (DateTime.now().millisecondsSinceEpoch + _seq).remainder(1 << 31);
+  }
+
   /// Kurulmuş bir hatırlatmayı iptal eder.
   static Future<void> cancel(int id) async {
     if (!await _ensureReady()) return;
@@ -157,6 +196,13 @@ class LocalReminders {
       await _plugin.cancel(id);
     } catch (e) {
       debugPrint('LocalReminders.cancel failed: $e');
+    }
+  }
+
+  /// Birden çok hatırlatmayı iptal eder (bir ilacın tüm saatleri).
+  static Future<void> cancelAll(Iterable<int> ids) async {
+    for (final id in ids) {
+      await cancel(id);
     }
   }
 }

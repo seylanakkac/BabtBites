@@ -3976,7 +3976,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final doses = dosesFor(id, _selectedDay, mid);
       // Saatsiz eski kayıtlar: `taken` true ama doses boş olabilir.
       final legacyTaken = doses.isEmpty && taken[mid] == true;
-      final subtitle = [m["dose"], m["schedule"]].where((x) => x != null && x.toString().isNotEmpty).join(" • ");
+      final subtitle = (m["dose"]?.toString() ?? "").trim();
+      // Planlanan veriliş saatleri (eski etiketli kayıtlar da saate çevrilir).
+      final planTimes = ((m["times"] as List?) ?? const [])
+          .map((e) => labelToTime(e.toString()))
+          .where((t) => t.isNotEmpty)
+          .toList()
+        ..sort();
+      final remindOn = m["reminder"] == true && ((m["notifIds"] as List?) ?? const []).isNotEmpty;
       return Container(
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -3994,6 +4001,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       Text(m["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
                       if (subtitle.isNotEmpty) ...[const SizedBox(height: 2), Text(subtitle, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light))],
+                      // Planlanan saatler + hatırlatma kurulu mu.
+                      if (planTimes.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Row(children: [
+                          Icon(remindOn ? Icons.notifications_active : Icons.schedule, size: 12, color: remindOn ? _primary : _light),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              planTimes.join(" · "),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: remindOn ? _primary : _light),
+                            ),
+                          ),
+                        ]),
+                      ],
                     ],
                   ),
                 ),
@@ -4189,7 +4211,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 const SizedBox(width: 10),
                                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(m["name"]?.toString() ?? "", style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _text)), Text(isMed ? "İlaç" : "Takviye", style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: _light))])),
                                 IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: _primary), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () => _showAddEditMedDialog(existing: m, onDone: () => setD(() {}))),
-                                IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: _danger), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () { meds.remove(m); _persist(); setD(() {}); setState(() {}); }),
+                                IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: _danger), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32), onPressed: () async {
+                                  // Silinen ilacın hatırlatmaları da gitmeli;
+                                  // yoksa olmayan bir ilaç için bildirim çalardı.
+                                  final ids = ((m["notifIds"] as List?) ?? const []).map((e) => (e as num).toInt());
+                                  await LocalReminders.cancelAll(ids);
+                                  meds.remove(m);
+                                  _persist();
+                                  setD(() {});
+                                  if (mounted) setState(() {});
+                                }),
                               ],
                             ),
                           );
@@ -4231,7 +4262,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     String unit = existing?["doseUnit"]?.toString() ?? (units.isNotEmpty ? units.first : "damla");
     if (units.isNotEmpty && !units.contains(unit)) unit = units.first;
     String frequency = existing?["frequency"]?.toString() ?? "Günlük";
-    final times = <String>{...((existing?["times"] as List?)?.map((e) => e.toString()) ?? const ["Sabah"])};
+    // Veriliş zamanları artık GERÇEK SAAT ("09:00"), eskiden "Sabah"/"Öğle"/
+    // "Akşam" etiketleriydi. Etiketle hatırlatma kurulamıyordu ve kullanıcı
+    // kartta saat göremiyordu. Eski kayıtlar aşağıda saate çevriliyor.
+    final times = <String>{
+      ...((existing?["times"] as List?)?.map((e) => labelToTime(e.toString())) ?? const ["09:00"]),
+    }..removeWhere((t) => t.isEmpty);
     bool reminder = (existing?["reminder"] as bool?) ?? true;
 
     showDialog(
@@ -4336,23 +4372,82 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     Wrap(spacing: 8, runSpacing: 8, children: [
                       for (final f in const ["Günlük", "Haftalık", "Aylık"]) choiceChip(f, frequency == f, () => setD(() => frequency = f)),
                     ]),
-                    // Time of day (multi)
-                    label("Veriliş Zamanı"),
+                    // Veriliş saatleri (birden çok). Hazır düğmeler yalnızca
+                    // hızlı doldurma; saklanan değer her zaman "HH:mm".
+                    label("Veriliş Saatleri"),
                     Wrap(spacing: 8, runSpacing: 8, children: [
-                      for (final t in const ["Sabah", "Öğle", "Akşam"]) choiceChip(t, times.contains(t), () => setD(() => times.contains(t) ? times.remove(t) : times.add(t))),
+                      ...(times.toList()..sort()).map((t) => GestureDetector(
+                            onTap: () async {
+                              final picked = await _pickTime(t);
+                              if (picked == null) return;
+                              setD(() {
+                                times.remove(t);
+                                times.add(picked);
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.only(left: 12, right: 6, top: 8, bottom: 8),
+                              decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(20)),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.schedule, size: 14, color: Colors.white),
+                                const SizedBox(width: 5),
+                                Text(t, style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                                const SizedBox(width: 4),
+                                GestureDetector(
+                                  onTap: () => setD(() => times.remove(t)),
+                                  child: const Icon(Icons.close, size: 15, color: Colors.white70),
+                                ),
+                              ]),
+                            ),
+                          )),
+                      GestureDetector(
+                        onTap: () async {
+                          final picked = await _pickTime(times.isEmpty ? "09:00" : (times.toList()..sort()).last);
+                          if (picked != null) setD(() => times.add(picked));
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E2E6))),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.add, size: 15, color: _primary),
+                            SizedBox(width: 4),
+                            Text("Saat ekle", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: _primary)),
+                          ]),
+                        ),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    Wrap(spacing: 8, runSpacing: 8, children: [
+                      for (final p in const [("Sabah", "09:00"), ("Öğle", "13:00"), ("Akşam", "20:00")])
+                        choiceChip("${p.$1} ${p.$2}", times.contains(p.$2), () => setD(() => times.contains(p.$2) ? times.remove(p.$2) : times.add(p.$2))),
                     ]),
                     const SizedBox(height: 18),
-                    // Reminder
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(14)),
-                      child: Row(children: [
-                        const Icon(Icons.notifications_active_outlined, size: 20, color: _primary),
-                        const SizedBox(width: 10),
-                        const Expanded(child: Text("Hatırlatıcı", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text))),
-                        Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
-                      ]),
-                    ),
+                    // Reminder — ARTIK GERÇEKTEN ÇALIŞIYOR. Bu anahtar eskiden
+                    // yalnızca kaydediliyordu, hiçbir yerde okunmuyordu (yani
+                    // dekoratifti). Şimdi yukarıdaki her saat için günlük
+                    // tekrarlı bir yerel bildirim kuruyor.
+                    if (LocalReminders.available)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(14)),
+                        child: Row(children: [
+                          const Icon(Icons.notifications_active_outlined, size: 20, color: _primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("Her gün bu saatlerde hatırlat", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                                Text(
+                                  times.isEmpty ? "Önce saat ekle" : (times.toList()..sort()).join(" · "),
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(value: reminder, activeColor: _primary, onChanged: (v) => setD(() => reminder = v)),
+                        ]),
+                      ),
                     const SizedBox(height: 12),
                     const MedicalDisclaimer(text: "Takviye ve ilaçlar yalnızca çocuk doktorunuzun önerisi ve dozuyla kullanılmalıdır. Bu uygulama tıbbi tavsiye vermez."),
                   ],
@@ -4362,7 +4457,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             actions: [
               TextButton(onPressed: () => Navigator.pop(dctx), child: const Text("İptal", style: TextStyle(fontFamily: 'Inter', color: _light))),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   final finalName = customName ? nameC.text.trim() : (selectedName ?? "");
                   if (finalName.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Lütfen bir ad seçin veya girin.")));
@@ -4370,15 +4465,49 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   }
                   final amount = doseC.text.trim();
                   final doseStr = amount.isNotEmpty ? "$amount $unit" : "";
-                  final scheduleStr = [frequency, if (times.isNotEmpty) times.join("/")].join(" · ");
+                  final sorted = times.toList()..sort();
+                  final scheduleStr = [frequency, if (sorted.isNotEmpty) sorted.join(" · ")].join(" · ");
+                  final messenger = ScaffoldMessenger.of(context);
+                  final nav = Navigator.of(dctx);
+
+                  // Eski hatırlatmaları her durumda iptal et: saatler değişmiş
+                  // ya da anahtar kapatılmış olabilir; kalanlar yanlış saatte
+                  // çalardı.
+                  final oldIds = ((existing?["notifIds"] as List?) ?? const [])
+                      .map((e) => (e as num).toInt())
+                      .toList();
+                  if (oldIds.isNotEmpty) await LocalReminders.cancelAll(oldIds);
+
+                  final newIds = <int>[];
+                  var permissionDenied = false;
+                  if (reminder && sorted.isNotEmpty && LocalReminders.available) {
+                    if (await LocalReminders.requestPermission()) {
+                      for (final t in sorted) {
+                        final p = t.split(":");
+                        final h = int.tryParse(p.first) ?? 0;
+                        final mnt = int.tryParse(p.length > 1 ? p[1] : "") ?? 0;
+                        final nid = await LocalReminders.scheduleDailyAt(
+                          hour: h,
+                          minute: mnt,
+                          title: "$finalName zamanı 💊",
+                          body: doseStr.isEmpty ? "Saat $t" : "$doseStr · saat $t",
+                        );
+                        if (nid != null) newIds.add(nid);
+                      }
+                    } else {
+                      permissionDenied = true;
+                    }
+                  }
+
                   final data = <String, dynamic>{
                     "name": finalName,
                     "type": type,
                     "doseAmount": amount,
                     "doseUnit": unit,
                     "frequency": frequency,
-                    "times": times.toList(),
+                    "times": sorted,
                     "reminder": reminder,
+                    "notifIds": newIds,
                     "dose": doseStr,
                     "schedule": scheduleStr,
                     "active": true,
@@ -4390,9 +4519,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     medsFor(id).add(data);
                   }
                   _persist();
-                  Navigator.pop(dctx);
+                  nav.pop();
                   onDone?.call();
-                  setState(() {});
+                  if (mounted) setState(() {});
+                  if (permissionDenied) {
+                    messenger.showSnackBar(const SnackBar(
+                      content: Text("Kaydedildi, ancak bildirim izni verilmediği için hatırlatma kurulamadı."),
+                    ));
+                  } else if (newIds.isNotEmpty) {
+                    messenger.showSnackBar(SnackBar(
+                      content: Text("$finalName kaydedildi. Her gün ${sorted.join(", ")} için hatırlatma kuruldu 🔔"),
+                    ));
+                  }
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
