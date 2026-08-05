@@ -30,13 +30,10 @@ const String kAdmobRewardedUnitAndroid = "ca-app-pub-4036323836264136/6923534942
 const String kAdmobBannerUnitIOS = "ca-app-pub-4036323836264136/5608068364";
 const String kAdmobRewardedUnitIOS = "ca-app-pub-4036323836264136/8126420492";
 
-// GEÇİŞ (interstitial) reklam birimleri.
-// ⚠️ AdMob konsolunda HENÜZ OLUŞTURULMADI. Boş bırakıldığı sürece geçiş
-// reklamı hiç gösterilmez (uygulama bozulmaz). Oluşturunca buraya yaz:
-// AdMob → Uygulamalar → BabyBites (iOS/Android) → Reklam birimleri →
-// "Geçiş reklamı" → kimliği kopyala.
-const String kAdmobInterstitialUnitAndroid = "";
-const String kAdmobInterstitialUnitIOS = "";
+// GEÇİŞ (interstitial) reklam birimleri — 05.08.2026'da oluşturuldu.
+// Gösterim sıklığı aşağıdaki sınırlarla kontrol edilir (bkz. InterstitialAds).
+const String kAdmobInterstitialUnitAndroid = "ca-app-pub-4036323836264136/6265903283";
+const String kAdmobInterstitialUnitIOS = "ca-app-pub-4036323836264136/6659433765";
 
 /// AdMob banner birimi girilmiş mi?
 bool get admobConfigured => kAdmobBannerUnitAndroid.isNotEmpty;
