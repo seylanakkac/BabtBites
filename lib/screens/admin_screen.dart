@@ -9,6 +9,7 @@ import '../services/community_sync.dart';
 import '../data/community_store.dart';
 import '../data/food_database.dart';
 import '../data/seasonal_database.dart';
+import '../data/sample_menu.dart';
 import '../services/storage_service.dart';
 import '../widgets/image_helpers.dart';
 import 'articles_screen.dart';
@@ -56,6 +57,10 @@ class _AdminScreenState extends State<AdminScreen> {
   final _bcBody = TextEditingController();
   String _bcType = 'announcement';
   bool _bcSending = false;
+  // Örnek menü editörü
+  List<SampleMenu>? _menusEdit;
+  int _menuSel = 0;
+  int _menuDay = 0;
   final _newCommunityCat = TextEditingController();
   final _newFormulaName = TextEditingController();
   final _newFeedingUnit = TextEditingController();
@@ -273,6 +278,7 @@ class _AdminScreenState extends State<AdminScreen> {
       // kullanılan bir ikon seçildi.
       (Icons.wb_sunny_outlined, "Mevsimlik"),
       (Icons.campaign_outlined, "Duyuru"),
+      (Icons.event_note_outlined, "Örnek Menü"),
     ];
 
     return Scaffold(
@@ -386,6 +392,8 @@ class _AdminScreenState extends State<AdminScreen> {
         return _seasonalManager();
       case 13:
         return _broadcastManager();
+      case 14:
+        return _sampleMenuManager();
       default:
         return _dashboard();
     }
@@ -2985,6 +2993,309 @@ class _AdminScreenState extends State<AdminScreen> {
       SizedBox(
         width: double.infinity,
         child: _primaryBtn("Kaydet ve Yayınla", Icons.cloud_upload_outlined, _saveSeasonal),
+      ),
+      const SizedBox(height: 24),
+    ]);
+  }
+
+  // ---------- örnek haftalık menüler ----------
+
+  List<SampleMenu> get _menus {
+    _menusEdit ??= List<SampleMenu>.from(sampleMenus());
+    return _menusEdit!;
+  }
+
+  Future<void> _saveMenus() async {
+    setSampleMenus(_menus);
+    StorageService.instance.saveAdminContent();
+    final err = await _runSaving(() => CatalogSync.instance.push());
+    _toast(err == null ? "Örnek menüler yayınlandı" : "Kaydedildi ama yayınlanamadı: $err");
+  }
+
+  /// SampleMenu değişmez (immutable): gün/öğün verisini kopyalayıp günceller.
+  void _updateMenuDays(int index, void Function(Map<String, Map<String, List<String>>> days) mutate) {
+    final m = _menus[index];
+    final days = <String, Map<String, List<String>>>{
+      for (final e in m.days.entries)
+        e.key: {for (final s in e.value.entries) s.key: List<String>.from(s.value)}
+    };
+    mutate(days);
+    _menus[index] = SampleMenu(
+        id: m.id, title: m.title, month: m.month, ageMonths: m.ageMonths, note: m.note, days: days);
+  }
+
+  void _editMenuMeta({int? index}) {
+    final m = index == null ? null : _menus[index];
+    final titleC = TextEditingController(text: m?.title ?? "");
+    final noteC = TextEditingController(text: m?.note ?? "");
+    final ageC = TextEditingController(text: (m?.ageMonths ?? 0) == 0 ? "" : "${m!.ageMonths}");
+    var month = m?.month ?? 0;
+    showDialog(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(index == null ? "Yeni Menü" : "Menüyü Düzenle",
+              style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 380,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _field(titleC, "Menü adı", hint: "ör. Ağustos Haftalık Menü"),
+                  _field(ageC, "Hedef yaş (ay) — boş bırakılabilir", hint: "ör. 8", keyboard: TextInputType.number),
+                  _field(noteC, "Not (isteğe bağlı)", maxLines: 2),
+                  const Text("Ay", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: List.generate(kMonthNames.length, (i) {
+                      final sel = month == i;
+                      return ChoiceChip(
+                        label: Text(kMonthNames[i],
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: sel ? Colors.white : _text)),
+                        selected: sel,
+                        selectedColor: _primary,
+                        backgroundColor: Colors.white,
+                        onSelected: (_) => setD(() => month = i),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            if (index != null)
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dctx);
+                  setState(() {
+                    _menus.removeAt(index);
+                    if (_menuSel >= _menus.length) _menuSel = _menus.isEmpty ? 0 : _menus.length - 1;
+                  });
+                },
+                child: const Text("Sil", style: TextStyle(fontFamily: 'Inter', color: _red)),
+              ),
+            TextButton(
+                onPressed: () => Navigator.pop(dctx),
+                child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+              onPressed: () {
+                final t = titleC.text.trim();
+                if (t.isEmpty) {
+                  _toast("Menü adı boş olamaz");
+                  return;
+                }
+                final age = int.tryParse(ageC.text.trim()) ?? 0;
+                setState(() {
+                  if (index == null) {
+                    _menus.add(SampleMenu(
+                      id: "menu_${DateTime.now().millisecondsSinceEpoch}",
+                      title: t,
+                      month: month,
+                      ageMonths: age,
+                      note: noteC.text.trim(),
+                      days: {for (final d in kWeekDays) d: <String, List<String>>{}},
+                    ));
+                    _menuSel = _menus.length - 1;
+                  } else {
+                    final old = _menus[index];
+                    _menus[index] = SampleMenu(
+                        id: old.id, title: t, month: month, ageMonths: age, note: noteC.text.trim(), days: old.days);
+                  }
+                });
+                Navigator.pop(dctx);
+              },
+              child: const Text("Tamam", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addMenuItem(String slot) {
+    final c = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text("$slot — ekle",
+            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _field(c, "Gıda / tarif adı", hint: "ör. Havuçlu Kabaklı Mücver"),
+              const Text(
+                "Kayıtlı bir tarifin adını birebir yazarsan kullanıcı ona dokunup tarifi açabilir. "
+                "Serbest metin de yazabilirsin.",
+                style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, height: 1.35),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+            onPressed: () {
+              final v = c.text.trim();
+              if (v.isEmpty) return;
+              setState(() {
+                _updateMenuDays(_menuSel, (days) {
+                  final day = kWeekDays[_menuDay];
+                  days.putIfAbsent(day, () => {});
+                  days[day]!.putIfAbsent(slot, () => []);
+                  if (!days[day]![slot]!.contains(v)) days[day]![slot]!.add(v);
+                });
+              });
+              Navigator.pop(dctx);
+            },
+            child: const Text("Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sampleMenuManager() {
+    const slots = ["Kahvaltı", "Öğle Yemeği", "Akşam Yemeği", "1. Ara Öğün", "2. Ara Öğün", "3. Ara Öğün"];
+    if (_menus.isEmpty) {
+      return _pane([
+        _sectionHeader("Örnek Menüler", "Kullanıcıların takvimlerine kopyalayabileceği hazır haftalık menüler"),
+        _card(
+          child: Column(
+            children: [
+              const Text("Henüz örnek menü yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+              const SizedBox(height: 12),
+              _primaryBtn("Yeni Menü Oluştur", Icons.add, () => _editMenuMeta()),
+            ],
+          ),
+        ),
+      ]);
+    }
+    final sel = _menuSel.clamp(0, _menus.length - 1);
+    final menu = _menus[sel];
+    final day = kWeekDays[_menuDay];
+    return _pane([
+      _sectionHeader("Örnek Menüler", "Ana sayfada gösterilir; kullanıcı tek tek ekleyebilir ya da tümünü kopyalar",
+          action: TextButton.icon(
+            onPressed: () => _editMenuMeta(),
+            icon: const Icon(Icons.add, size: 16, color: _primary),
+            label: const Text("Yeni",
+                style: TextStyle(fontFamily: 'Inter', color: _primary, fontWeight: FontWeight.bold)),
+          )),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(_menus.length, (i) {
+          final s = i == sel;
+          return ChoiceChip(
+            label: Text(_menus[i].title,
+                style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.w600, color: s ? Colors.white : _text)),
+            selected: s,
+            selectedColor: _primary,
+            backgroundColor: Colors.white,
+            onSelected: (_) => setState(() => _menuSel = i),
+          );
+        }),
+      ),
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: Text(
+              [
+                if (menu.month > 0) kMonthNames[menu.month],
+                if (menu.ageMonths > 0) "${menu.ageMonths}+ ay",
+                "${menu.itemCount} öğün",
+              ].join(" · "),
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: () => _editMenuMeta(index: sel),
+            icon: const Icon(Icons.edit_outlined, size: 15, color: _light),
+            label: const Text("Menü bilgisi", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(kWeekDays.length, (i) {
+          final s = i == _menuDay;
+          return ChoiceChip(
+            label: Text(kWeekDays[i],
+                style: TextStyle(
+                    fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: s ? Colors.white : _text)),
+            selected: s,
+            selectedColor: const Color(0xFF2BB673),
+            backgroundColor: Colors.white,
+            onSelected: (_) => setState(() => _menuDay = i),
+          );
+        }),
+      ),
+      const SizedBox(height: 12),
+      ...slots.map((slot) {
+        final items = menu.days[day]?[slot] ?? const <String>[];
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                      child: Text(slot,
+                          style: const TextStyle(
+                              fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
+                  TextButton.icon(
+                    onPressed: () => _addMenuItem(slot),
+                    icon: const Icon(Icons.add, size: 16, color: _primary),
+                    label: const Text("Ekle",
+                        style: TextStyle(
+                            fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                  ),
+                ],
+              ),
+              if (items.isEmpty)
+                const Text("—", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: items
+                      .map((n) => InputChip(
+                            backgroundColor: _bg,
+                            label: Text(n, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _text)),
+                            onDeleted: () => setState(() {
+                              _updateMenuDays(sel, (days) => days[day]?[slot]?.remove(n));
+                            }),
+                            deleteIcon: const Icon(Icons.close, size: 15, color: _red),
+                          ))
+                      .toList(),
+                ),
+            ],
+          ),
+        );
+      }),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
+        child: _primaryBtn("Kaydet ve Yayınla", Icons.cloud_upload_outlined, _saveMenus),
       ),
       const SizedBox(height: 24),
     ]);

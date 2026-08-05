@@ -21,6 +21,7 @@ import '../data/extras_store.dart';
 import '../data/food_database.dart';
 import '../data/recipe_social_store.dart';
 import '../data/seasonal_database.dart';
+import '../data/sample_menu.dart';
 import '../data/tracking_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
@@ -37,6 +38,7 @@ import 'growth_screen.dart';
 import 'legal_screen.dart';
 import 'milestones_screen.dart';
 import 'premium_screen.dart';
+import 'sample_menu_screen.dart';
 import 'sources_screen.dart';
 import 'recipe_detail_screen.dart';
 import 'report_screen.dart';
@@ -691,6 +693,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     _userRecipesSection(),
                     _topRatedSection(),
                     _videoRecipesSection(),
+                    _sampleMenusSection(),
                     const SizedBox(height: 22),
                     _dashSectionHeader("Gıdaları Keşfet", onMore: () => setState(() => _currentIndex = 1)),
                     const SizedBox(height: 12),
@@ -938,6 +941,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _userRecipesSection(),
         _topRatedSection(),
         _videoRecipesSection(),
+        _sampleMenusSection(),
         const SizedBox(height: 18),
         // Mevsiminde Beslenme
         _buildSeasonalSection(),
@@ -4219,6 +4223,138 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     list.sort((a, b) => _userRecipeMillis(b.id).compareTo(_userRecipeMillis(a.id)));
     return list;
   }
+
+  /// Örnek menüdeki bir kalemi kullanıcının planına ekler.
+  /// [dayIndex] 0 = Pazartesi; kullanıcının GÖRÜNTÜLEDİĞİ haftaya yazılır.
+  void _addSampleMenuItem(int dayIndex, String slot, String name) {
+    final monday = _focusedDate.subtract(Duration(days: _focusedDate.weekday - 1));
+    final key = _formatDateKey(monday.add(Duration(days: dayIndex)));
+    _weeklyPlan.putIfAbsent(key, () => {for (final s in _mealSlots) s: <String>[]});
+    _weeklyPlan[key]!.putIfAbsent(slot, () => <String>[]);
+    if (!_weeklyPlan[key]![slot]!.contains(name)) {
+      _weeklyPlan[key]![slot]!.add(name);
+    }
+    _persist();
+    setState(() {});
+  }
+
+  /// Tüm örnek menüyü kullanıcının görüntülediği haftaya kopyalar.
+  /// Mevcut plan SİLİNMEZ; yalnızca eksik kalemler eklenir. Eklenen sayıyı döner.
+  int _copySampleMenu(SampleMenu menu) {
+    var added = 0;
+    for (var i = 0; i < kWeekDays.length; i++) {
+      final slots = menu.days[kWeekDays[i]];
+      if (slots == null) continue;
+      slots.forEach((slot, items) {
+        for (final name in items) {
+          final monday = _focusedDate.subtract(Duration(days: _focusedDate.weekday - 1));
+          final key = _formatDateKey(monday.add(Duration(days: i)));
+          _weeklyPlan.putIfAbsent(key, () => {for (final s in _mealSlots) s: <String>[]});
+          _weeklyPlan[key]!.putIfAbsent(slot, () => <String>[]);
+          if (!_weeklyPlan[key]![slot]!.contains(name)) {
+            _weeklyPlan[key]![slot]!.add(name);
+            added++;
+          }
+        }
+      });
+    }
+    _persist();
+    setState(() {});
+    return added;
+  }
+
+  void _openSampleMenu(SampleMenu menu) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => SampleMenuScreen(
+        menu: menu,
+        onAddItem: _addSampleMenuItem,
+        onCopyAll: _copySampleMenu,
+      ),
+    ));
+  }
+
+  /// Ana sayfada "Örnek Menüler" yatay bölümü (admin'in hazırladığı haftalık
+  /// menüler). Hiç menü yoksa bölüm çizilmez.
+  Widget _sampleMenusSection() {
+    final list = sampleMenusForMonth(DateTime.now().month);
+    if (list.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 22),
+        const Row(
+          children: [
+            Icon(Icons.event_note_outlined, size: 20, color: _primary),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text("Örnek Menüler",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        const Text("Hazır haftalık menüler — beğendiğini takvimine kopyala",
+            style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 130,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: list.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) => _sampleMenuCard(list[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sampleMenuCard(SampleMenu m) => GestureDetector(
+        onTap: () => _openSampleMenu(m),
+        child: Container(
+          width: 230,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_primary.withOpacity(0.14), _primary.withOpacity(0.05)],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _primary.withOpacity(0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                [
+                  if (m.month > 0) kMonthNames[m.month],
+                  if (m.ageMonths > 0) "${m.ageMonths}+ ay",
+                ].join(" · "),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _primary),
+              ),
+              const SizedBox(height: 6),
+              Expanded(
+                child: Text(m.title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text, height: 1.25)),
+              ),
+              Row(
+                children: [
+                  Text("${m.itemCount} öğün",
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                  const Spacer(),
+                  const Text("İncele",
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
+                  const Icon(Icons.chevron_right, size: 16, color: _primary),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
 
   /// Ana sayfada "Videolu Tarifler" yatay bölümü — en son eklenenden başlar.
   ///
