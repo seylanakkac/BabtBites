@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -59,10 +60,36 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes,
   }
 }
 
-/// Mobilde "indir" yerine native paylaşım kullanılır; bu yine de paylaşım
-/// sayfasını açar (görseli galeriye kaydet/Instagram'a gönder seçenekleriyle).
+/// Görseli DOĞRUDAN cihazın fotoğraf galerisine kaydeder.
+///
+/// Paylaşım sayfasına güvenmek yeterli değildi: Instagram bazı cihazlarda
+/// hedef olarak hiç görünmüyor ve kullanıcının elinde hiçbir şey kalmıyordu.
+/// Galeriye kaydedince kullanıcı Instagram'ı kendi açıp hikayeye ekleyebilir —
+/// bu yol her zaman çalışır.
+///
+/// iOS'ta Info.plist'e NSPhotoLibraryAddUsageDescription gerekir; izin
+/// verilmezse false döner (çağıran taraf paylaşıma düşer).
+Future<bool> saveImageToGallery(Uint8List bytes, {String filename = 'babybites.png'}) async {
+  lastShareError = null;
+  try {
+    if (!await Gal.hasAccess(toAlbum: true)) {
+      if (!await Gal.requestAccess(toAlbum: true)) {
+        lastShareError = 'Fotoğraflara erişim izni verilmedi';
+        return false;
+      }
+    }
+    await Gal.putImageBytes(bytes, album: 'BabyBites', name: filename.replaceAll('.png', ''));
+    return true;
+  } catch (e) {
+    lastShareError = e.toString();
+    debugPrint('saveImageToGallery failed: $e');
+    return false;
+  }
+}
+
+/// Mobilde "indir" = galeriye kaydet.
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
-    shareImageViaWebShareApi(bytes, filename: filename);
+    saveImageToGallery(bytes, filename: filename);
 
 String _ytId(String url) {
   final m = RegExp(r'(?:youtu\.be/|v=|embed/|shorts/|live/)([A-Za-z0-9_-]{6,})').firstMatch(url.trim());

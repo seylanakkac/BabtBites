@@ -124,6 +124,8 @@ class Recipe {
   final String id;
   final String name;
   final String prepTime;
+  /// Pişirme süresi ("20 dk"). Boş = pişirme gerektirmiyor / belirtilmemiş.
+  final String cookTime;
   final int startingMonth;
   final double kcal;
   final String imageUrl;
@@ -145,6 +147,7 @@ class Recipe {
     required this.id,
     required this.name,
     required this.prepTime,
+    this.cookTime = "",
     required this.startingMonth,
     required this.kcal,
     required this.imageUrl,
@@ -166,6 +169,7 @@ class Recipe {
         "id": id,
         "name": name,
         "prepTime": prepTime,
+        "cookTime": cookTime,
         "startingMonth": startingMonth,
         "kcal": kcal,
         "imageUrl": imageUrl,
@@ -187,6 +191,7 @@ class Recipe {
         id: j["id"]?.toString() ?? "",
         name: j["name"]?.toString() ?? "",
         prepTime: j["prepTime"]?.toString() ?? "",
+        cookTime: j["cookTime"]?.toString() ?? "",
         startingMonth: (j["startingMonth"] as num?)?.toInt() ?? 6,
         kcal: (j["kcal"] as num?)?.toDouble() ?? 0,
         imageUrl: j["imageUrl"]?.toString() ?? "",
@@ -210,6 +215,19 @@ class Recipe {
                 .toList() ??
             const [],
       );
+}
+
+/// Kartlarda gösterilecek süre etiketi.
+///
+/// Pişirme süresi varsa "15 dk + 20 dk" biçiminde iki süreyi de gösterir;
+/// yoksa yalnızca hazırlık süresi. Böylece eski tarifler (cookTime boş)
+/// olduğu gibi görünmeye devam eder.
+String recipeTimeLabel(Recipe r) {
+  final prep = r.prepTime.trim();
+  final cook = r.cookTime.trim();
+  if (cook.isEmpty) return prep;
+  if (prep.isEmpty) return cook;
+  return "$prep + $cook";
 }
 
 /// Tarifin etkin kategorisi: admin/kullanıcı bir kategori atadıysa onu kullanır;

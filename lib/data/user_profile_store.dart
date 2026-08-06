@@ -32,12 +32,17 @@ class UserProfile {
   String username; // shown as @username and stored as Recipe.author
   Map<String, String> socials; // platform -> handle/url (empty = not linked)
 
-  UserProfile({this.username = "", Map<String, String>? socials})
+  /// Profil fotoğrafı. Firebase Storage URL'i (başkaları da görebilsin diye);
+  /// yükleme başarısızsa geçici olarak data URI kalabilir. Boş = harf rozeti.
+  String photoUrl;
+
+  UserProfile({this.username = "", Map<String, String>? socials, this.photoUrl = ""})
       : socials = socials ?? {};
 
   Map<String, dynamic> toJson() => {
         "username": username,
         "socials": socials,
+        "photoUrl": photoUrl,
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> j) => UserProfile(
@@ -45,10 +50,15 @@ class UserProfile {
         socials: (j["socials"] as Map?)
                 ?.map((k, v) => MapEntry(k.toString(), v.toString())) ??
             {},
+        photoUrl: j["photoUrl"]?.toString() ?? "",
       );
 
-  UserProfile copy() => UserProfile(username: username, socials: Map.from(socials));
+  UserProfile copy() =>
+      UserProfile(username: username, socials: Map.from(socials), photoUrl: photoUrl);
 }
+
+/// Bir yazarın profil fotoğrafı URL'i; yoksa boş.
+String photoUrlForAuthor(String author) => profileForAuthor(author)?.photoUrl ?? "";
 
 /// The current user's profile (null until they set one).
 UserProfile? globalMyProfile;

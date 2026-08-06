@@ -180,11 +180,64 @@ class _StoryShareSheetState extends State<_StoryShareSheet> {
                 ),
               ),
             ),
+            const SizedBox(height: 8),
+            // HER ZAMAN ÇALIŞAN yedek yol: paylaşım sayfası Instagram'ı hedef
+            // olarak göstermese bile kullanıcı görseli kaydedip bağlantıyı
+            // kopyalayarak elle paylaşabilir.
+            Row(
+              children: [
+                Expanded(child: _secondary(Icons.download_rounded, "Fotoğrafı Kaydet", _busy ? null : _save)),
+                const SizedBox(width: 8),
+                Expanded(child: _secondary(Icons.link, "Bağlantıyı Kopyala", _busy ? null : _copyLink)),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+
+  /// Görseli cihaza kaydeder (web'de indirir).
+  Future<void> _save() async {
+    setState(() => _busy = true);
+    await Future.delayed(const Duration(milliseconds: 120));
+    var bytes = await _capture();
+    if (bytes == null && _hasPhoto) {
+      setState(() => _photoBlocked = true);
+      await Future.delayed(const Duration(milliseconds: 250));
+      bytes = await _capture();
+    }
+    final ok = bytes != null && await saveImageToGallery(bytes, filename: "babybites_${_story ? 'story' : 'post'}.png");
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final why = lastShareError;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? "Fotoğraf kaydedildi 📸 Instagram'ı açıp hikayene ekleyebilirsin."
+          : "Kaydedilemedi${why == null ? "" : " ($why)"}."),
+      duration: const Duration(seconds: 5),
+    ));
+  }
+
+  Future<void> _copyLink() async {
+    await Clipboard.setData(ClipboardData(text: widget.url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text("Bağlantı kopyalandı 🔗"),
+    ));
+  }
+
+  Widget _secondary(IconData icon, String label, VoidCallback? onTap) => OutlinedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, size: 16),
+        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _primary,
+          side: BorderSide(color: _primary.withOpacity(0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
 
   Widget _formatTab(String label, String ratio, bool story) {
     final sel = _story == story;

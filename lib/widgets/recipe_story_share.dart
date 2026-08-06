@@ -126,6 +126,30 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
     }
   }
 
+  /// Kartı cihazın fotoğraf galerisine kaydeder (web'de indirir).
+  Future<void> _saveToGallery() async {
+    setState(() => _busy = true);
+    await Future.delayed(const Duration(milliseconds: 120));
+    var bytes = await _capture();
+    if (bytes == null && _hasPhoto) {
+      setState(() => _photoBlocked = true);
+      await Future.delayed(const Duration(milliseconds: 250));
+      bytes = await _capture();
+    }
+    final ok = bytes != null &&
+        await saveImageToGallery(bytes,
+            filename: "babybites_${widget.recipe.id}_${_format == ShareFormat.story ? 'story' : 'post'}.png");
+    if (!mounted) return;
+    setState(() => _busy = false);
+    final why = lastShareError;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? "Fotoğraf kaydedildi 📸 Instagram'ı açıp hikayene ekleyebilirsin."
+          : "Kaydedilemedi${why == null ? "" : " ($why)"}."),
+      duration: const Duration(seconds: 5),
+    ));
+  }
+
   Future<void> _copyLink() async {
     await Clipboard.setData(ClipboardData(text: recipeShareUrl(widget.recipe)));
     if (!mounted) return;
@@ -164,18 +188,43 @@ class _StoryShareDialogState extends State<_StoryShareDialog> {
               ),
             ),
             const SizedBox(height: 14),
+            // HER ZAMAN ÇALIŞAN yedek yol: paylaşım sayfası Instagram'ı hedef
+            // olarak göstermese bile kullanıcı görseli galeriye kaydedip
+            // bağlantıyı kopyalayarak elle paylaşabilir.
             SizedBox(
               width: w,
-              child: OutlinedButton.icon(
-                onPressed: _busy ? null : _copyLink,
-                icon: const Icon(Icons.link, size: 18, color: Colors.white),
-                label: const Text("Bağlantıyı Kopyala",
-                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, color: Colors.white)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.white54),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _saveToGallery,
+                      icon: const Icon(Icons.download_rounded, size: 17, color: Colors.white),
+                      label: const Text("Fotoğrafı Kaydet",
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white54),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _busy ? null : _copyLink,
+                      icon: const Icon(Icons.link, size: 17, color: Colors.white),
+                      label: const Text("Bağlantı",
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white54),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),

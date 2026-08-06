@@ -26,6 +26,13 @@ Future<void> initMobileAds() async {
   } catch (_) {}
 }
 
+/// Son banner isteginin hatasi; basariliysa null.
+///
+/// Banner yuklenemeyince widget hicbir sey cizmiyor. Bu, "reklamsiz donem
+/// acik" ile "AdMob dolgu vermedi" durumlarini AYIRT EDILEMEZ yapiyordu.
+/// Profil ekrani bunu gosterebilsin diye kaydediliyor.
+String? lastBannerError;
+
 /// Yatay banner reklamı (yüklenince görünür; yüklenmezse boş).
 Widget mobileBannerAd() => const _AdmobBanner();
 
@@ -97,6 +104,7 @@ class _AdmobBannerState extends State<_AdmobBanner> {
         },
         onAdFailedToLoad: (ad, err) {
           debugPrint('Banner yuklenemedi: $err');
+          lastBannerError = '${err.code}: ${err.message}';
           ad.dispose();
         },
       ),

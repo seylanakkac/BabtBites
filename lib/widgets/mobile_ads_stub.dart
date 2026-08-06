@@ -11,3 +11,6 @@ Future<bool?> showRewardedMobile() async => null;
 
 /// Mobil geçiş (interstitial) reklamı — web'de kullanılamaz.
 Future<bool> showInterstitialMobile() async => false;
+
+/// Mobil surumle ayni API yuzeyi (web'de reklam hatasi izlenmiyor).
+String? lastBannerError;

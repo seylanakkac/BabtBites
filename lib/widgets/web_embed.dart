@@ -16,9 +16,16 @@ Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) =>
 Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) =>
     impl.shareImageViaWebShareApi(bytes, text: text, filename: filename);
 
-/// Web'de PNG'yi indirir; mobilde paylaşım sayfasını açar.
+/// Web'de PNG'yi indirir; mobilde fotoğraf galerisine kaydeder.
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) =>
     impl.downloadImage(bytes, filename: filename);
+
+/// Görseli cihazın galerisine (web'de indirilenlere) kaydeder.
+///
+/// Paylaşım sayfası her cihazda Instagram'ı hedef olarak göstermiyor; bu yol
+/// her zaman çalışır ve kullanıcı Instagram'ı kendi açıp hikayeye ekleyebilir.
+Future<bool> saveImageToGallery(Uint8List bytes, {String filename = 'babybites.png'}) =>
+    impl.saveImageToGallery(bytes, filename: filename);
 
 /// Son paylaşım denemesinin hata metni; başarılıysa null.
 ///

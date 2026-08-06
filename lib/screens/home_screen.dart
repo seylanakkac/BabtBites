@@ -28,6 +28,7 @@ import '../data/tracking_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/ad_banner.dart';
+import '../widgets/mobile_ads.dart' show lastBannerError;
 import '../widgets/web_shell.dart';
 import '../widgets/disclaimer.dart';
 import '../widgets/image_helpers.dart';
@@ -2056,7 +2057,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(color: const Color(0xFF7A5CFF).withOpacity(0.10), borderRadius: BorderRadius.circular(8)),
-                          child: Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF7A5CFF))),
+                          child: Text(recipeTimeLabel(recipe), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF7A5CFF))),
                         ),
                       ],
                     ),
@@ -2172,7 +2173,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       const Icon(Icons.schedule, size: 14, color: Color(0xFF8E8E9F)),
                       const SizedBox(width: 4),
-                      Text(recipe.prepTime, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFF8E8E9F))),
+                      Text(recipeTimeLabel(recipe), style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFF8E8E9F))),
                       const Text("  ·  ", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: Color(0xFFCDCDD4))),
                       const Icon(Icons.local_fire_department_outlined, size: 14, color: Color(0xFF8E8E9F)),
                       const SizedBox(width: 4),
@@ -5379,6 +5380,32 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 16),
+        ]
+        // Reklamsız dönem KAPALIYKEN banner yine görünmüyorsa sebep AdMob'dur
+        // (dolgu yok / birim yeni / hata). Widget bu durumda hiçbir şey
+        // çizmediği için iki durum ayırt edilemiyordu; hatayı burada göster.
+        else if (!kIsWeb && lastBannerError != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF4E5),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFC107).withOpacity(0.5)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 17, color: Color(0xFFB26A00)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    "Reklam yüklenemedi: $lastBannerError",
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: Color(0xFFB26A00), height: 1.3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
         _notificationCard(),
         // Parent card
@@ -5979,6 +6006,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final current = globalMyProfile ?? UserProfile(username: usernameSlug(fallback));
     final usernameCtrl = TextEditingController(text: current.username.isEmpty ? usernameSlug(fallback) : current.username);
     final ctrls = {for (final p in kSocialPlatforms) p: TextEditingController(text: current.socials[p] ?? "")};
+    String photo = current.photoUrl;
+    var saving = false;
     const hints = {
       "instagram": "kullanici_adi",
       "tiktok": "kullanici_adi",
@@ -5993,7 +6022,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
-      builder: (sheetCtx) => Padding(
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheet) => Padding(
         padding: EdgeInsets.only(left: 20, right: 20, top: 18, bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 20),
         child: SingleChildScrollView(
           child: Column(
@@ -6004,8 +6034,55 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 16),
               const Text("Sosyal Profilim", style: TextStyle(fontFamily: 'Inter', fontSize: 18, fontWeight: FontWeight.bold, color: _text)),
               const SizedBox(height: 4),
-              const Text("Kullanıcı adın ve sosyal hesapların tariflerinde herkese görünür.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              const Text("Fotoğrafın, kullanıcı adın ve sosyal hesapların tariflerinde herkese görünür.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
               const SizedBox(height: 16),
+              // Profil fotoğrafı. Tarif kartlarında ve profilde görünür.
+              Center(
+                child: GestureDetector(
+                  onTap: () async {
+                    final uri = await pickPhotoDataUri();
+                    if (uri != null) setSheet(() => photo = uri);
+                  },
+                  child: Stack(
+                    children: [
+                      Container(
+                        width: 86,
+                        height: 86,
+                        decoration: BoxDecoration(
+                          color: _primary.withOpacity(0.12),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _primary.withOpacity(0.35), width: 2),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: isPhotoUrl(photo)
+                            ? photoOrFallback(photo, fallback: const SizedBox(), fit: BoxFit.cover)
+                            : const Center(child: Icon(Icons.person, size: 38, color: _primary)),
+                      ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: const BoxDecoration(color: _primary, shape: BoxShape.circle),
+                          child: const Icon(Icons.photo_camera, size: 14, color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Center(
+                child: Text("Fotoğraf eklemek için dokun", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+              ),
+              if (isPhotoUrl(photo))
+                Center(
+                  child: TextButton(
+                    onPressed: () => setSheet(() => photo = ""),
+                    child: const Text("Fotoğrafı kaldır", style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _danger)),
+                  ),
+                ),
+              const SizedBox(height: 12),
               const Text("Kullanıcı Adı", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text)),
               const SizedBox(height: 6),
               TextField(
@@ -6037,27 +6114,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: saving
+                      ? null
+                      : () async {
                     final uname = usernameSlug(usernameCtrl.text);
                     final socials = <String, String>{};
                     for (final p in kSocialPlatforms) {
                       final v = ctrls[p]!.text.trim();
                       if (v.isNotEmpty) socials[p] = v;
                     }
-                    globalMyProfile = UserProfile(username: uname, socials: socials);
+                    final messenger = ScaffoldMessenger.of(context);
+                    final nav = Navigator.of(sheetCtx);
+                    setSheet(() => saving = true);
+
+                    // Fotoğrafı Storage'a yükle: data URI'yi Firestore'a yazmak
+                    // 1 MiB döküman sınırını aşıp profili TAMAMEN kaydedilemez
+                    // yapardı (tarif fotoğrafında aynı tuzağa düşülmüştü).
+                    var url = photo;
+                    var photoFailed = false;
+                    final uid = FirebaseAuth.instance.currentUser?.uid;
+                    if (url.startsWith('data:') && uid != null) {
+                      url = await FileStorage.instance.uploadDataUri(
+                          "users/$uid/profile/avatar_${DateTime.now().millisecondsSinceEpoch}.jpg", url);
+                      if (url.startsWith('data:')) {
+                        photoFailed = true;
+                        url = current.photoUrl; // eskisini koru
+                      }
+                    }
+
+                    globalMyProfile = UserProfile(username: uname, socials: socials, photoUrl: url);
                     StorageService.instance.saveMyProfile();
                     SocialSync.instance.saveProfile(globalMyProfile!.toJson()); // public profile
-                    Navigator.pop(sheetCtx);
-                    setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profilin kaydedildi.")));
+                    nav.pop();
+                    if (mounted) setState(() {});
+                    messenger.showSnackBar(SnackBar(
+                      content: Text(photoFailed ? "Profilin kaydedildi, ancak fotoğraf yüklenemedi." : "Profilin kaydedildi."),
+                    ));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  child: Text(saving ? "Kaydediliyor…" : "Kaydet", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -6201,6 +6302,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (requireLogin(context)) return;
     final nameCtrl = TextEditingController(text: initialName);
     final prepCtrl = TextEditingController();
+    final cookCtrl = TextEditingController();
     final kcalCtrl = TextEditingController();
     final allergyCtrl = TextEditingController();
     final storageCtrl = TextEditingController();
@@ -6264,7 +6366,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: TextField(controller: prepCtrl, decoration: dec("Süre (örn. 20 dk)"))),
+                          Expanded(child: TextField(controller: prepCtrl, decoration: dec("Hazırlık (20 dk)"))),
+                          const SizedBox(width: 10),
+                          Expanded(child: TextField(controller: cookCtrl, decoration: dec("Pişirme (ops.)"))),
                           const SizedBox(width: 10),
                           Expanded(child: TextField(controller: kcalCtrl, keyboardType: TextInputType.number, decoration: dec("kcal (otomatik)"))),
                           const SizedBox(width: 10),
@@ -6596,6 +6700,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "name": name,
                         "category": category ?? "Diğer",
                         "prepTime": prep.isEmpty ? "20 dk" : prep,
+                        "cookTime": cookCtrl.text.trim(),
                         "startingMonth": startMonth,
                         "kcal": finalKcal,
                         "servings": int.tryParse(servingsCtrl.text.trim()) ?? 1,

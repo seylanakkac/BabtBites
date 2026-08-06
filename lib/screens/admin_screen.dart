@@ -956,7 +956,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 ? photoOrFallback(r.imageUrl, fallback: const SizedBox(), fit: BoxFit.cover)
                 : Container(color: _primary.withOpacity(0.1), child: const Icon(Icons.menu_book, color: _primary)),
             title: r.name,
-            subtitle: "${r.startingMonth}+ ay • ${r.prepTime} • ${computedRecipeEnergy(r).round()} kcal",
+            subtitle: "${r.startingMonth}+ ay • ${recipeTimeLabel(r)} • ${computedRecipeEnergy(r).round()} kcal",
             isCustom: isCustomRecipe(r.id),
             onEdit: () => _recipeDialog(r.toJson()),
             onDelete: () => _confirmDelete("'${r.name}' tarifi", () {
@@ -974,6 +974,7 @@ class _AdminScreenState extends State<AdminScreen> {
     final name = TextEditingController(text: existing?["name"]?.toString() ?? "");
     String image = existing?["imageUrl"]?.toString() ?? "";
     final prep = TextEditingController(text: existing?["prepTime"]?.toString() ?? "15 dk");
+    final cook = TextEditingController(text: existing?["cookTime"]?.toString() ?? "");
     final month = TextEditingController(text: "${existing?["startingMonth"] ?? 6}");
     final kcal = TextEditingController(text: existing?["kcal"]?.toString() ?? "");
     final servings = TextEditingController(text: "${existing?["servings"] ?? 1}");
@@ -1039,7 +1040,9 @@ class _AdminScreenState extends State<AdminScreen> {
                   PhotoPickerField(value: image, label: "Tarif fotoğrafı", height: 130, onChanged: (v) => setD(() => image = v ?? "")),
                   const SizedBox(height: 14),
                   _field(name, "Tarif adı"),
-                  Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(servings, "Porsiyon", hint: "1", keyboard: TextInputType.number))]),
+                  Row(children: [Expanded(child: _field(prep, "Hazırlık", hint: "15 dk")), const SizedBox(width: 10), Expanded(child: _field(cook, "Pişirme", hint: "20 dk"))]),
+                  const SizedBox(height: 8),
+                  Row(children: [Expanded(child: _field(month, "Ay", hint: "6", keyboard: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field(servings, "Porsiyon", hint: "1", keyboard: TextInputType.number))]),
                   Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                     Expanded(child: _field(kcal, "Kalori (kcal)", keyboard: TextInputType.number)),
                     const SizedBox(width: 8),
@@ -1217,6 +1220,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "name": n,
                   "category": category,
                   "prepTime": prep.text.trim().isEmpty ? "15 dk" : prep.text.trim(),
+                  "cookTime": cook.text.trim(),
                   "startingMonth": int.tryParse(month.text.trim()) ?? 6,
                   "kcal": double.tryParse(kcal.text.trim().replaceAll(',', '.')) ?? 0,
                   "imageUrl": imgUrl,
@@ -1274,7 +1278,7 @@ class _AdminScreenState extends State<AdminScreen> {
         ),
       ),
     ).then((_) {
-      for (final c in [name, prep, month, kcal, author, steps, warn, ...qtyCtrls]) {
+      for (final c in [name, prep, cook, month, kcal, author, steps, warn, ...qtyCtrls]) {
         c.dispose();
       }
     });

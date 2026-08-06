@@ -324,7 +324,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                recipe.prepTime,
+                                recipeTimeLabel(recipe),
                                 style: const TextStyle(
                                   fontFamily: 'Inter',
                                   color: Colors.white,
@@ -377,7 +377,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                                   const Icon(Icons.access_time_filled, size: 14, color: primaryColor),
                                   const SizedBox(width: 4),
                                   Text(
-                                    recipe.prepTime,
+                                    recipeTimeLabel(recipe),
                                     style: const TextStyle(
                                       fontFamily: 'Inter',
                                       fontSize: 12,
@@ -392,43 +392,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                         ),
                         const SizedBox(height: 6),
                         
-                        // Author (tappable -> public profile)
-                        Row(
-                          children: [
-                            const Text(
-                              "Hazırlayan: ",
-                              style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor, fontWeight: FontWeight.w500),
-                            ),
-                            Flexible(
-                              child: GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => UserProfileScreen(author: recipe.author)),
-                                ),
-                                child: Text(
-                                  "@${recipe.author}",
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 13,
-                                    color: primaryColor,
-                                    fontWeight: FontWeight.w800,
-                                    decoration: TextDecoration.underline,
-                                    decorationColor: primaryColor,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (expertTypeForAuthor(recipe.author) != null) ...[
-                              const SizedBox(width: 6),
-                              expertBadgeFor(recipe.author, fontSize: 10),
-                            ],
-                            Text(
-                              " • ${recipe.startingMonth}+ Ay",
-                              style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: lightTextColor, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
+                        // Yazar satırı: profil fotoğrafı + @kullanıcı + takip et
+                        _authorRow(recipe),
                         const SizedBox(height: 12),
                         // Views + likes + share
                         Row(
@@ -1419,6 +1384,116 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
     // her platformda açılıyor; paylaşım menüsü desteklenmiyorsa kartın kendi
     // içinde bağlantıyı panoya kopyalamaya düşüyor.
     await showRecipeStoryShare(context, r);
+  }
+
+  /// Tarifin yazar satırı: profil fotoğrafı, @kullanıcı adı, uzman rozeti ve
+  /// takip düğmesi.
+  ///
+  /// Takip düğmesi KENDİ tarifinde ve BabyBites'ın kendi tariflerinde
+  /// gösterilmez — kişinin kendini takip etmesi ya da bir markayı takip
+  /// etmesi anlamsız olurdu.
+  Widget _authorRow(Recipe recipe) {
+    const primaryColor = Color(0xFFFF7A45);
+    const textColor = Color(0xFF2D2D3A);
+    const lightTextColor = Color(0xFFA8A8B3);
+    final author = recipe.author.trim();
+    final photo = photoUrlForAuthor(author);
+    final me = myUsername();
+    final isMine = author.isNotEmpty && author.toLowerCase() == me.toLowerCase();
+    final isHouse = author.isEmpty || author.toLowerCase() == "babybites";
+    final following = isFollowing(author);
+
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => UserProfileScreen(author: author)),
+          ),
+          child: Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.14),
+              shape: BoxShape.circle,
+              border: Border.all(color: primaryColor.withOpacity(0.3)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: isPhotoUrl(photo)
+                ? photoOrFallback(photo, fallback: const SizedBox(), fit: BoxFit.cover)
+                : Center(
+                    child: Text(
+                      author.isNotEmpty ? author[0].toUpperCase() : "?",
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: primaryColor),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => UserProfileScreen(author: author)),
+                ),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        "@$author",
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.w800, color: textColor),
+                      ),
+                    ),
+                    if (expertTypeForAuthor(author) != null) ...[
+                      const SizedBox(width: 6),
+                      expertBadgeFor(author, fontSize: 10),
+                    ],
+                  ],
+                ),
+              ),
+              Text(
+                "Hazırlayan • ${recipe.startingMonth}+ Ay",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: lightTextColor, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        if (!isMine && !isHouse)
+          TextButton(
+            onPressed: () async {
+              if (requireLogin(context)) return;
+              final key = author.toLowerCase();
+              setState(() {
+                if (following) {
+                  globalMyFollowing.remove(key);
+                } else {
+                  globalMyFollowing.add(key);
+                }
+              });
+              await StorageService.instance.saveMyProfile();
+              await SocialSync.instance.setFollowing(globalMyFollowing.toList());
+              widget.onStateChanged?.call();
+            },
+            style: TextButton.styleFrom(
+              backgroundColor: following ? const Color(0xFFF3F3F5) : primaryColor,
+              foregroundColor: following ? lightTextColor : Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              following ? "Takiptesin" : "Takip Et",
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+      ],
+    );
   }
 
   Future<void> _open(Uri uri) async {

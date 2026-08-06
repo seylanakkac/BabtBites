@@ -34,6 +34,10 @@ Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String
   }
 }
 
+/// Web'de "galeriye kaydet" yok; indirme aynı işi görür.
+Future<bool> saveImageToGallery(Uint8List bytes, {String filename = 'babybites.png'}) =>
+    downloadImage(bytes, filename: filename);
+
 /// Web'de bir PNG'yi dosya olarak indirir (masaüstü tarayıcılar paylaşımı
 /// desteklemediğinde kullanıcı görseli indirip Instagram hikayesine yükleyebilir).
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) async {
