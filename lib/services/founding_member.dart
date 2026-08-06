@@ -48,6 +48,41 @@ class FoundingMember {
     }
   }
 
+  /// Ödüllü reklamın verebileceği EN UZUN reklamsız süre (bkz. premium_screen:
+  /// 1 gün). Geri alma bu eşiği kullanıyor — bundan uzun bir pencere ancak
+  /// kurucu üye hediyesinden gelmiş olabilir.
+  static const Duration _maxRewardedAdFree = Duration(days: 2); // 1 gün + pay
+
+  /// Kurucu üye hediyesiyle verilmiş reklamsız hakkı GERİ ALIR.
+  ///
+  /// Hediye ekranı 04.08.2026'da kapatıldı, ama o güne kadar ekranı görenlerin
+  /// hesabına 90 günlük reklamsız hak yazılmıştı ve bu buluttan bütün
+  /// cihazlarına taşınıyordu — reklamlar sessizce hiç görünmüyordu.
+  ///
+  /// ÖDÜLLÜ REKLAM HAKKINA DOKUNMAZ: kullanıcı reklam izleyerek kazandığı
+  /// 1 günlük hakkı kaybetmemeli. Hakkın kaynağı kaydedilmediği için ayrım
+  /// SÜREYE göre yapılıyor: [_maxRewardedAdFree]'den uzak bir bitiş tarihi
+  /// ödüllü reklamdan gelmiş olamaz.
+  ///
+  /// ⚠️ Hediye ileride tekrar açılırsa (abonelik yayına girince) bu temizlik
+  /// yeni verilenleri de siler; o gün [kFoundingThanksEnabled] ile birlikte
+  /// buradaki çağrı da kaldırılmalı.
+  ///
+  /// Bir şey silindiyse true döner.
+  static Future<bool> revokeGiftedAdFree() async {
+    final raw = globalAdFreeUntil;
+    if (raw == null) return false;
+    final until = DateTime.tryParse(raw);
+    // Çözülemeyen değer de temizlenir: adFreeActive() onu zaten yok sayıyor,
+    // ama saklamanın bir faydası yok.
+    if (until == null || until.isAfter(DateTime.now().add(_maxRewardedAdFree))) {
+      globalAdFreeUntil = null;
+      await StorageService.instance.saveExtras();
+      return true;
+    }
+    return false;
+  }
+
   /// 3 aylık reklamsız kullanımı tanımlar.
   ///
   /// Mevcut reklamsız pencere (ödüllü reklamdan gelen) daha ileri bir tarihse
