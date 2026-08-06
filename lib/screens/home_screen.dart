@@ -5367,7 +5367,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 TextButton(
                   onPressed: () {
-                    globalAdFreeUntil = null;
+                    // null DEGIL: bkz. clearAdFreeUntil'in acikalamasi (null
+                    // prefs anahtarini silip bulut temizligini engelliyordu).
+                    clearAdFreeUntil();
                     _persist();
                     setState(() {});
                     ScaffoldMessenger.of(context).showSnackBar(

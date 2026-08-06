@@ -74,6 +74,24 @@ List<Map<String, dynamic>> reportFilesFor(String babyId) =>
 /// While active (and the user isn't premium), ad banners are hidden.
 String? globalAdFreeUntil;
 
+/// Reklamsız hakkı kapatırken yazılan geçmiş tarih ("mezar taşı").
+///
+/// ⚠️ `globalAdFreeUntil = null` YAPMA. saveExtras/saveAll o durumda prefs
+/// anahtarını SİLİYOR; `exportUserData` yalnızca prefs'te var olan anahtarları
+/// topladığı için alan buluta hiç gitmiyor ve `CloudSync.push`'un
+/// `merge: true` ayarı Firestore'daki ESKİ tarihe dokunmuyor. Bir sonraki
+/// `pull()` o tarihi geri indirip hakkı diriltiyor — kullanıcı "kapattım"
+/// dediği hâlde reklamlar yine görünmüyor.
+///
+/// Geçmiş bir tarih yazmak alanı prefs'te tutuyor, buluta gönderiyor ve eski
+/// değerin üzerine yazıyor.
+final String kAdFreeRevokedMarker = DateTime.utc(2000).toIso8601String();
+
+/// Reklamsız dönemi kapatır (buluta da yansıyacak biçimde).
+void clearAdFreeUntil() {
+  globalAdFreeUntil = kAdFreeRevokedMarker;
+}
+
 /// True if a rewarded ad-free window is currently active.
 bool adFreeActive() {
   final s = globalAdFreeUntil;
