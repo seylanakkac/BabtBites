@@ -22,8 +22,31 @@ void main() {
     expect(adFreeActive(), isTrue);
 
     expect(await FoundingMember.revokeGiftedAdFree(), isTrue);
-    expect(globalAdFreeUntil, isNull);
     expect(adFreeActive(), isFalse);
+  });
+
+  test('geri alınan hak null DEĞİL, geçmiş bir tarihle işaretlenir', () async {
+    // null yapmak prefs anahtarını siliyor; exportUserData onu buluta hiç
+    // göndermiyor ve merge'li push Firestore'daki eski tarihe dokunmuyor.
+    // Sonuç: bir sonraki pull hakkı geri getiriyordu. Geçmiş tarih yazmak
+    // alanın buluta gidip eski değeri EZMESİNİ sağlıyor.
+    globalAdFreeUntil = DateTime.now().add(const Duration(days: 90)).toIso8601String();
+    await FoundingMember.revokeGiftedAdFree();
+
+    expect(globalAdFreeUntil, isNotNull, reason: 'buluta gidebilmesi için alan dolu kalmalı');
+    final marker = DateTime.parse(globalAdFreeUntil!);
+    expect(marker.isBefore(DateTime.now()), isTrue);
+    expect(adFreeActive(), isFalse);
+  });
+
+  test('işaret prefs\'e yazılıyor (yani buluta da gidecek)', () async {
+    globalAdFreeUntil = DateTime.now().add(const Duration(days: 90)).toIso8601String();
+    await FoundingMember.revokeGiftedAdFree();
+
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('ad_free_until');
+    expect(stored, isNotNull, reason: 'anahtar silinirse buluta gitmez');
+    expect(stored, globalAdFreeUntil);
   });
 
   test('ödüllü reklamdan gelen 1 günlük hak KORUNUR', () async {
@@ -38,7 +61,7 @@ void main() {
   test('sınırın hemen ötesi (3 gün) geri alınır', () async {
     globalAdFreeUntil = DateTime.now().add(const Duration(days: 3)).toIso8601String();
     expect(await FoundingMember.revokeGiftedAdFree(), isTrue);
-    expect(globalAdFreeUntil, isNull);
+    expect(adFreeActive(), isFalse);
   });
 
   test('hiç hak yoksa dokunmaz', () async {
@@ -58,7 +81,7 @@ void main() {
   test('bozuk tarih temizlenir', () async {
     globalAdFreeUntil = "bozuk-tarih";
     expect(await FoundingMember.revokeGiftedAdFree(), isTrue);
-    expect(globalAdFreeUntil, isNull);
+    expect(adFreeActive(), isFalse);
   });
 
   test('geri alma tekrar çalıştırılabilir (ikinci kez bir şey yapmaz)', () async {

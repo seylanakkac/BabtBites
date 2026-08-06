@@ -68,15 +68,30 @@ class FoundingMember {
   /// yeni verilenleri de siler; o gün [kFoundingThanksEnabled] ile birlikte
   /// buradaki çağrı da kaldırılmalı.
   ///
-  /// Bir şey silindiyse true döner.
+  /// Geri alınan hakkın yerine yazılan "mezar taşı" tarihi.
+  ///
+  /// ⚠️ NEDEN null DEĞİL — BU ÖNEMLİ:
+  /// `globalAdFreeUntil = null` yapınca [StorageService.saveExtras] prefs
+  /// anahtarını SİLİYOR. `exportUserData` yalnızca prefs'te VAR OLAN anahtarları
+  /// topladığı için alan buluta hiç gitmiyor; `CloudSync.push` de
+  /// `SetOptions(merge: true)` kullandığından Firestore'daki ESKİ tarih olduğu
+  /// gibi kalıyor. Uygulama bir sonraki açılışta `CloudSync.pull()` ile o eski
+  /// tarihi geri indiriyor ve hak diriliyordu — yani ilk geri alma denemesi
+  /// giriş yapmış kullanıcılarda hiç işe yaramıyordu.
+  ///
+  /// Geçmiş bir tarih yazmak sorunu kökünden çözüyor: alan prefs'te kalıyor,
+  /// buluta gidiyor, eski değerin üzerine yazıyor ve [adFreeActive] onu
+  /// süresi dolmuş sayıyor.
+  static final String _revokedMarker = DateTime.utc(2000).toIso8601String();
+
+  /// Bir şey geri alındıysa true döner.
   static Future<bool> revokeGiftedAdFree() async {
     final raw = globalAdFreeUntil;
     if (raw == null) return false;
     final until = DateTime.tryParse(raw);
-    // Çözülemeyen değer de temizlenir: adFreeActive() onu zaten yok sayıyor,
-    // ama saklamanın bir faydası yok.
+    // Çözülemeyen değer de temizlenir: adFreeActive() onu zaten yok sayıyor.
     if (until == null || until.isAfter(DateTime.now().add(_maxRewardedAdFree))) {
-      globalAdFreeUntil = null;
+      globalAdFreeUntil = _revokedMarker;
       await StorageService.instance.saveExtras();
       return true;
     }

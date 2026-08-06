@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/cloud_sync.dart';
+import '../services/founding_member.dart';
 import '../services/storage_service.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
@@ -88,6 +89,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Pull this user's cloud data before deciding onboarding vs home — but
       // never let it hang the splash (time-box it; fall back to local).
       await CloudSync.instance.pull().timeout(const Duration(seconds: 8), onTimeout: () {});
+      // Geri almayı pull'DAN SONRA da çalıştır: bulutta hâlâ eski hediye tarihi
+      // duruyorsa pull onu yerel kayda geri yazıyor. main.dart'taki çağrı bu
+      // noktadan ÖNCE çalıştığı için tek başına yetmiyordu.
+      await FoundingMember.revokeGiftedAdFree();
       final babies = StorageService.instance.loadBabies();
       if (babies == null || babies.isEmpty) return const OnboardingScreen();
       return const HomeScreen();
