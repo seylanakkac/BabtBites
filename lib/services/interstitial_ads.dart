@@ -30,6 +30,15 @@ class InterstitialAds {
     _opens++;
     if (!interstitialConfigured) return;
     if (adFreeActive()) return;
+
+    // ÖN-YÜKLEME: gösterime hak kazanmadan BİR açılış önce yüklemeye başla.
+    // Reklamı gösterim anında yüklemek, dolgu oranımız (~%10) yüzünden
+    // fırsatın çoğu kez boşa gitmesi demekti; ayrıca yükleme 1-5 sn sürdüğü
+    // için reklam kullanıcı tarifi okumaya başladıktan sonra açılıyordu.
+    // AdMob geçiş reklamları ~1 saat geçerli; bu yüzden uygulama açılışında
+    // değil, tam gerekmeden hemen önce yükleniyor.
+    if (_opens >= kInterstitialWarmupOpens) preloadInterstitialMobile();
+
     if (_opens <= kInterstitialWarmupOpens) return;
     final last = _lastShown;
     if (last != null && DateTime.now().difference(last) < kInterstitialMinGap) return;

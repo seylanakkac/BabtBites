@@ -185,43 +185,97 @@ class _AdmobBannerState extends State<_AdmobBanner> {
   }
 }
 
-/// Geçiş (interstitial) reklamını yükleyip gösterir. Gösterildiyse true.
+/// ÖNBELLEĞE ALINMIŞ geçiş reklamı. Gösterildikten sonra null'lanır.
+InterstitialAd? _preloadedInterstitial;
+bool _interstitialLoading = false;
+int _interstitialAttempt = 0;
+Timer? _interstitialRetry;
+
+String get _interstitialUnit =>
+    Platform.isIOS ? kAdmobInterstitialUnitIOS : kAdmobInterstitialUnitAndroid;
+
+/// Geçiş reklamını ÖNCEDEN yükler (arka planda).
 ///
-/// Sıklık sınırı burada DEĞİL, InterstitialAds servisinde — bu fonksiyon
-/// yalnızca "yükle ve göster" işini yapar.
-Future<bool> showInterstitialMobile() async {
-  final unit = Platform.isIOS ? kAdmobInterstitialUnitIOS : kAdmobInterstitialUnitAndroid;
-  if (unit.isEmpty) return false;
+/// NEDEN ÖNBELLEK: eskiden reklam gösterim ANINDA yükleniyordu. İki sorun:
+///   • Yükleme 1-5 sn sürüyor; kullanıcı tarifi okumaya başlamışken reklam
+///     geç açılıyordu (kötü deneyim, Google da önden yüklemeyi öneriyor).
+///   • Eşleşme oranımız ~%10 olduğu için istek çoğunlukla boş dönüyor ve o
+///     fırsat tamamen kaybediliyordu — yeniden deneme yoktu.
+/// Önden yükleyince, an geldiğinde elde hazır reklam oluyor; dolgu gelmezse
+/// arka planda sessizce tekrar deneniyor.
+Future<void> preloadInterstitialMobile() async {
+  if (_interstitialUnit.isEmpty) return;
+  if (_preloadedInterstitial != null || _interstitialLoading) return;
+  _interstitialLoading = true;
   await TrackingConsent.instance.waitSettled();
-  final completer = Completer<bool>();
+  _interstitialAttempt++;
   try {
     InterstitialAd.load(
-      adUnitId: unit,
+      adUnitId: _interstitialUnit,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose();
-              if (!completer.isCompleted) completer.complete(true);
-            },
-            onAdFailedToShowFullScreenContent: (ad, err) {
-              debugPrint('Interstitial gosterilemedi: $err');
-              ad.dispose();
-              if (!completer.isCompleted) completer.complete(false);
-            },
-          );
-          ad.show();
+          _interstitialLoading = false;
+          _interstitialAttempt = 0;
+          _preloadedInterstitial = ad;
         },
         onAdFailedToLoad: (err) {
-          debugPrint('Interstitial yuklenemedi: $err');
-          if (!completer.isCompleted) completer.complete(false);
+          debugPrint('Interstitial on-yukleme basarisiz ($_interstitialAttempt): $err');
+          _interstitialLoading = false;
+          _scheduleInterstitialRetry();
         },
       ),
     );
   } catch (e) {
     debugPrint('Interstitial hata: $e');
-    if (!completer.isCompleted) completer.complete(false);
+    _interstitialLoading = false;
+  }
+}
+
+/// Dolgu gelmezse artan aralıklarla yeniden dener (en fazla 3 kez).
+/// Agresif değil: Google arka arkaya isteği politika ihlali sayıyor.
+void _scheduleInterstitialRetry() {
+  if (_interstitialAttempt >= 3) return;
+  const waits = [Duration(seconds: 30), Duration(seconds: 90)];
+  _interstitialRetry?.cancel();
+  _interstitialRetry = Timer(
+    waits[(_interstitialAttempt - 1).clamp(0, waits.length - 1)],
+    preloadInterstitialMobile,
+  );
+}
+
+/// Elde hazır geçiş reklamı varsa gösterir. Gösterildiyse true.
+///
+/// Sıklık sınırı burada DEĞİL, InterstitialAds servisinde — bu fonksiyon
+/// yalnızca "varsa göster" işini yapar. Gösterimden sonra bir sonraki reklam
+/// arka planda yüklenmeye başlar.
+Future<bool> showInterstitialMobile() async {
+  final ad = _preloadedInterstitial;
+  if (ad == null) {
+    // Hazır reklam yok — bu fırsat kaçtı ama bir sonraki için yüklemeyi başlat.
+    preloadInterstitialMobile();
+    return false;
+  }
+  _preloadedInterstitial = null;
+  final completer = Completer<bool>();
+  ad.fullScreenContentCallback = FullScreenContentCallback(
+    onAdDismissedFullScreenContent: (ad) {
+      ad.dispose();
+      preloadInterstitialMobile(); // sıradakini hazırla
+      if (!completer.isCompleted) completer.complete(true);
+    },
+    onAdFailedToShowFullScreenContent: (ad, err) {
+      debugPrint('Interstitial gosterilemedi: $err');
+      ad.dispose();
+      preloadInterstitialMobile();
+      if (!completer.isCompleted) completer.complete(false);
+    },
+  );
+  try {
+    ad.show();
+  } catch (e) {
+    debugPrint('Interstitial show hata: $e');
+    return false;
   }
   return completer.future;
 }
