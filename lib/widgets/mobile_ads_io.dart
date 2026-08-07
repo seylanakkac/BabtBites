@@ -82,6 +82,24 @@ class _AdmobBanner extends StatefulWidget {
 class _AdmobBannerState extends State<_AdmobBanner> {
   BannerAd? _ad;
   bool _loaded = false;
+  int _attempt = 0;
+  Timer? _retryTimer;
+
+  /// "Dolgu yok" gelince kaç kez yeniden denenecek.
+  ///
+  /// NEDEN GEREKLİ: eskiden tek deneme vardı. AdMob eşleşme oranımız ~%10;
+  /// yani ilk istek büyük olasılıkla boş dönüyor ve widget bir daha HİÇ
+  /// denemiyordu — kullanıcı o ekranda oturum boyunca reklam görmüyordu.
+  /// Doğrudan gelir kaybıydı.
+  static const int _kMaxAttempts = 4;
+
+  /// Denemeler arası bekleme (artan). Google, arka arkaya istek atmayı
+  /// politika ihlali sayıyor; bu yüzden agresif değil.
+  static const List<Duration> _kBackoff = [
+    Duration(seconds: 20),
+    Duration(seconds: 45),
+    Duration(seconds: 90),
+  ];
 
   @override
   void initState() {
@@ -94,25 +112,56 @@ class _AdmobBannerState extends State<_AdmobBanner> {
   Future<void> _startLoad() async {
     await TrackingConsent.instance.waitSettled();
     if (!mounted) return;
+
+    // UYARLANABİLİR BANNER: sabit 320x50 yerine ekran genişliğine göre boyut.
+    // Hem daha çok reklam veren bu formatı destekliyor (dolgu artar) hem de
+    // birim başına gelir daha yüksek. Boyut alınamazsa sabit bannera düşer.
+    final width = MediaQuery.of(context).size.width.truncate();
+    AdSize size = AdSize.banner;
+    try {
+      final adaptive = await AdSize.getAnchoredAdaptiveBannerAdSize(
+        Orientation.portrait,
+        width,
+      );
+      if (adaptive != null) size = adaptive;
+    } catch (e) {
+      debugPrint('Uyarlanabilir banner boyutu alinamadi: $e');
+    }
+    if (!mounted) return;
+
+    _attempt++;
     _ad = BannerAd(
       adUnitId: _bannerUnit,
-      size: AdSize.banner,
+      size: size,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (_) {
+          lastBannerError = null;
           if (mounted) setState(() => _loaded = true);
         },
         onAdFailedToLoad: (ad, err) {
-          debugPrint('Banner yuklenemedi: $err');
+          debugPrint('Banner yuklenemedi (deneme $_attempt): $err');
           lastBannerError = '${err.code}: ${err.message}';
           ad.dispose();
+          _ad = null;
+          _scheduleRetry();
         },
       ),
     )..load();
   }
 
+  void _scheduleRetry() {
+    if (!mounted || _attempt >= _kMaxAttempts) return;
+    final wait = _kBackoff[(_attempt - 1).clamp(0, _kBackoff.length - 1)];
+    _retryTimer?.cancel();
+    _retryTimer = Timer(wait, () {
+      if (mounted && !_loaded) _startLoad();
+    });
+  }
+
   @override
   void dispose() {
+    _retryTimer?.cancel();
     _ad?.dispose();
     super.dispose();
   }
