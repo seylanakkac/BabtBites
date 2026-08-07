@@ -16,10 +16,18 @@ String get _rewardedUnit =>
 Future<void> initMobileAds() async {
   try {
     // Uygulama EBEVEYNLER (yetişkinler) içindir, çocuklara yönelik değildir.
+    //
+    // İÇERİK DERECESİ NEDEN "G" DEĞİL: MaxAdContentRating.g, AdMob'un EN DAR
+    // filtresi — yalnızca "genel izleyici" olarak derecelendirilmiş reklamlar
+    // sunulur. Reklam verenlerin büyük çoğunluğu kampanyalarını PG olarak
+    // etiketliyor; G seçmek talep havuzunu kendi elimizle daraltıyor ve
+    // doğrudan "no fill" (1: Request Error: No ad to show) üretiyordu.
+    // PG, bir ebeveyn uygulaması için hâlâ güvenli: müstehcen içerik, sert
+    // şiddet ve yetişkin temaları (T/MA) dışarıda kalıyor.
     await MobileAds.instance.updateRequestConfiguration(
       RequestConfiguration(
         tagForChildDirectedTreatment: TagForChildDirectedTreatment.no,
-        maxAdContentRating: MaxAdContentRating.g,
+        maxAdContentRating: MaxAdContentRating.pg,
       ),
     );
     await MobileAds.instance.initialize();
