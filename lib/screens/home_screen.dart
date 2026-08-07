@@ -12,8 +12,6 @@ import '../services/account_service.dart';
 import '../services/push_notifications.dart';
 import '../services/tracking_consent.dart';
 import '../services/local_reminders.dart';
-import '../services/founding_member.dart';
-import '../widgets/founding_thanks_sheet.dart';
 import '../config/premium_config.dart';
 import '../config/push_config.dart';
 import '../services/file_storage.dart';
@@ -149,12 +147,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await TrackingConsent.instance.requestIfNeeded(context);
-      // Kurucu üye teşekkürü ATT'den SONRA gösterilir; iki pencere üst üste
-      // binmesin ve izin sorusu teşekkürün altında kaybolmasın.
-      if (!mounted) return;
-      if (await FoundingMember.shouldShowThanks() && mounted) {
-        await showFoundingThanks(context);
-      }
     });
     // Diğer (pushed) sayfalardaki üst nav'dan gelen sekme isteklerini dinle.
     homeTabRequest.addListener(_onTabRequest);
@@ -3730,14 +3722,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return ids.isNotEmpty;
   }
 
-  /// ISO tarihi "5 Ağustos 2026" biçiminde yazar (çözülemezse boş).
-  String _formatTrDate(String iso) {
-    final d = DateTime.tryParse(iso);
-    if (d == null) return "";
-    const months = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
-    return "${d.day} ${months[(d.month - 1).clamp(0, 11)]} ${d.year}";
-  }
-
   /// "yyyy-MM-dd" günü + "HH:mm" saatini tek bir yerel DateTime'a çevirir.
   /// Gün çözülemezse bugüne düşer.
   DateTime _dayTimeToDateTime(String dayKey, String hm) {
@@ -5334,59 +5318,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 16),
         AdBanner(onUpgrade: _openPremium),
         const SizedBox(height: 16),
-        // Reklamsız dönem GÖRÜNÜR olsun.
+        // Reklamsız dönem kartı KALDIRILDI: reklamsız hak veren sistemlerin
+        // hepsi kaldırıldığı için (adFreeActive artık sabit false) kart hiçbir
+        // koşulda görünemezdi.
         //
-        // "Reklamlar görünmüyor" şikâyetinin sessiz sebebi bu olabiliyordu:
-        // ödüllü reklam (1 gün) ya da kurucu üye hediyesi globalAdFreeUntil'i
-        // ileri bir tarihe çekiyor ve TÜM reklam alanları gizleniyor — ama
-        // hiçbir yerde bunun açık olduğu yazmıyordu. Artık hem yazıyor hem de
-        // elle kapatılabiliyor.
-        if (adFreeActive()) ...[
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: _green.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _green.withOpacity(0.35)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.block, size: 18, color: _green),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Reklamsız dönem açık", style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _text)),
-                      Text(
-                        "${_formatTrDate(globalAdFreeUntil ?? "")} tarihine kadar reklam gösterilmiyor.",
-                        style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light),
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    // null DEGIL: bkz. clearAdFreeUntil'in acikalamasi (null
-                    // prefs anahtarini silip bulut temizligini engelliyordu).
-                    clearAdFreeUntil();
-                    _persist();
-                    setState(() {});
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Reklamsız dönem kapatıldı.")),
-                    );
-                  },
-                  child: const Text("Kapat", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _primary)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-        ]
+        // Banner yine de görünmüyorsa sebep AdMob'dur (dolgu yok / birim yeni
         // Reklamsız dönem KAPALIYKEN banner yine görünmüyorsa sebep AdMob'dur
-        // (dolgu yok / birim yeni / hata). Widget bu durumda hiçbir şey
-        // çizmediği için iki durum ayırt edilemiyordu; hatayı burada göster.
-        else if (!kIsWeb && lastBannerError != null) ...[
+        // / hata). Widget bu durumda hiçbir şey çizmediği için sorun
+        // görünmez oluyordu; hatayı burada göster.
+        if (!kIsWeb && lastBannerError != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(

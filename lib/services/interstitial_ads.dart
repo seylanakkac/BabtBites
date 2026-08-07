@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../config/ads_config.dart';
-import '../data/extras_store.dart';
 import '../widgets/mobile_ads.dart';
 
 /// Geçiş (interstitial) reklamı — sıklık sınırlı.
@@ -13,11 +12,10 @@ import '../widgets/mobile_ads.dart';
 ///   • Bu bir bebek sağlığı uygulaması; her dokunuşta tam ekran reklam
 ///     kullanıcıyı kaybettirir.
 ///
-/// Bu yüzden gösterim üç koşula bağlı:
-///   1. Reklamsız pencere aktif değil (ödüllü reklam / kurucu üye hediyesi),
-///   2. Uygulama açıldıktan sonra en az [kInterstitialWarmupOpens] tarif
+/// Bu yüzden gösterim iki koşula bağlı:
+///   1. Uygulama açıldıktan sonra en az [kInterstitialWarmupOpens] tarif
 ///      açılmış olmalı — kullanıcı önce değeri görsün,
-///   3. Son geçiş reklamının üzerinden [kInterstitialMinGap] geçmiş olmalı.
+///   2. Son geçiş reklamının üzerinden [kInterstitialMinGap] geçmiş olmalı.
 class InterstitialAds {
   InterstitialAds._();
   static final InterstitialAds instance = InterstitialAds._();
@@ -29,7 +27,6 @@ class InterstitialAds {
   Future<void> onRecipeOpened() async {
     _opens++;
     if (!interstitialConfigured) return;
-    if (adFreeActive()) return;
 
     // ÖN-YÜKLEME: gösterime hak kazanmadan BİR açılış önce yüklemeye başla.
     // Reklamı gösterim anında yüklemek, dolgu oranımız (~%10) yüzünden

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../config/premium_config.dart';
 import '../data/admin_store.dart';
 import '../data/extras_store.dart';
-import '../services/rewarded_ad.dart';
 import '../services/storage_service.dart';
 import '../widgets/web_shell.dart';
 
@@ -61,26 +60,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
-  Future<void> _watchRewardedForAdFree() async {
-    final earned = await RewardedAdService.instance.show(context);
-    if (!earned || !mounted) return;
-    globalAdFreeUntil = DateTime.now().add(const Duration(days: 1)).toIso8601String();
-    await StorageService.instance.saveExtras();
-    widget.onChanged?.call();
-    if (!mounted) return;
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("1 gün boyunca reklamsızsın! 🎉")));
-  }
-
-  String _adFreeRemainingLabel() {
-    final until = DateTime.tryParse(globalAdFreeUntil ?? "");
-    if (until == null) return "";
-    final diff = until.difference(DateTime.now());
-    if (diff.inHours >= 1) return "${diff.inHours} saat";
-    if (diff.inMinutes >= 1) return "${diff.inMinutes} dakika";
-    return "kısa süre";
-  }
-
   @override
   Widget build(BuildContext context) {
     return webPageShell(context, child: _shelled(context));
@@ -99,9 +78,9 @@ class _PremiumScreenState extends State<PremiumScreen> {
         padding: EdgeInsets.fromLTRB(24, 0, 24, 28 + MediaQuery.of(context).padding.bottom),
         children: [
           // Abonelik satışı kapalıyken (kPremiumEnabled == false) yalnızca
-          // ödüllü reklamla geçici reklamsız kullanım sunulur; fiyat, deneme
-          // ve promosyon kodu gösterilmez (App Store 3.1.1).
-          if (!kPremiumEnabled) ..._adFreeOnlyBody(),
+          // bilgilendirme gösterilir; fiyat, deneme ve promosyon kodu yok
+          // (App Store 3.1.1).
+          if (!kPremiumEnabled) ..._infoOnlyBody(),
           if (kPremiumEnabled) ...[
           Center(
             child: Column(
@@ -174,8 +153,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
               ),
             ),
           ],
-          // Rewarded ad: watch to earn a temporary ad-free window (only for
-          // non-premium users).
+          // Promosyon kodu — yalnızca premium olmayanlara.
           if (!globalIsPremium) ...[
             const SizedBox(height: 16),
             // Promosyon kodu
@@ -220,44 +198,6 @@ class _PremiumScreenState extends State<PremiumScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
-            const Row(children: [
-              Expanded(child: Divider(color: Color(0xFFECEBE9))),
-              Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text("veya", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
-              Expanded(child: Divider(color: Color(0xFFECEBE9))),
-            ]),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: const Color(0xFFFFF6F2), borderRadius: BorderRadius.circular(14), border: Border.all(color: _primary.withOpacity(0.25))),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(children: [
-                    Icon(Icons.play_circle_outline, color: _primary, size: 20),
-                    SizedBox(width: 8),
-                    Expanded(child: Text("Reklamsızı ücretsiz dene", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
-                  ]),
-                  const SizedBox(height: 4),
-                  Text(
-                    adFreeActive()
-                        ? "Şu an reklamsızsın. ${_adFreeRemainingLabel()} sonra tekrar izleyebilirsin."
-                        : "Kısa bir reklam izle, 1 gün boyunca reklamsız kullan.",
-                    style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: adFreeActive() ? null : _watchRewardedForAdFree,
-                      icon: const Icon(Icons.movie_outlined, size: 18),
-                      label: Text(adFreeActive() ? "Reklamsız aktif" : "Reklam İzle (1 gün reklamsız)", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-                      style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
           const SizedBox(height: 14),
           const Text("Not: Ödeme, uygulama mağazası (App Store / Google Play) üzerinden gerçekleşir. Bu sürüm tanıtım amaçlıdır.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 10, color: _light)),
@@ -267,21 +207,29 @@ class _PremiumScreenState extends State<PremiumScreen> {
     );
   }
 
-  /// Abonelik kapalıyken gösterilen sade gövde: yalnızca ödüllü reklam ile
-  /// 1 günlük reklamsız kullanım. Satın alma / fiyat / kod yoktur.
-  List<Widget> _adFreeOnlyBody() => [
+  /// Abonelik kapalıyken gösterilen sade gövde.
+  ///
+  /// Burada eskiden "reklam izle, 1 gün reklamsız kullan" ödülü vardı; o
+  /// tamamen kaldırıldı — reklamsız dönem artık hiçbir kullanıcıda yok.
+  /// Satın alma / fiyat / kod da yok (App Store 3.1.1), bu yüzden ekran
+  /// yalnızca bilgilendirme yapıyor.
+  List<Widget> _infoOnlyBody() => [
         Center(
           child: Column(
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(gradient: const LinearGradient(colors: [_primary, Color(0xFFFFB199)]), borderRadius: BorderRadius.circular(20)),
-                child: const Text("Reklamsız Kullan", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                child: const Text("BabyBites+", style: TextStyle(fontFamily: 'Inter', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
               ),
               const SizedBox(height: 12),
-              const Text("Kısa bir reklam izle, 1 gün boyunca reklamsız kullan", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
-              const SizedBox(height: 4),
-              const Text("Uygulamadaki tüm özellikler ücretsizdir.", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+              const Text("Tüm özellikler şu an ücretsiz", textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 6),
+              const Text(
+                "Gıda rehberi, tarifler, beslenme takibi ve gelişim araçlarının tamamı herkese açık. BabyBites+ ileride eklenecek yeni özellikler için hazırlanıyor.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light),
+              ),
             ],
           ),
         ),
@@ -289,29 +237,14 @@ class _PremiumScreenState extends State<PremiumScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(color: const Color(0xFFFFF6F2), borderRadius: BorderRadius.circular(14), border: Border.all(color: _primary.withOpacity(0.25))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: const Row(
             children: [
-              const Row(children: [
-                Icon(Icons.play_circle_outline, color: _primary, size: 20),
-                SizedBox(width: 8),
-                Expanded(child: Text("Reklamsızı ücretsiz dene", style: TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text))),
-              ]),
-              const SizedBox(height: 4),
-              Text(
-                adFreeActive()
-                    ? "Şu an reklamsızsın. ${_adFreeRemainingLabel()} sonra tekrar izleyebilirsin."
-                    : "Kısa bir reklam izle, 1 gün boyunca reklamsız kullan.",
-                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: adFreeActive() ? null : _watchRewardedForAdFree,
-                  icon: const Icon(Icons.movie_outlined, size: 18),
-                  label: Text(adFreeActive() ? "Reklamsız aktif" : "Reklam İzle (1 gün reklamsız)", style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(foregroundColor: _primary, side: BorderSide(color: _primary.withOpacity(0.6)), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              Icon(Icons.favorite_outline, color: _primary, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Uygulamayı ücretsiz tutabilmemiz reklamlar sayesinde. Desteğin için teşekkürler!",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.w600, color: _text),
                 ),
               ),
             ],

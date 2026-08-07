@@ -92,13 +92,15 @@ void clearAdFreeUntil() {
   globalAdFreeUntil = kAdFreeRevokedMarker;
 }
 
-/// True if a rewarded ad-free window is currently active.
-bool adFreeActive() {
-  final s = globalAdFreeUntil;
-  if (s == null) return false;
-  final until = DateTime.tryParse(s);
-  return until != null && until.isAfter(DateTime.now());
-}
+/// Reklamsız dönem aktif mi? ARTIK HER ZAMAN false.
+///
+/// Reklamsız hak veren iki sistem de kaldırıldı (kurucu üye hediyesi ve
+/// ödüllü reklamın 1 günlük penceresi), çünkü reklamlar uygulamanın tek gelir
+/// kaynağı. Fonksiyon SİLİNMİYOR, sabitleniyor: eski kurulumlarda ve bulutta
+/// hâlâ ileri tarihli `ad_free_until` değerleri var; bu değerler
+/// [revokeAllAdFree] ile temizlenene kadar tek bir çağrı bile reklamları
+/// gizlemeye yeter. Burada false döndürmek o yarışı tamamen kapatıyor.
+bool adFreeActive() => false;
 
 /// The current user's in-app notifications (loaded from Firestore
 /// /notifications). Item: { id, title, body, type, read, date }.

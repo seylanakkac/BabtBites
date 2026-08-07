@@ -1,12 +1,11 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import '../data/extras_store.dart';
 import '../config/ads_config.dart';
 import 'web_ads.dart';
 import 'mobile_ads.dart';
 
-/// A revenue ad slot. Reklamlar TÜM kullanıcılara gösterilir (premium dahil);
-/// yalnızca ödüllü "1 gün reklamsız" penceresi (adFreeActive) sırasında gizlenir.
+/// A revenue ad slot. Reklamlar İSTİSNASIZ tüm kullanıcılara gösterilir —
+/// premium dahil. Reklamsız dönem veren sistemlerin hepsi kaldırıldı.
 ///
 /// Web'de gerçek reklam AdSense ile (ads_config.dart slot'ları dolunca) gelir;
 /// boşken stilize "Reklam alanı" yer-tutucusu gösterilir.
@@ -18,8 +17,6 @@ class SideAdBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (adFreeActive()) return const SizedBox.shrink();
-
     // AdSense yapılandırılmışsa gerçek dikey reklamı göster.
     if (adsConfigured && kAdsenseSideSlot.isNotEmpty) {
       return Container(
@@ -90,10 +87,6 @@ class AdBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Reklamlar premium dahil herkese gösterilir; yalnızca ödüllü reklamsız
-    // pencere sırasında gizlenir.
-    if (adFreeActive()) return const SizedBox.shrink();
-
     // Mobil uygulama: AdMob banner (web'de stub → boş; aşağıdaki AdSense devreye girer).
     if (!kIsWeb && admobConfigured) {
       return Container(margin: margin, alignment: Alignment.center, child: mobileBannerAd());

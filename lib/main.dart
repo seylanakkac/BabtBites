@@ -12,7 +12,7 @@ import 'services/cloud_sync.dart';
 import 'services/catalog_sync.dart';
 import 'services/social_sync.dart';
 import 'services/analytics.dart';
-import 'services/founding_member.dart';
+import 'services/ad_free.dart';
 import 'services/local_reminders.dart';
 import 'data/tracking_store.dart';
 import 'screens/splash_screen.dart';
@@ -78,12 +78,8 @@ Future<void> main() async {
     await SocialSync.instance.loadInfluencers().timeout(const Duration(seconds: 8), onTimeout: () {});
   }
   StorageService.instance.loadInto();
-  // Kurucu üye hediyesiyle verilmiş reklamsız hakkı geri al.
-  //
-  // Hediye ekranı kapatıldı ama daha önce görenlerin hesabında 90 günlük hak
-  // duruyordu; buluttan telefona da taşındığı için reklamlar sessizce hiç
-  // görünmüyordu. Ödüllü reklamdan kazanılan 1 günlük hak korunur.
-  unawaited(FoundingMember.revokeGiftedAdFree());
+  // Kalmış reklamsız hakkı TAMAMEN temizle (kaynağı ne olursa olsun).
+  unawaited(revokeAllAdFree());
   // Kayıtlı ilaç planıyla bu cihazdaki alarmları eşitle.
   //
   // Bildirim eskiden yalnızca "Kaydet" anında ve o cihazda kuruluyordu: planı
