@@ -71,6 +71,7 @@ class StorageService {
   static const String _kReminders = 'reminders';
   static const String _kBabyMeds = 'baby_meds';
   static const String _kDailyLogs = 'daily_logs';
+  static const String _kMealPortions = 'meal_portions';
   static const String _kCustomFoods = 'custom_foods';
   static const String _kCustomRecipes = 'custom_recipes';
   static const String _kCustomArticles = 'custom_articles';
@@ -106,7 +107,7 @@ class StorageService {
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
     _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kMyFollowing, _kBlockedUsers, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
-    _kReportFiles, _kPremiumUntil, _kRecipeTastes,
+    _kReportFiles, _kPremiumUntil, _kRecipeTastes, _kMealPortions,
   ];
   static const List<String> _userStringListKeys = [
     _kCartChecked, _kFavoriteRecipes, _kRecipeTried, _kTried, _kFavorites,
@@ -419,12 +420,31 @@ class StorageService {
       final logsRaw = prefs.getString(_kDailyLogs);
       if (logsRaw != null) {
         globalDailyLogs.clear();
+    globalMealPortions.clear();
         (jsonDecode(logsRaw) as Map<String, dynamic>).forEach((babyId, days) {
           final m = <String, dynamic>{};
           (days as Map<String, dynamic>).forEach((dateKey, log) {
             m[dateKey] = Map<String, dynamic>.from(log as Map);
           });
           globalDailyLogs[babyId] = m;
+        });
+      }
+
+      // Öğün planındaki kalemlerin miktarı (tarif porsiyonu / gıda gramı).
+      final portionsRaw = prefs.getString(_kMealPortions);
+      if (portionsRaw != null) {
+        globalMealPortions.clear();
+        (jsonDecode(portionsRaw) as Map<String, dynamic>).forEach((dayKey, meals) {
+          final byMeal = <String, Map<String, double>>{};
+          (meals as Map<String, dynamic>).forEach((meal, items) {
+            final m = <String, double>{};
+            (items as Map<String, dynamic>).forEach((name, v) {
+              final d = (v as num?)?.toDouble();
+              if (d != null && d > 0) m[name] = d;
+            });
+            byMeal[meal] = m;
+          });
+          globalMealPortions[dayKey] = byMeal;
         });
       }
 
@@ -820,6 +840,7 @@ class StorageService {
       await prefs.setString(_kReminders, jsonEncode(globalReminders));
       await prefs.setString(_kBabyMeds, jsonEncode(globalBabyMeds));
       await prefs.setString(_kDailyLogs, jsonEncode(globalDailyLogs));
+      await prefs.setString(_kMealPortions, jsonEncode(globalMealPortions));
       await prefs.setString(_kRecipeTastes, jsonEncode(globalBabyRecipeTastes));
       await prefs.setStringList(_kUserFormulaNames, globalUserFormulaNames);
       await prefs.setString(_kGrowth, jsonEncode(globalGrowthRecords));

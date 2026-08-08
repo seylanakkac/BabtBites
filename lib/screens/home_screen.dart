@@ -344,6 +344,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     };
   }
 
+  Map<String, double> _scaled(Map<String, double> n, double factor) =>
+      {for (final e in n.entries) e.key: e.value * factor};
+
   Map<String, double> _calculatePlannedNutrition() {
     final result = {"Energy": 0.0, "Protein": 0.0, "Fat": 0.0, "Iron": 0.0, "Carb": 0.0};
     final day = _weeklyPlan[_selectedDay];
@@ -356,17 +359,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       result["Carb"] = result["Carb"]! + (n["Karbonhidrat"] ?? 0);
     }
 
-    for (final items in day.values) {
+    // MİKTARA GÖRE ÖLÇEKLE.
+    //
+    // Eskiden bu döngü miktarı hiç dikkate almıyordu:
+    //   • gıda için nutritionForFood 100 g'lık değeri döndürüyor ve olduğu
+    //     gibi ekleniyordu — yani plana eklenen HER gıda 100 g sayılıyordu.
+    //     6 aylık bir bebeğe 30 g brokoli veren anne için ~3 kat fazla.
+    //   • tarif için nutritionForRecipe zaten TEK porsiyon döndürüyor, ama
+    //     iki porsiyon veren kullanıcı bunu belirtemiyordu.
+    // Artık her kalemin miktarı globalMealPortions'tan okunuyor.
+    day.forEach((meal, items) {
       for (final name in items) {
         final food = globalFoodsDatabase.where((f) => f.name == name).toList();
         if (food.isNotEmpty) {
-          add(nutritionForFood(food.first));
+          final grams = mealPortion(_selectedDay, meal, name, isRecipe: false);
+          add(_scaled(nutritionForFood(food.first), grams / 100.0));
         } else {
           final recipe = globalRecipesDatabase.where((r) => r.name == name).toList();
-          if (recipe.isNotEmpty) add(nutritionForRecipe(recipe.first));
+          if (recipe.isNotEmpty) {
+            final portions = mealPortion(_selectedDay, meal, name, isRecipe: true);
+            add(_scaled(nutritionForRecipe(recipe.first), portions));
+          }
         }
       }
-    }
+    });
     return result;
   }
 
@@ -3178,8 +3194,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           ),
                         ),
                         const SizedBox(width: 6),
+                        // Miktar rozeti - besin degerleri buna gore hesaplanir.
                         GestureDetector(
-                          onTap: () { _weeklyPlan[_selectedDay]?[slot]?.remove(name); _persist(); setState(() {}); },
+                          onTap: () => _showPortionDialog(slot, name),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(color: _primary.withOpacity(0.10), borderRadius: BorderRadius.circular(10)),
+                            child: Text(
+                              _portionLabel(slot, name),
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: _primary),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            _weeklyPlan[_selectedDay]?[slot]?.remove(name);
+                            removeMealPortion(_selectedDay, slot, name);
+                            _persist();
+                            setState(() {});
+                          },
                           child: const Icon(Icons.close, size: 16, color: _danger),
                         ),
                       ],
@@ -3190,6 +3224,115 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _mealStatusRow(slot),
           ],
         ],
+      ),
+    );
+  }
+
+  /// Plan kalemi bir TARIF mi? (degilse gida ya da elle yazilmis ad)
+  bool _isRecipeItem(String name) =>
+      globalRecipesDatabase.any((r) => r.name == name) &&
+      !globalFoodsDatabase.any((f) => f.name == name);
+
+  /// Cipte gorunen kisa miktar etiketi: "1 porsiyon" / "50 g".
+  String _portionLabel(String slot, String name) {
+    final isRecipe = _isRecipeItem(name);
+    final v = mealPortion(_selectedDay, slot, name, isRecipe: isRecipe);
+    if (isRecipe) {
+      final t = v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+      return "$t porsiyon";
+    }
+    return "${v.toInt()} g";
+  }
+
+  /// Miktar secimi. Tarifte porsiyon, gidada gram sorulur; besin halkalari
+  /// dogrudan bu degere gore hesaplanir.
+  Future<void> _showPortionDialog(String slot, String name) async {
+    final isRecipe = _isRecipeItem(name);
+    var value = mealPortion(_selectedDay, slot, name, isRecipe: isRecipe);
+    final presets = isRecipe
+        ? <double>[0.5, 1, 1.5, 2, 3]
+        : <double>[25, 50, 75, 100, 150, 200];
+    String fmt(double d) => d == d.roundToDouble() ? d.toInt().toString() : d.toString();
+    final ctrl = TextEditingController(text: fmt(value));
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 16, fontWeight: FontWeight.bold, color: _text)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(isRecipe ? "Kaç porsiyon verdin?" : "Kaç gram verdin?",
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: presets.map((pr) {
+                  final sel = (value - pr).abs() < 0.001;
+                  return ChoiceChip(
+                    label: Text(
+                      isRecipe ? fmt(pr) : "${pr.toInt()} g",
+                      style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: sel ? Colors.white : _text),
+                    ),
+                    selected: sel,
+                    selectedColor: _primary,
+                    backgroundColor: const Color(0xFFF3F3F5),
+                    onSelected: (_) => setLocal(() {
+                      value = pr;
+                      ctrl.text = fmt(pr);
+                    }),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                decoration: InputDecoration(
+                  labelText: isRecipe ? "Porsiyon" : "Gram",
+                  labelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
+                  filled: true,
+                  fillColor: const Color(0xFFF3F3F5),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                ),
+                onChanged: (t) {
+                  final d = double.tryParse(t.replaceAll(',', '.'));
+                  if (d != null && d > 0) setLocal(() => value = d);
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+              onPressed: () {
+                final d = double.tryParse(ctrl.text.replaceAll(',', '.')) ?? value;
+                if (d > 0) setMealPortion(_selectedDay, slot, name, d);
+                _persist();
+                Navigator.pop(ctx);
+                setState(() {});
+              },
+              child: const Text("Kaydet", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   }

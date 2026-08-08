@@ -41,6 +41,53 @@ String globalActiveBabyId = "";
 /// kullanıcıyı bildirimsiz bırakmak yanlış olur.
 int globalActiveBabyMonths = 0;
 
+/// Öğün planındaki kalemlerin MİKTARI.
+///
+/// Yapı: gün ("yyyy-MM-dd") -> öğün ("Kahvaltı") -> kalem adı -> miktar.
+/// Anlamı kalemin türüne göre değişiyor:
+///   • TARİF  → porsiyon çarpanı (1.0 = bir porsiyon, 0.5 = yarım)
+///   • GIDA   → gram (50.0 = 50 g)
+///
+/// NEDEN AYRI BİR HARİTA: plan `Map<gün, Map<öğün, List<String>>>` biçiminde
+/// yalnızca AD tutuyor. Listeyi nesneye çevirmek kaydetme, bulut senkronu,
+/// örnek menü ve otomatik doldurma dahil çok geniş bir yüzeye dokunurdu.
+/// Paralel harita geriye dönük uyumlu: kaydı olmayan eski planlar
+/// varsayılana düşüyor.
+///
+/// SINIR: aynı öğünde aynı ad iki kez varsa ikisi tek miktarı paylaşır.
+/// Plan zaten aynı adı iki kez eklemiyor (bkz. _addPlanItem), o yüzden
+/// pratikte bir sorun değil.
+final Map<String, Map<String, Map<String, double>>> globalMealPortions = {};
+
+/// Gıdalar için varsayılan miktar (gram).
+///
+/// 100 SEÇİLDİ ÇÜNKÜ: besin tabloları 100 g üzerinden ve porsiyon sistemi
+/// gelmeden önce hesap zaten sessizce 100 g sayıyordu. Varsayılanı
+/// düşürmek eski planların besin değerlerini geriye dönük değiştirirdi.
+/// Yeni eklemelerde kullanıcıya miktar soruluyor, yani varsayılan yalnızca
+/// eski kayıtlar için geçerli.
+const double kDefaultFoodGrams = 100.0;
+
+/// Tarifler için varsayılan porsiyon.
+const double kDefaultRecipePortions = 1.0;
+
+double mealPortion(String dayKey, String meal, String name, {required bool isRecipe}) {
+  final v = globalMealPortions[dayKey]?[meal]?[name];
+  if (v != null && v > 0) return v;
+  return isRecipe ? kDefaultRecipePortions : kDefaultFoodGrams;
+}
+
+void setMealPortion(String dayKey, String meal, String name, double value) {
+  if (value <= 0) return;
+  globalMealPortions
+      .putIfAbsent(dayKey, () => {})
+      .putIfAbsent(meal, () => {})[name] = value;
+}
+
+void removeMealPortion(String dayKey, String meal, String name) {
+  globalMealPortions[dayKey]?[meal]?.remove(name);
+}
+
 /// Beğeni seçenekleri: (anahtar, emoji, etiket).
 const List<(String, String, String)> kTasteOptions = [
   ("sevdi", "😍", "Sevdi"),
