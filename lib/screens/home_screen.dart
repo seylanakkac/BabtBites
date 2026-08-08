@@ -6066,6 +6066,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2BB673), side: const BorderSide(color: Color(0xFF7FD0A6)), padding: const EdgeInsets.symmetric(vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               ),
             ),
+          // Beslenme rehberine yazı önerme — YALNIZCA onaylı uzmanlara.
+          // Yetki hem burada hem Firestore kuralında doğrulanıyor
+          // (bkz. /pendingArticles kuralı): arayüzü gizlemek tek başına
+          // yeterli değil, istemci doğrudan yazabilir.
+          if (expertTypeForAuthor(uname) != null) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showSubmitArticleDialog(uname),
+                icon: const Icon(Icons.post_add_outlined, size: 16),
+                label: const Text("Beslenme Rehberine Yazı Öner",
+                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2BB673),
+                    side: const BorderSide(color: Color(0xFF7FD0A6)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           // Influencer yetkisi durumu / başvuru
           if (isInfluencer(uname))
@@ -6591,6 +6612,258 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ).then((_) => ctrl.dispose());
   }
 
+  /// Malzeme satırının altındaki ipucu: miktar kaç grama denk geliyor?
+  ///
+  /// NEDEN VAR: [nutritionForRecipe] miktarı çözemediği malzemeyi `continue`
+  /// ile atlıyor. Yani "2 tutam" yazan bir malzeme besin değerine hiç
+  /// girmiyor ve kullanıcı bunu göremiyordu — kalori olduğundan düşük
+  /// çıkıyor, sebebi de belli olmuyordu. Artık üç durum da görünür:
+  ///   • çözüldü        → "≈ 100 g"
+  ///   • çözülemedi     → "miktar anlaşılmadı"
+  ///   • besin yok      → "besin değeri yok"
+  Widget _ingredientHint(Map<String, String> row) {
+    final name = (row["name"] ?? "").trim();
+    final qty = (row["qty"] ?? "").trim();
+    if (name.isEmpty || qty.isEmpty) return const SizedBox.shrink();
+
+    final amount = "$qty ${row["unit"] ?? ""}".trim();
+    final grams = ingredientGrams(name, amount);
+
+    if (grams == null || grams <= 0) {
+      return _hintText("miktar anlaşılmadı", _danger, Icons.error_outline);
+    }
+    if (!ingredientHasNutrition(name)) {
+      return _hintText("besin değeri yok", _light, Icons.info_outline);
+    }
+    final g = grams >= 10 ? grams.round().toString() : grams.toStringAsFixed(1);
+    return _hintText("≈ $g g", _light, null);
+  }
+
+  Widget _hintText(String text, Color color, IconData? icon) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: color),
+            const SizedBox(width: 3),
+          ],
+          Flexible(
+            child: Text(text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.w600, color: color)),
+          ),
+        ],
+      );
+
+  /// Malzemeler eklendikçe güncellenen besin özeti.
+  ///
+  /// Kaydettikten SONRA görmek yerine yazarken görmek, yanlış miktarı anında
+  /// fark ettiriyor. Porsiyon sayısına bölünmüş değer gösteriliyor — tarif
+  /// kartındaki rakamla aynı olsun diye.
+  Widget _liveNutritionSummary(List<Map<String, String>> ingredients, String servingsText) {
+    final names = <String>[];
+    final amounts = <String>[];
+    var unresolved = 0;
+    for (final row in ingredients) {
+      final n = (row["name"] ?? "").trim();
+      final q = (row["qty"] ?? "").trim();
+      if (n.isEmpty) continue;
+      final amount = "$q ${row["unit"] ?? ""}".trim();
+      names.add(n);
+      amounts.add(amount);
+      if (q.isEmpty || ingredientGrams(n, amount) == null) unresolved++;
+    }
+    if (names.isEmpty) return const SizedBox.shrink();
+
+    final servings = int.tryParse(servingsText.trim()) ?? 1;
+    final n = nutritionFromIngredients(names, amounts, servings: servings);
+    final kcal = (n["Enerji"] ?? 0);
+    if (kcal <= 0 && unresolved == 0) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _primary.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _primary.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.local_fire_department, size: 15, color: _primary),
+              const SizedBox(width: 6),
+              Text(
+                servings > 1 ? "Porsiyon başına ($servings porsiyon)" : "Besin değeri",
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _text),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 14,
+            runSpacing: 6,
+            children: [
+              _nutriPill("${kcal.round()} kcal"),
+              _nutriPill("${(n["Protein"] ?? 0).toStringAsFixed(1)} g protein"),
+              _nutriPill("${(n["Yağ"] ?? 0).toStringAsFixed(1)} g yağ"),
+              _nutriPill("${(n["Karbonhidrat"] ?? 0).toStringAsFixed(1)} g karb."),
+            ],
+          ),
+          if (unresolved > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              "$unresolved malzemenin miktarı anlaşılmadı; besin değerine katılmadı.",
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _danger, height: 1.35),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _nutriPill(String text) => Text(text,
+      style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.w600, color: _text));
+
+  /// Uzmanın beslenme rehberine yazı önermesi (admin onayına gider).
+  ///
+  /// Tarif onay akışının aynısı: /pendingArticles'a yazılır, admin panelinde
+  /// listelenir, onaylanınca katalog yazılarına eklenir ve yazara bildirim
+  /// gider. Yayına doğrudan girmiyor — rehber içeriği tıbbi bilgi taşıdığı
+  /// için denetimsiz yayın riskli.
+  void _showSubmitArticleDialog(String uname) {
+    final titleCtrl = TextEditingController();
+    final summaryCtrl = TextEditingController();
+    final contentCtrl = TextEditingController();
+    final readCtrl = TextEditingController(text: "3 dk");
+    final cats = articleCategories;
+    String? category = cats.isNotEmpty ? cats.first : null;
+    var sending = false;
+
+    showDialog(
+      context: context,
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setD) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text("Rehbere Yazı Öner 📝",
+              style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+          content: SizedBox(
+            width: 400,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Yazın admin onayından sonra Beslenme Rehberi'nde uzman rozetinle yayınlanır.",
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light, height: 1.4),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: titleCtrl,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                    decoration: _plainDec("Başlık"),
+                  ),
+                  const SizedBox(height: 10),
+                  if (cats.isNotEmpty)
+                    InputDecorator(
+                      decoration: _plainDec("Kategori"),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: category,
+                          isExpanded: true,
+                          items: cats
+                              .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14))))
+                              .toList(),
+                          onChanged: (v) => setD(() => category = v),
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: readCtrl,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                    decoration: _plainDec("Okuma süresi (ör. 3 dk)"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: summaryCtrl,
+                    maxLines: 2,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                    decoration: _plainDec("Kısa özet"),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: contentCtrl,
+                    maxLines: 8,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                    decoration: _plainDec("Yazı metni"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(dctx),
+                child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
+              onPressed: sending
+                  ? null
+                  : () async {
+                      final t = titleCtrl.text.trim();
+                      final c = contentCtrl.text.trim();
+                      if (t.isEmpty || c.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Başlık ve yazı metni zorunlu.")),
+                        );
+                        return;
+                      }
+                      setD(() => sending = true);
+                      final id = await SocialSync.instance.submitArticle({
+                        "id": "ua_${DateTime.now().millisecondsSinceEpoch}",
+                        "title": t,
+                        "category": category ?? "Başlangıç",
+                        "readTime": readCtrl.text.trim().isEmpty ? "3 dk" : readCtrl.text.trim(),
+                        "summary": summaryCtrl.text.trim(),
+                        "content": c,
+                        "emoji": "📝",
+                        "imageUrl": "",
+                        "author": uname,
+                      });
+                      if (!dctx.mounted) return;
+                      final messenger = ScaffoldMessenger.of(dctx);
+                      Navigator.pop(dctx);
+                      messenger.showSnackBar(SnackBar(
+                        content: Text(id == null
+                            ? "Gönderilemedi. Bağlantını kontrol et."
+                            : "Yazın onaya gönderildi 📝"),
+                      ));
+                    },
+              child: Text(sending ? "Gönderiliyor..." : "Onaya Gönder",
+                  style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _plainDec(String label) => InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light),
+        filled: true,
+        fillColor: const Color(0xFFF3F3F5),
+        isDense: true,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      );
+
   void _showAddUserRecipeDialog({String initialName = ""}) {
     if (requireLogin(context)) return;
     final nameCtrl = TextEditingController(text: initialName);
@@ -6768,8 +7041,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const SizedBox(height: 6),
                               Row(
                                 children: [
+                                  // MIKTAR birincil girdi; eskiden birimden
+                                  // (flex 3) DAR (flex 2) idi ve "1 1/2" gibi
+                                  // degerler sigmiyordu. Oranlar ters cevrildi.
                                   Expanded(
-                                    flex: 2,
+                                    flex: 3,
                                     child: TextField(
                                       // Sayı klavyesi DEĞİL: "1/2" yazmak için
                                       // gereken "/" tuşu sayı klavyesinde yok,
@@ -6777,19 +7053,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       keyboardType: TextInputType.text,
                                       decoration: dec("Miktar").copyWith(hintText: "1, 1/2, yarım…"),
                                       controller: TextEditingController(text: row["qty"])..selection = TextSelection.collapsed(offset: row["qty"]!.length),
-                                      onChanged: (v) => row["qty"] = v,
+                                      onChanged: (v) => setSheet(() => row["qty"] = v),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
-                                    flex: 3,
+                                    flex: 2,
                                     child: InputDecorator(
                                       decoration: dec("Birim"),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
                                           value: units.contains(row["unit"]) ? row["unit"] : defaultUnit,
                                           isExpanded: true,
-                                          items: units.map((u) => DropdownMenuItem(value: u, child: Text(u, style: const TextStyle(fontFamily: 'Inter', fontSize: 13)))).toList(),
+                                          items: units.map((u) => DropdownMenuItem(value: u, child: Text(u, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Inter', fontSize: 13)))).toList(),
                                           onChanged: (v) => setSheet(() => row["unit"] = v ?? defaultUnit),
                                         ),
                                       ),
@@ -6797,10 +7073,44 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                 ],
                               ),
+                              // Kesir kisayollari: "/" tusu icin klavye
+                              // degistirmeye gerek kalmasin.
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  ...["1/4", "1/3", "1/2", "1", "2"].map((f) => Padding(
+                                        padding: const EdgeInsets.only(right: 6),
+                                        child: GestureDetector(
+                                          onTap: () => setSheet(() => row["qty"] = f),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: row["qty"] == f ? _primary : Colors.white,
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: const Color(0xFFE2E2E6)),
+                                            ),
+                                            child: Text(f,
+                                                style: TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 11.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: row["qty"] == f ? Colors.white : _text)),
+                                          ),
+                                        ),
+                                      )),
+                                  const Spacer(),
+                                  // COZULEN GRAM / UYARI.
+                                  // Miktar cozulemezse malzeme besin hesabindan
+                                  // SESSIZCE dusuyordu; kullanici bunu goremiyordu.
+                                  Flexible(child: _ingredientHint(row)),
+                                ],
+                              ),
                             ],
                           ),
                         );
                       }),
+                      // Malzemeler girildikce guncellenen besin ozeti.
+                      _liveNutritionSummary(ingredients, servingsCtrl.text),
                       const SizedBox(height: 8),
                       Row(
                         children: [

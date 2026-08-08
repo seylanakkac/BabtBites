@@ -262,6 +262,56 @@ class SocialSync {
     }
   }
 
+  // ---- Onay bekleyen YAZILAR (yalnızca uzman etiketli kullanıcılar) ----
+  CollectionReference<Map<String, dynamic>> get _pendingArticles =>
+      _db.collection('pendingArticles');
+
+  /// Uzmanın beslenme rehberine yazı önerisi. [data] Article JSON'u.
+  ///
+  /// Yetki İKİ KATMANDA doğrulanıyor: arayüz düğmeyi yalnızca uzmanlara
+  /// gösteriyor, Firestore kuralı da yazma iznini /experts listesindekilere
+  /// bağlıyor. Yalnızca arayüzde kısıtlamak yeterli olmazdı — istemci
+  /// doğrudan Firestore'a yazabilir.
+  Future<String?> submitArticle(Map<String, dynamic> data) async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final ref = await _pendingArticles.add({
+        ...data,
+        'uid': uid,
+        'approved': false,
+        'ts': FieldValue.serverTimestamp(),
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.submitArticle failed: $e');
+      return null;
+    }
+  }
+
+  /// Onay bekleyen yazılar (admin). Her kayıt '_docId' taşır.
+  Future<List<Map<String, dynamic>>> loadPendingArticles() async {
+    try {
+      final snap = await _pendingArticles.where('approved', isEqualTo: false).get();
+      return snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['_docId'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('SocialSync.loadPendingArticles failed: $e');
+      return [];
+    }
+  }
+
+  Future<void> deletePendingArticle(String docId) async {
+    try {
+      await _pendingArticles.doc(docId).delete();
+    } catch (e) {
+      debugPrint('SocialSync.deletePendingArticle failed: $e');
+    }
+  }
+
   Future<void> deletePendingRecipe(String docId) async {
     try {
       await _pending.doc(docId).delete();

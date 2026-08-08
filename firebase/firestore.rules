@@ -59,6 +59,20 @@ service cloud.firestore {
 
     // Kullanıcı tarifleri (admin onay kuyruğu): admin tümünü okur; kullanıcı
     // kendi gönderdiğini görür/siler; herkes kendi onaysız tarifini oluşturur.
+    // Onay bekleyen YAZILAR — yalnızca uzman etiketli kullanıcılar gönderebilir.
+    //
+    // Arayüzde düğmeyi gizlemek yeterli değil: istemci doğrudan Firestore'a
+    // yazabilir. Bu yüzden yazma izni /experts belgesinin varlığına bağlı.
+    match /pendingArticles/{id} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.approved == false
+        && exists(/databases/$(database)/documents/experts/$(request.auth.uid));
+      allow update, delete: if isAdmin()
+        || (request.auth != null && resource.data.uid == request.auth.uid);
+    }
+
     match /pendingRecipes/{id} {
       allow read: if isAdmin() || (request.auth != null && resource.data.uid == request.auth.uid);
       allow create: if request.auth != null

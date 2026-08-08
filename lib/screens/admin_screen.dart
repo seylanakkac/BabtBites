@@ -6,6 +6,8 @@ import '../data/user_profile_store.dart';
 import '../data/recipe_social_store.dart';
 import '../services/file_storage.dart';
 import '../services/catalog_sync.dart';
+import '../config/instagram_config.dart';
+import '../services/instagram_import.dart';
 import '../services/social_sync.dart';
 import '../services/community_sync.dart';
 import '../data/community_store.dart';
@@ -284,6 +286,8 @@ class _AdminScreenState extends State<AdminScreen> {
       (Icons.wb_sunny_outlined, "Mevsimlik"),
       (Icons.campaign_outlined, "Duyuru"),
       (Icons.event_note_outlined, "Örnek Menü"),
+      (Icons.post_add_outlined, "Yazı Onayı"),
+      (Icons.photo_library_outlined, "Instagram"),
       // auto_awesome: uygulamada başka yerlerde de kullanılıyor (yukarıdaki
       // tree-shaking notu), bu yüzden güvenli.
       (Icons.auto_awesome, "Influencer"),
@@ -403,6 +407,10 @@ class _AdminScreenState extends State<AdminScreen> {
       case 14:
         return _sampleMenuManager();
       case 15:
+        return _articlesApprovalManager();
+      case 16:
+        return _instagramManager();
+      case 17:
         return _influencerApprovalManager();
       default:
         return _dashboard();
@@ -2218,6 +2226,250 @@ class _AdminScreenState extends State<AdminScreen> {
     ]);
   }
 
+  // ---------- Instagram'dan içe aktarma ----------
+  List<InstagramPost>? _igPosts;
+  bool _igLoading = false;
+
+  Future<void> _reloadInstagram() async {
+    setState(() => _igLoading = true);
+    final list = await InstagramImport.instance.fetchRecent();
+    if (!mounted) return;
+    setState(() {
+      _igPosts = list;
+      _igLoading = false;
+    });
+  }
+
+  /// Instagram gönderilerini listeler; seçileni TASLAK TARİF olarak açar.
+  ///
+  /// Gönderi açıklaması otomatik olarak malzeme/adım alanlarına
+  /// AYRIŞTIRILMIYOR — serbest metinden güvenilir ayrıştırma mümkün değil ve
+  /// yanlış besin değeri üretmek bu uygulamada kabul edilebilir bir risk
+  /// değil. Fotoğraf ve metin taşınıyor, yapıyı admin kuruyor.
+  Widget _instagramManager() {
+    if (!instagramConfigured) {
+      return _pane([
+        _sectionHeader("Instagram'dan İçe Aktar", "Bağlantı yapılandırılmamış"),
+        _card(
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Kurulum için gerekenler:",
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _text)),
+              SizedBox(height: 8),
+              Text(
+                "1. Instagram hesabı Business ya da Creator olmalı ve bir Facebook "
+                "sayfasına bağlı olmalı (kişisel hesapta API çalışmıyor).\n"
+                "2. developers.facebook.com'da uygulama oluşturup Instagram Graph "
+                "API ürününü ekleyin.\n"
+                "3. instagram_basic izniyle UZUN ÖMÜRLÜ bir erişim jetonu alın "
+                "(60 gün geçerli, süresi dolunca yenilenmeli).\n"
+                "4. Hesabın sayısal kimliğini ve jetonu "
+                "lib/config/instagram_config.dart içine yazın.",
+                style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+      ]);
+    }
+
+    if (_igPosts == null && !_igLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_igPosts == null && !_igLoading) _reloadInstagram();
+      });
+    }
+
+    final err = InstagramImport.instance.lastError;
+    final posts = _igPosts ?? const <InstagramPost>[];
+    return _pane([
+      Row(children: [
+        Expanded(child: _sectionHeader("Instagram'dan İçe Aktar",
+            "Gönderiyi seç, taslak tarif olarak açılsın")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadInstagram),
+      ]),
+      if (_igLoading)
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      if (!_igLoading && err != null)
+        _card(
+          child: Row(children: [
+            const Icon(Icons.error_outline, color: _red, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(err, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _red, height: 1.4))),
+          ]),
+        ),
+      if (!_igLoading && err == null && posts.isEmpty)
+        _card(child: const Text("Gönderi bulunamadı.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...posts.map((post) => _card(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(post.mediaUrl,
+                      width: 72, height: 72, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                          width: 72, height: 72, color: _bg,
+                          child: const Icon(Icons.image_not_supported_outlined, color: _light))),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(post.suggestedTitle.isEmpty ? "(başlıksız)" : post.suggestedTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.bold, color: _text)),
+                      const SizedBox(height: 4),
+                      Text(post.caption,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light, height: 1.4)),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                        onPressed: () => _recipeDialog({
+                          "id": "rc_${DateTime.now().millisecondsSinceEpoch}",
+                          "name": post.suggestedTitle,
+                          // Aciklamayi adim alanina koyuyoruz: admin buradan
+                          // okuyup malzeme/adim alanlarini doldursun.
+                          "steps": [post.caption],
+                          "imageUrl": post.mediaUrl,
+                          "author": "BabyBites",
+                        }),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text("Taslak Tarif Oluştur",
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          )),
+    ]);
+  }
+
+  // ---------- uzman yazısı onayı ----------
+  List<Map<String, dynamic>>? _pendingArticlesList;
+
+  Future<void> _reloadPendingArticles() async {
+    final list = await SocialSync.instance.loadPendingArticles();
+    if (mounted) setState(() => _pendingArticlesList = list);
+  }
+
+  Widget _articlesApprovalManager() {
+    if (_pendingArticlesList == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_pendingArticlesList == null) _reloadPendingArticles();
+      });
+      return _pane([
+        _sectionHeader("Yazı Onayı", "Yükleniyor…"),
+        _card(child: const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(color: _primary)))),
+      ]);
+    }
+    final pending = _pendingArticlesList!;
+    return _pane([
+      Row(children: [
+        Expanded(child: _sectionHeader("Yazı Onayı", "${pending.length} uzman yazısı onay bekliyor")),
+        IconButton(tooltip: "Yenile", icon: const Icon(Icons.refresh, color: _primary), onPressed: _reloadPendingArticles),
+      ]),
+      if (pending.isEmpty)
+        _card(child: const Text("Onay bekleyen yazı yok.", style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light))),
+      ...pending.map((a) {
+        final title = a["title"]?.toString() ?? "Yazı";
+        final author = a["author"]?.toString() ?? "";
+        final cat = a["category"]?.toString() ?? "";
+        final summary = a["summary"]?.toString() ?? "";
+        final content = a["content"]?.toString() ?? "";
+        return _card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+              const SizedBox(height: 4),
+              Text("$author · $cat · ${a["readTime"] ?? ""}",
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+              if (summary.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(summary, style: const TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _text, height: 1.4)),
+              ],
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxHeight: 180),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10)),
+                child: SingleChildScrollView(
+                  child: Text(content,
+                      style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _text, height: 1.45)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: _green, foregroundColor: Colors.white, elevation: 0),
+                    onPressed: () async {
+                      final docId = a["_docId"]?.toString() ?? "";
+                      final toUid = a["uid"]?.toString() ?? "";
+                      // Yayına al: katalog yazılarına ekle ve herkese gönder.
+                      // id "ac_" onekli olmali: saveArticleEdit yalnizca bu
+                      // oneki CUSTOM yazi sayiyor, digerlerini built-in
+                      // override'a yaziyor (uzman yazisi icin yanlis olurdu).
+                      final article = Article(
+                        id: "ac_${DateTime.now().millisecondsSinceEpoch}",
+                        title: title,
+                        category: cat.isEmpty ? "Başlangıç" : cat,
+                        readTime: a["readTime"]?.toString() ?? "3 dk",
+                        summary: summary,
+                        content: content,
+                        emoji: a["emoji"]?.toString() ?? "📝",
+                        imageUrl: a["imageUrl"]?.toString() ?? "",
+                        author: author,
+                      );
+                      saveArticleEdit(article);
+                      _persistAll();
+                      final err = await _runSaving(() => CatalogSync.instance.push());
+                      if (toUid.isNotEmpty) {
+                        await SocialSync.instance.sendNotification(
+                            toUid, "Yazın onaylandı! 📝", "\"$title\" yazın rehberde yayınlandı.",
+                            type: 'article');
+                      }
+                      if (docId.isNotEmpty) await SocialSync.instance.deletePendingArticle(docId);
+                      if (!mounted) return;
+                      setState(() => _pendingArticlesList!.remove(a));
+                      _toast(err == null ? "Yazı yayınlandı" : "Yayınlanamadı: $err");
+                    },
+                    icon: const Icon(Icons.check, size: 18),
+                    label: const Text("Onayla", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 10),
+                  TextButton.icon(
+                    onPressed: () async {
+                      final docId = a["_docId"]?.toString() ?? "";
+                      if (docId.isNotEmpty) await SocialSync.instance.deletePendingArticle(docId);
+                      if (!mounted) return;
+                      setState(() => _pendingArticlesList!.remove(a));
+                      _toast("Yazı reddedildi");
+                    },
+                    icon: const Icon(Icons.close, size: 18, color: _red),
+                    label: const Text("Reddet", style: TextStyle(fontFamily: 'Inter', color: _red)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }),
+    ]);
+  }
+
   // ---------- user-submitted recipe approval ----------
   List<Map<String, dynamic>>? _pendingRecipesList;
 
@@ -3367,51 +3619,130 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
+  /// Örnek menüye kalem ekler — kayıtlı gıda/tariflerden SEÇEREK.
+  ///
+  /// Eskiden yalnızca serbest metin kutusu vardı; adı birebir yazmayınca
+  /// kullanıcı tarafında kalem tıklanamaz oluyordu (tarif açılmıyordu) ve
+  /// besin hesabına da girmiyordu. Artık takvimdeki gibi arama listesinden
+  /// seçiliyor; listede yoksa elle yazma seçeneği duruyor.
   void _addMenuItem(String slot) {
-    final c = TextEditingController();
+    final searchCtrl = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (dctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text("$slot — ekle",
-            style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
-        content: SizedBox(
-          width: 360,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _field(c, "Gıda / tarif adı", hint: "ör. Havuçlu Kabaklı Mücver"),
-              const Text(
-                "Kayıtlı bir tarifin adını birebir yazarsan kullanıcı ona dokunup tarifi açabilir. "
-                "Serbest metin de yazabilirsin.",
-                style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light, height: 1.35),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dctx),
-              child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white),
-            onPressed: () {
-              final v = c.text.trim();
-              if (v.isEmpty) return;
-              setState(() {
-                _updateMenuDays(_menuSel, (days) {
-                  final day = kWeekDays[_menuDay];
-                  days.putIfAbsent(day, () => {});
-                  days[day]!.putIfAbsent(slot, () => []);
-                  if (!days[day]![slot]!.contains(v)) days[day]![slot]!.add(v);
-                });
+      builder: (dctx) => StatefulBuilder(
+        builder: (dctx, setD) {
+          final q = searchKey(searchCtrl.text.trim());
+          final foods = globalFoodsDatabase
+              .where((f) => q.isEmpty || searchKey(f.name).contains(q))
+              .map((f) => {"name": f.name, "sub": "Gıda", "emoji": f.emoji, "img": f.imageUrl})
+              .toList();
+          final recipes = globalRecipesDatabase
+              .where((r) => q.isEmpty || searchKey(r.name).contains(q))
+              .map((r) => {"name": r.name, "sub": "Tarif", "emoji": "🍽️", "img": r.imageUrl})
+              .toList();
+          // Tarifler önce: örnek menülerde asıl aranan onlar.
+          final all = [...recipes, ...foods];
+
+          void add(String name) {
+            setState(() {
+              _updateMenuDays(_menuSel, (days) {
+                final day = kWeekDays[_menuDay];
+                days.putIfAbsent(day, () => {});
+                days[day]!.putIfAbsent(slot, () => []);
+                if (!days[day]![slot]!.contains(name)) days[day]![slot]!.add(name);
               });
-              Navigator.pop(dctx);
-            },
-            child: const Text("Ekle", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
-          ),
-        ],
+            });
+            Navigator.pop(dctx);
+          }
+
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: Text("$slot — ekle",
+                style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 16, color: _text)),
+            content: SizedBox(
+              width: 380,
+              height: 460,
+              child: Column(
+                children: [
+                  TextField(
+                    controller: searchCtrl,
+                    autofocus: true,
+                    style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text),
+                    onChanged: (_) => setD(() {}),
+                    decoration: InputDecoration(
+                      hintText: "Tarif veya gıda ara...",
+                      hintStyle: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light),
+                      prefixIcon: const Icon(Icons.search, size: 18, color: _light),
+                      filled: true,
+                      fillColor: _bg,
+                      isDense: true,
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                  if (searchCtrl.text.trim().isNotEmpty &&
+                      !all.any((m) => m["name"]!.toLowerCase() == searchCtrl.text.trim().toLowerCase()))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(color: _primary.withOpacity(0.12), shape: BoxShape.circle),
+                        child: const Icon(Icons.edit_outlined, size: 18, color: _primary),
+                      ),
+                      title: Text('"${searchCtrl.text.trim()}" olarak elle ekle',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.w600, color: _text)),
+                      subtitle: const Text("Kayıtlı değil — kullanıcı dokununca tarif açılmaz",
+                          style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                      trailing: const Icon(Icons.add_circle, color: _primary),
+                      onTap: () => add(searchCtrl.text.trim()),
+                    ),
+                  Expanded(
+                    child: all.isEmpty
+                        ? const Center(
+                            child: Text("Sonuç yok",
+                                style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: _light)))
+                        : ListView.builder(
+                            itemCount: all.length,
+                            itemBuilder: (c, i) {
+                              final item = all[i];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: isPhotoUrl(item["img"])
+                                    ? ClipOval(
+                                        child: SizedBox(
+                                            width: 34,
+                                            height: 34,
+                                            child: photoOrFallback(item["img"],
+                                                fallback: const SizedBox(), fit: BoxFit.cover)))
+                                    : Text(item["emoji"]!, style: const TextStyle(fontSize: 20)),
+                                title: Text(item["name"]!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: _text)),
+                                subtitle: Text(item["sub"]!,
+                                    style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),
+                                trailing: const Icon(Icons.add_circle_outline, color: _primary),
+                                onTap: () => add(item["name"]!),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dctx),
+                  child: const Text("Vazgeç", style: TextStyle(fontFamily: 'Inter', color: _light))),
+            ],
+          );
+        },
       ),
     );
   }

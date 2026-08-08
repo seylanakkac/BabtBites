@@ -444,6 +444,51 @@ Map<String, double> nutritionForRecipe(Recipe recipe) {
   return sum;
 }
 
+/// Bir malzeme satırının kaç grama denk geldiği ("1/2 su bardağı" → 100).
+///
+/// Çözülemezse null. Tarif formu bunu satırın altında gösteriyor: kullanıcı
+/// kalorinin nereden geldiğini görsün, çözülemeyen miktar da SESSİZCE
+/// hesaptan düşmek yerine uyarı olarak çıksın.
+double? ingredientGrams(String ingredientName, String amount) =>
+    amountToGrams(amount, gramsPerPiece: _ingredientGramsPerPiece(ingredientName));
+
+/// Malzemenin besin tablosunda karşılığı var mı? (yoksa hesaba giremez)
+bool ingredientHasNutrition(String ingredientName) =>
+    nutritionForIngredient(ingredientName) != null;
+
+/// Tarif formundaki malzemelerden ANLIK toplam besin değeri.
+///
+/// [servings] > 1 ise porsiyon başına böler — kaydedilmiş tarifte gösterilen
+/// değerle aynı olsun diye (bkz. nutritionForRecipe).
+Map<String, double> nutritionFromIngredients(
+  List<String> ingredients,
+  List<String> amounts, {
+  int servings = 1,
+}) {
+  final sum = {for (final k in kNutrientKeys) k: 0.0};
+  for (var i = 0; i < ingredients.length; i++) {
+    final n = nutritionForIngredient(ingredients[i]);
+    if (n == null) continue;
+    final amount = i < amounts.length ? amounts[i] : "";
+    final grams = amountToGrams(amount, gramsPerPiece: _ingredientGramsPerPiece(ingredients[i]));
+    if (grams == null || grams <= 0) continue;
+    final factor = grams / 100.0;
+    for (final k in kNutrientKeys) {
+      sum[k] = sum[k]! + (n[k] ?? 0) * factor;
+    }
+  }
+  if ((sum["Karbonhidrat"] ?? 0) == 0) {
+    sum["Karbonhidrat"] = atwaterCarb(sum["Enerji"]!, sum["Protein"]!, sum["Yağ"]!);
+  }
+  final sv = servings < 1 ? 1 : servings;
+  if (sv > 1) {
+    for (final k in kNutrientKeys) {
+      sum[k] = sum[k]! / sv;
+    }
+  }
+  return sum;
+}
+
 /// Tarifin malzemelerinden hesaplanan toplam kalori (kcal). Hiç malzeme
 /// çözülemezse tarifin saklı kcal'ı döner. Kart/detay/admin gösterimi için.
 double computedRecipeEnergy(Recipe recipe) {
