@@ -993,6 +993,7 @@ class _AdminScreenState extends State<AdminScreen> {
     bool sponsored = existing?["sponsored"] == true;
     String category = existing?["category"]?.toString() ?? "Diğer";
     if (!recipeCategoryOptions.contains(category)) category = "Diğer";
+    String subCategory = existing?["subCategory"]?.toString() ?? "";
 
     // Structured ingredient list: name (from foods or custom) + quantity + unit.
     final ingredients = <String>[];
@@ -1068,19 +1069,45 @@ class _AdminScreenState extends State<AdminScreen> {
                     ),
                   ]),
                   _field(author, "Hazırlayan", hint: "BabyBites"),
+                  // ALT KATEGORI secilir, ana kategori ondan turetilir.
+                  // Iki alani da sormak tutarsiz eslesmeye acik oluyordu
+                  // (ana "Corbalar" + alt "Etli Kofte" gibi).
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Kategori", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6))),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: category,
+                        value: allSubCategoryOptions.contains(subCategory) ? subCategory : null,
                         isExpanded: true,
-                        items: recipeCategoryOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)))).toList(),
-                        onChanged: (v) => setD(() => category = v ?? "Diğer"),
+                        hint: Text(
+                          allSubCategoryOptions.isEmpty
+                              ? "Önce Ayarlar'dan alt kategori ekleyin"
+                              : "Alt kategori seçin",
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light),
+                        ),
+                        items: [
+                          for (final e in recipeSubCategories.entries)
+                            ...e.value.map((sub) => DropdownMenuItem(
+                                  value: sub,
+                                  child: Text("${e.key} › $sub",
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontFamily: 'Inter', fontSize: 14, color: _text)),
+                                )),
+                        ],
+                        onChanged: (v) => setD(() {
+                          subCategory = v ?? "";
+                          category = mainCategoryForSub(subCategory) ?? category;
+                        }),
                       ),
                     ),
                   ),
+                  if (subCategory.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("Ana kategori: $category (otomatik)",
+                          style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                    ),
                   const Padding(padding: EdgeInsets.only(top: 8, bottom: 6), child: Text("Malzemeler", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light))),
                   if (ingredients.isEmpty)
                     const Padding(padding: EdgeInsets.only(bottom: 6), child: Text("Henüz malzeme yok. Aşağıdan gıdalardan ekleyin.", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light))),
@@ -1221,6 +1248,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   "id": rid,
                   "name": n,
                   "category": category,
+                  "subCategory": subCategory,
                   "prepTime": prep.text.trim().isEmpty ? "15 dk" : prep.text.trim(),
                   "cookTime": cook.text.trim(),
                   "startingMonth": int.tryParse(month.text.trim()) ?? 6,
@@ -1886,6 +1914,8 @@ class _AdminScreenState extends State<AdminScreen> {
         hint: "Örn. Bebek Smoothie'leri",
         onSave: (next) => globalAdminConfig["recipeCategories"] = next,
       ),
+      const SizedBox(height: 16),
+      _subCategoryManager(),
       const SizedBox(height: 16),
       _chipListCard(
         title: "Topluluk Kategorileri",
@@ -3516,6 +3546,154 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
       const SizedBox(height: 24),
     ]);
+  }
+
+  // ---------- alt kategori yönetimi ----------
+
+  /// Hangi ana kategorinin alt listesi açık (tek seferde bir tane).
+  String? _openSubCatFor;
+  final _newSubCat = TextEditingController();
+
+  Future<void> _saveSubCategories(Map<String, List<String>> next) async {
+    globalAdminConfig["recipeSubCategories"] = next;
+    _persistAll();
+    final err = await _runSaving(() => CatalogSync.instance.push());
+    if (!mounted) return;
+    setState(() {});
+    _toast(err == null ? "Alt kategoriler kaydedildi" : "Kaydedilemedi: $err");
+  }
+
+  /// Ana kategorilerin altına alt kategori ekleme/silme.
+  ///
+  /// Kullanıcı tarif eklerken YALNIZCA alt kategori seçiyor; ana kategori
+  /// buradaki eşlemeden otomatik atanıyor. Bu yüzden aynı alt kategori adı
+  /// iki ana kategoride bulunamaz — eşleme belirsiz kalırdı.
+  Widget _subCategoryManager() {
+    final map = Map<String, List<String>>.from(recipeSubCategories);
+    return _card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Tarif Alt Kategorileri",
+              style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 4),
+          const Text(
+            "Her ana kategorinin altına alt başlık ekleyin. Kullanıcı tarif eklerken "
+            "yalnızca alt kategoriyi seçer; ana kategori otomatik atanır.",
+            style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light, height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          ...recipeCategoryOptions.map((main) {
+            final subs = map[main] ?? const <String>[];
+            final open = _openSubCatFor == main;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: _bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E2E6)),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    dense: true,
+                    title: Text(main,
+                        style: const TextStyle(
+                            fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w600, color: _text)),
+                    subtitle: Text(subs.isEmpty ? "Alt kategori yok" : "${subs.length} alt kategori",
+                        style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                    trailing: Icon(open ? Icons.expand_less : Icons.expand_more, color: _light),
+                    onTap: () => setState(() {
+                      _openSubCatFor = open ? null : main;
+                      _newSubCat.clear();
+                    }),
+                  ),
+                  if (open)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (subs.isNotEmpty)
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: subs
+                                  .map((sub) => Chip(
+                                        label: Text(sub,
+                                            style: const TextStyle(
+                                                fontFamily: 'Inter', fontSize: 12.5, color: _text)),
+                                        backgroundColor: Colors.white,
+                                        deleteIconColor: _light,
+                                        onDeleted: () {
+                                          final next = Map<String, List<String>>.from(map);
+                                          next[main] = List<String>.from(subs)..remove(sub);
+                                          if (next[main]!.isEmpty) next.remove(main);
+                                          _saveSubCategories(next);
+                                        },
+                                      ))
+                                  .toList(),
+                            ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _newSubCat,
+                                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13.5, color: _text),
+                                  decoration: InputDecoration(
+                                    hintText: "Örn. Sebzeli Köfte",
+                                    hintStyle: const TextStyle(
+                                        fontFamily: 'Inter', fontSize: 13, color: _light),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    isDense: true,
+                                    contentPadding:
+                                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide.none),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                    backgroundColor: _primary,
+                                    foregroundColor: Colors.white,
+                                    elevation: 0,
+                                    padding:
+                                        const EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
+                                onPressed: () {
+                                  final v = _newSubCat.text.trim();
+                                  if (v.isEmpty) return;
+                                  // Ayni ad baska ana kategoride varsa reddet:
+                                  // mainCategoryForSub belirsiz kalirdi.
+                                  final owner = mainCategoryForSub(v);
+                                  if (owner != null) {
+                                    _toast("\"$v\" zaten \"$owner\" altında var");
+                                    return;
+                                  }
+                                  final next = Map<String, List<String>>.from(map);
+                                  next[main] = [...subs, v];
+                                  _newSubCat.clear();
+                                  _saveSubCategories(next);
+                                },
+                                child: const Text("Ekle",
+                                    style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 
   // ---------- duyuru (tüm kullanıcılara bildirim) ----------

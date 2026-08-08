@@ -101,6 +101,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _selectedCategory = "Tümü";
   String _selectedRecipeAge = "Tümü";
   String _selectedRecipeCategory = "Tümü";
+  /// Seçili alt kategori ("Tümü" = ana kategorinin tamamı).
+  String _selectedRecipeSubCategory = "Tümü";
   int _explorerSubTab = 0;
   // Gıdalarda çoklu seçim (basılı tut → seç → toplu "sorunsuz denendi").
   bool _foodSelectMode = false;
@@ -2457,6 +2459,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (_onlyUserRecipes && !recipe.id.startsWith("user_")) return false;
       if (_selectedRecipeUser != null && recipe.author.trim().toLowerCase() != _selectedRecipeUser) return false;
       if (_selectedRecipeCategory != "Tümü" && effectiveRecipeCategory(recipe) != _selectedRecipeCategory) return false;
+      if (_selectedRecipeSubCategory != "Tümü" && recipe.subCategory != _selectedRecipeSubCategory) return false;
       if (_pantry.isNotEmpty && !recipe.ingredients.any((ing) => _pantry.contains(ing))) return false;
       if (_selectedRecipeAge == "Tümü") return matchesSearch;
       int maxAge = 6;
@@ -5444,44 +5447,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// kutucuk emoji yer tutucusuna düşer.
   String _categoryCoverUrl(String category) {
     for (final r in globalRecipesDatabase) {
-      if (r.category == category && r.imageUrl.trim().isNotEmpty) return r.imageUrl;
+      if (effectiveRecipeCategory(r) == category && r.imageUrl.trim().isNotEmpty) return r.imageUrl;
     }
     return "";
   }
 
   int _categoryRecipeCount(String category) =>
-      globalRecipesDatabase.where((r) => r.category == category).length;
+      globalRecipesDatabase.where((r) => effectiveRecipeCategory(r) == category).length;
 
-  /// Tarif kategorileri — açılır liste yerine kutucuk (kart) ızgarası.
+  int _subCategoryRecipeCount(String sub) =>
+      globalRecipesDatabase.where((r) => r.subCategory == sub).length;
+
+  /// Tarif kategorileri — iki seviyeli gezinme.
   ///
-  /// Kutucukta yalnızca görsel ve kategori adı var. Seçili kutucuğa tekrar
-  /// dokunmak seçimi kaldırır (tüm tarifler). Boş kategoriler gizleniyor;
-  /// tıklandığında hiçbir şey çıkmayan bir kutucuk göstermenin anlamı yok.
+  /// Seviye 1: ana kategori kutucukları (görsel + ad).
+  /// Seviye 2: kategoriye girilince alt kategori çipleri + tarif listesi.
+  ///
+  /// BOŞ KATEGORİLER DE GÖSTERİLİYOR: admin bir kategori açtığında henüz
+  /// tarifi olmasa bile listede görünmeli, yoksa "eklediğim kategoriler
+  /// nerede?" sorusu çıkıyor. İçi boşsa detayda bunu açıkça yazıyoruz.
   Widget _recipeCategoryGrid() {
-    final cats = recipeCategoryOptions.where((c) => _categoryRecipeCount(c) > 0).toList();
+    final cats = recipeCategoryOptions;
     if (cats.isEmpty) return const SizedBox.shrink();
 
+    // Seviye 2 — bir kategori seçili.
+    if (_selectedRecipeCategory != "Tümü") return _categoryDetailHeader();
+
+    // Seviye 1 — kutucuk ızgarası.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text("Kategoriler", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
-              const Spacer(),
-              if (_selectedRecipeCategory != "Tümü")
-                TextButton(
-                  onPressed: () => setState(() => _selectedRecipeCategory = "Tümü"),
-                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                  child: const Text("Tümünü göster", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: _primary)),
-                ),
-            ],
-          ),
+          const Text("Kategoriler",
+              style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
           const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, c) {
-              // Geniş ekranda (web) daha çok sütun; telefonda 3.
               final cols = c.maxWidth >= 900 ? 6 : (c.maxWidth >= 600 ? 4 : 3);
               const gap = 10.0;
               final w = (c.maxWidth - gap * (cols - 1)) / cols;
@@ -5497,11 +5499,102 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _categoryTile(String cat, double w) {
-    final selected = _selectedRecipeCategory == cat;
-    final cover = _categoryCoverUrl(cat);
+  /// Seçili kategorinin başlığı + alt kategori çipleri.
+  Widget _categoryDetailHeader() {
+    final cat = _selectedRecipeCategory;
+    final subs = subCategoriesOf(cat);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => setState(() {
+                  _selectedRecipeCategory = "Tümü";
+                  _selectedRecipeSubCategory = "Tümü";
+                }),
+                child: const Padding(
+                  padding: EdgeInsets.only(right: 8, top: 2, bottom: 2),
+                  child: Icon(Icons.arrow_back, size: 20, color: _primary),
+                ),
+              ),
+              Expanded(
+                child: Text(cat,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontFamily: 'Inter', fontSize: 17, fontWeight: FontWeight.bold, color: _text)),
+              ),
+              Text("${_categoryRecipeCount(cat)} tarif",
+                  style: const TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
+            ],
+          ),
+          if (subs.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _subChip("Tümü", null),
+                ...subs.map((sub) => _subChip(sub, _subCategoryRecipeCount(sub))),
+              ],
+            ),
+          ],
+          if (_categoryRecipeCount(cat) == 0) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F3F5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text(
+                "Bu kategoride henüz tarif yok. İlk tarifi sen ekleyebilirsin.",
+                style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _subChip(String label, int? count) {
+    final isAll = count == null;
+    final sel = isAll ? _selectedRecipeSubCategory == "Tümü" : _selectedRecipeSubCategory == label;
     return GestureDetector(
-      onTap: () => setState(() => _selectedRecipeCategory = selected ? "Tümü" : cat),
+      onTap: () => setState(() => _selectedRecipeSubCategory = isAll ? "Tümü" : (sel ? "Tümü" : label)),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: sel ? _primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: sel ? Colors.transparent : const Color(0xFFE2E2E6)),
+        ),
+        child: Text(
+          count == null || count == 0 ? label : "$label ($count)",
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12.5,
+            fontWeight: sel ? FontWeight.bold : FontWeight.w600,
+            color: sel ? Colors.white : _text,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _categoryTile(String cat, double w) {
+    final cover = _categoryCoverUrl(cat);
+    final count = _categoryRecipeCount(cat);
+    return GestureDetector(
+      onTap: () => setState(() {
+        _selectedRecipeCategory = cat;
+        _selectedRecipeSubCategory = "Tümü";
+      }),
       child: SizedBox(
         width: w,
         child: Column(
@@ -5512,33 +5605,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               decoration: BoxDecoration(
                 color: const Color(0xFFF3F3F5),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: selected ? _primary : const Color(0xFFE2E2E6).withOpacity(0.8),
-                  width: selected ? 2 : 1,
-                ),
+                border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8)),
               ),
               clipBehavior: Clip.antiAlias,
-              child: cover.isEmpty
-                  ? const Center(child: Text("🍽️", style: TextStyle(fontSize: 26)))
-                  : Image.network(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (cover.isEmpty)
+                    const Center(child: Text("🍽️", style: TextStyle(fontSize: 26)))
+                  else
+                    Image.network(
                       cover,
                       fit: BoxFit.cover,
-                      width: double.infinity,
-                      errorBuilder: (_, __, ___) => const Center(child: Text("🍽️", style: TextStyle(fontSize: 26))),
+                      errorBuilder: (_, __, ___) =>
+                          const Center(child: Text("🍽️", style: TextStyle(fontSize: 26))),
                     ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              cat,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                fontWeight: selected ? FontWeight.bold : FontWeight.w600,
-                color: selected ? _primary : _text,
-                height: 1.25,
+                  // Alt bant: adı görselin üstünde okunaklı tutar.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      color: Colors.black.withOpacity(0.45),
+                      child: Text(
+                        cat,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              count == 0 ? "Tarif yok" : "$count tarif",
+              style: const TextStyle(fontFamily: 'Inter', fontSize: 10.5, color: _light),
             ),
           ],
         ),
@@ -6491,7 +6602,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final videoCtrl = TextEditingController();
     final servingsCtrl = TextEditingController(text: "1");
     int startMonth = 6;
-    String? category; // zorunlu — kullanıcı seçmeli
+    // Kullanıcı YALNIZCA alt kategori seçer; ana kategori ondan türetilir
+    // (bkz. mainCategoryForSub). Admin alt kategori tanımlamamışsa ana
+    // kategori listesine düşülür, yoksa tarif eklenemez hâle gelirdi.
+    String? category; // otomatik atanır (alt kategori seçilince)
+    String? subCategory;
     String? photo;
     final units = recipeUnitOptions;
     final defaultUnit = units.isNotEmpty ? units.first : "adet";
@@ -6573,15 +6688,40 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       InputDecorator(
                         decoration: dec("Kategori"),
                         child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: category,
-                            isExpanded: true,
-                            hint: const Text("Kategori seçin", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light)),
-                            items: recipeCategoryOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
-                            onChanged: (v) => setSheet(() => category = v),
-                          ),
+                          child: allSubCategoryOptions.isNotEmpty
+                              ? DropdownButton<String>(
+                                  value: allSubCategoryOptions.contains(subCategory) ? subCategory : null,
+                                  isExpanded: true,
+                                  hint: const Text("Alt kategori seçin", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light)),
+                                  items: [
+                                    for (final e in recipeSubCategories.entries)
+                                      ...e.value.map((sub) => DropdownMenuItem(
+                                            value: sub,
+                                            child: Text("${e.key} › $sub",
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontFamily: 'Inter', fontSize: 14)),
+                                          )),
+                                  ],
+                                  onChanged: (v) => setSheet(() {
+                                    subCategory = v;
+                                    category = mainCategoryForSub(v ?? "");
+                                  }),
+                                )
+                              : DropdownButton<String>(
+                                  value: category,
+                                  isExpanded: true,
+                                  hint: const Text("Kategori seçin", style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _light)),
+                                  items: recipeCategoryOptions.map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontFamily: 'Inter', fontSize: 14)))).toList(),
+                                  onChanged: (v) => setSheet(() => category = v),
+                                ),
                         ),
                       ),
+                      if (subCategory != null && category != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text("Ana kategori: $category (otomatik)",
+                              style: const TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light)),
+                        ),
                       const SizedBox(height: 18),
                       Row(
                         children: [
@@ -6881,6 +7021,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         "id": "user_${now.millisecondsSinceEpoch}",
                         "name": name,
                         "category": category ?? "Diğer",
+                        "subCategory": subCategory ?? "",
                         "prepTime": prep.isEmpty ? "20 dk" : prep,
                         "cookTime": cookCtrl.text.trim(),
                         "startingMonth": startMonth,

@@ -136,7 +136,13 @@ class Recipe {
   final String author; // recipe creator shown as "Hazırlayan: ..."
   final bool sponsored; // admin-flagged sponsored content
   final String sponsorLabel; // brand/sponsor name shown on the "Sponsorlu" badge
-  final String category; // tarif kategorisi (kRecipeCategories), boş = "Diğer"
+  final String category; // ANA kategori (kRecipeCategories), boş = "Diğer"
+  /// ALT kategori (ör. ana "Köfteler" altında "Sebzeli Köfte").
+  ///
+  /// Kullanıcı tarif eklerken YALNIZCA alt kategori seçiyor; ana kategori
+  /// ondan türetiliyor (bkz. mainCategoryForSub). Boş = alt kategori yok,
+  /// tarif doğrudan ana kategoride duruyor (eski tarifler böyle).
+  final String subCategory;
   final String videoUrl; // opsiyonel YouTube linki (normal veya Shorts); boş = yok
   final int servings; // kaç porsiyon (besin değeri buna bölünür); en az 1
   final String storage; // saklama koşulları (ör. "Buzdolabında 3 gün, buzlukta 1 ay")
@@ -159,6 +165,7 @@ class Recipe {
     this.sponsored = false,
     this.sponsorLabel = "",
     this.category = "Diğer",
+    this.subCategory = "",
     this.videoUrl = "",
     this.servings = 1,
     this.storage = "",
@@ -181,6 +188,7 @@ class Recipe {
         "sponsored": sponsored,
         "sponsorLabel": sponsorLabel,
         "category": category,
+        "subCategory": subCategory,
         "videoUrl": videoUrl,
         "servings": servings,
         "storage": storage,
@@ -203,6 +211,7 @@ class Recipe {
         sponsored: j["sponsored"] == true,
         sponsorLabel: j["sponsorLabel"]?.toString() ?? "",
         category: j["category"]?.toString() ?? "Diğer",
+        subCategory: j["subCategory"]?.toString() ?? "",
         videoUrl: j["videoUrl"]?.toString() ?? "",
         servings: (j["servings"] as num?)?.toInt() ?? 1,
         storage: j["storage"]?.toString() ?? "",

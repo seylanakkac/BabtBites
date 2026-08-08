@@ -119,6 +119,51 @@ List<String> get recipeCategoryOptions =>
     (globalAdminConfig["recipeCategories"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kRecipeCategories);
 
+/// Ana kategori -> alt kategoriler. Admin yönetir (katalogla herkese gider).
+///
+/// İKİ SEVİYE NEDEN: tarif sayısı arttıkça tek düzey kategori listesi
+/// kullanışsızlaşıyor. Kullanıcı önce "Köfteler" kutucuğuna giriyor, sonra
+/// "Sebzeli Köfte / Etli Köfte" gibi alt başlıklardan süzüyor.
+///
+/// Tarif eklerken kullanıcıya YALNIZCA alt kategori sorulur; ana kategori
+/// [mainCategoryForSub] ile otomatik atanır. Böylece iki alanı da doldurmak
+/// zorunda kalmıyor ve tutarsız eşleşme (ör. ana "Çorbalar" + alt "Etli
+/// Köfte") oluşamıyor.
+Map<String, List<String>> get recipeSubCategories {
+  final raw = globalAdminConfig["recipeSubCategories"];
+  if (raw is! Map) return const {};
+  final out = <String, List<String>>{};
+  raw.forEach((k, v) {
+    if (v is List) {
+      final subs = v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      if (subs.isNotEmpty) out[k.toString()] = subs;
+    }
+  });
+  return out;
+}
+
+/// Bir ana kategorinin alt kategorileri (yoksa boş liste).
+List<String> subCategoriesOf(String mainCategory) =>
+    recipeSubCategories[mainCategory] ?? const [];
+
+/// Bir alt kategorinin bağlı olduğu ana kategori.
+///
+/// Aynı alt kategori adı iki ana kategoride varsa İLK eşleşme kazanır;
+/// admin arayüzü aynı adı ikinci kez eklemeyi engelliyor.
+String? mainCategoryForSub(String subCategory) {
+  final s = subCategory.trim();
+  if (s.isEmpty) return null;
+  for (final e in recipeSubCategories.entries) {
+    if (e.value.contains(s)) return e.key;
+  }
+  return null;
+}
+
+/// Kullanıcının seçebileceği tüm alt kategoriler (ana kategoriye göre sıralı).
+List<String> get allSubCategoryOptions => [
+      for (final e in recipeSubCategories.entries) ...e.value,
+    ];
+
 List<String> get formulaNameOptions =>
     (globalAdminConfig["formulaNames"] as List?)?.map((e) => e.toString()).toList() ??
     List<String>.from(kDefaultFormulaNames);
