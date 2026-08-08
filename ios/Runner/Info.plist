@@ -2,8 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- UYGULAMA DILI TURKCE.
+	     $(DEVELOPMENT_LANGUAGE) Flutter sablonunda "en" cozuluyordu; App Store
+	     urun sayfasi bu iki alandan okudugu icin arayuzun tamami Turkce
+	     oldugu halde "Languages: English" yaziyordu (apps.apple.com/tr/app/
+	     babybites). ASC'deki "Primary Language: Turkish" ayari bu satiri
+	     ETKILEMIYOR - deger uygulama PAKETINDEN geliyor. -->
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>tr</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>tr</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>BabyBites</string>
 	<key>CFBundleExecutable</key>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Türkçe kaynak klasörü.
+
+  NEDEN VAR: Play, uygulamanın desteklediği dilleri APK/AAB'nin kaynak
+  yapılandırmalarından okuyor. Flutter şablonunda yalnızca varsayılan
+  `values` klasörü olduğu için uygulama, arayüzün tamamı Türkçe olmasına
+  rağmen yalnızca İngilizce destekliyor görünüyordu. Bu klasör `tr`
+  yerelini pakete tanıtıyor.
+-->
+<resources>
+    <string name="app_name">BabyBites</string>
+</resources>
