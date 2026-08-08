@@ -12,6 +12,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+
+import '../data/tracking_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/recipe_social_store.dart';
@@ -549,21 +551,59 @@ class SocialSync {
   ///
   /// 205 kullanıcıya 205 doküman yazmak yerine `toUid: "ALL"` ile TEK doküman
   /// yazılır. Başarılıysa doküman kimliği, değilse null döner.
+  /// [link] doluysa bildirim kartında tıklanabilir bir düğme çıkar
+  /// (indirim duyurularında kampanya sayfasına götürmek için).
   Future<String?> broadcastNotification(String title, String body,
-      {String type = 'announcement'}) async {
+      {String type = 'announcement', String link = ''}) async {
     try {
       final ref = await _notifs.add({
         'toUid': kBroadcastUid,
         'title': title,
         'body': body,
         'type': type,
+        'link': link.trim(),
         'read': false,
         'date': _today(),
         'ts': FieldValue.serverTimestamp(),
+        // Cloud Function bu alanı görüp telefon bildirimi (FCM) gönderiyor;
+        // gönderdikten sonra 'pushed: true' yazıyor. Bkz. functions/index.js
+        'push': true,
       });
       return ref.id;
     } catch (e) {
       debugPrint('SocialSync.broadcastNotification failed: $e');
+      return null;
+    }
+  }
+
+  /// Yeni yayınlanan bir tarifi, bebeği o tarife UYGUN YAŞTA olan
+  /// kullanıcılara duyurur.
+  ///
+  /// Neden `minMonth` alanı: duyuru tek doküman olarak yazılıyor (herkes okur),
+  /// ama "12+ ay" bir tarifin 6 aylık bebeği olan anneye gitmesi anlamsız.
+  /// Bu alan iki yerde süzgeç görevi görüyor:
+  ///   • uygulama içi listede — [loadNotifications] bebeğin ayına bakıp gizler,
+  ///   • telefon bildiriminde — Cloud Function yalnızca `age_m{N>=minMonth}`
+  ///     konularına gönderir (bkz. functions/index.js).
+  Future<String?> broadcastNewRecipe(String recipeName, int startingMonth,
+      {String recipeId = ''}) async {
+    try {
+      final ref = await _notifs.add({
+        'toUid': kBroadcastUid,
+        'title': 'Yeni tarif: $recipeName 🍽️',
+        'body': '$startingMonth+ aylık bebekler için yeni bir tarif eklendi.',
+        'type': 'recipe',
+        'link': '',
+        'minMonth': startingMonth,
+        'recipeId': recipeId,
+        'read': false,
+        'date': _today(),
+        'ts': FieldValue.serverTimestamp(),
+        'push': true,
+      });
+      return ref.id;
+    } catch (e) {
+      debugPrint('SocialSync.broadcastNewRecipe failed: $e');
       return null;
     }
   }
@@ -607,7 +647,18 @@ class SocialSync {
           final m = Map<String, dynamic>.from(d.data());
           m['id'] = d.id;
           m['_ms'] = (d.data()['ts'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
-          if (m['toUid'] == kBroadcastUid) m['read'] = readIds.contains(d.id);
+          if (m['toUid'] == kBroadcastUid) {
+            m['read'] = readIds.contains(d.id);
+            // Yaşa göre süz: "12+ ay" tarif duyurusu 6 aylık bebeği olana
+            // gösterilmez. Bebeğin yaşı bilinmiyorsa (0) süzme yapılmaz —
+            // kullanıcıyı tamamen bildirimsiz bırakmaktansa göstermek yeğ.
+            final minMonth = (m['minMonth'] as num?)?.toInt();
+            if (minMonth != null &&
+                globalActiveBabyMonths > 0 &&
+                globalActiveBabyMonths < minMonth) {
+              continue;
+            }
+          }
           list.add(m);
         }
       }

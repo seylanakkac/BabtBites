@@ -1,6 +1,10 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../config/push_config.dart';
+import '../data/tracking_store.dart';
 
 /// Push bildirimleri (FCM).
 ///
@@ -67,6 +71,8 @@ class PushNotifications {
       FirebaseMessaging.onMessage.listen((msg) {
         debugPrint('Push (foreground): ${msg.notification?.title} — ${msg.notification?.body}');
       });
+      await _ensureAndroidChannel();
+      await syncTopics();
       return true;
     } catch (e) {
       lastError = e.toString();
@@ -88,6 +94,90 @@ class PushNotifications {
       await Future.delayed(const Duration(milliseconds: 500));
     }
     return null;
+  }
+
+  /// Duyuru ve yeni tarif bildirimlerinin Android kanalı.
+  ///
+  /// İlaç hatırlatmaları AYRI bir kanalda (`babybites_reminders`) kalıyor:
+  /// kullanıcı duyuruları susturmak isterse hatırlatmaları kaybetmemeli,
+  /// tersi de geçerli. AndroidManifest'te bu kimlik FCM'in varsayılan
+  /// kanalı olarak tanıtılıyor; kanal önceden OLUŞTURULMAZSA Android 8+
+  /// bildirimi hiç göstermiyor, bu yüzden burada açıkça yaratılıyor.
+  static const String kAndroidChannelId = 'babybites_news';
+
+  Future<void> _ensureAndroidChannel() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+    try {
+      final impl = FlutterLocalNotificationsPlugin()
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await impl?.createNotificationChannel(const AndroidNotificationChannel(
+        kAndroidChannelId,
+        'Duyurular ve yeni tarifler',
+        description: 'Kampanyalar, duyurular ve bebeğinize uygun yeni tarifler',
+        importance: Importance.high,
+      ));
+    } catch (e) {
+      debugPrint('Push._ensureAndroidChannel failed: $e');
+    }
+  }
+
+  /// Herkese açık duyuruların gittiği konu.
+  static const String kTopicAll = 'all';
+
+  /// Bebeğin ay yaşına göre abone olunan konunun önekі: `age_m7` gibi.
+  ///
+  /// NEDEN KONU (topic) KULLANILIYOR: alternatifi her kullanıcının FCM
+  /// token'ını Firestore'da tutup sunucuda tek tek göndermek. Konular hem
+  /// token saklamayı hem de kullanıcı başına yazma/okuma maliyetini ortadan
+  /// kaldırıyor; Cloud Function tek çağrıyla tüm aboneleri buluyor.
+  ///
+  /// Yaşı KONUYA gömmenin sebebi: "12+ ay" bir tarifin duyurusu 6 aylık
+  /// bebeği olana gitmemeli. Cloud Function tarifi `age_m{startingMonth}`
+  /// ile `age_m36` arasındaki konulara gönderiyor; böylece yalnızca bebeği
+  /// yeterince büyük olanlar alıyor.
+  static String ageTopic(int months) => 'age_m${months.clamp(0, 36)}';
+
+  /// Cihazın abone olduğu son yaş konusu (değişince eskisinden çıkılır).
+  static const String _kLastAgeTopic = 'push_last_age_topic';
+
+  /// Abonelikleri bebeğin güncel yaşıyla eşitler.
+  ///
+  /// Açılışta ve bebek/yaş değiştiğinde çağrılır. Aynı konuya tekrar abone
+  /// olmak zararsız (idempotent), ama ESKİ yaş konusundan çıkmak şart —
+  /// yoksa bebek büyüdükçe kullanıcı eski yaş bildirimlerini de almaya
+  /// devam eder.
+  ///
+  /// Web'de FCM konu aboneliği istemciden yapılamaz; orada sessizce atlanır.
+  Future<void> syncTopics() async {
+    if (kIsWeb) return;
+    try {
+      final m = FirebaseMessaging.instance;
+      // Uygulama yeniden açıldığında token alanı boştur; izin zaten verilmişse
+      // sessizce tazele. Aksi halde açılışta abonelik hiç güncellenmez ve
+      // bebek büyüdükçe kullanıcı yanlış yaş bildirimlerini almaya devam eder.
+      if (token == null) {
+        if (!await isGranted()) return;
+        token = await m.getToken();
+        if (token == null) return;
+      }
+      await m.subscribeToTopic(kTopicAll);
+
+      final months = globalActiveBabyMonths;
+      if (months <= 0) return; // doğum tarihi yoksa yaş konusu kurulmaz
+      final next = ageTopic(months);
+
+      final prefs = await SharedPreferences.getInstance();
+      final prev = prefs.getString(_kLastAgeTopic);
+      if (prev == next) return;
+      if (prev != null && prev.isNotEmpty) {
+        await m.unsubscribeFromTopic(prev);
+      }
+      await m.subscribeToTopic(next);
+      await prefs.setString(_kLastAgeTopic, next);
+      debugPrint('Push konuları: $kTopicAll + $next');
+    } catch (e) {
+      debugPrint('Push.syncTopics failed: $e');
+    }
   }
 
   /// İzin durumu (zaten verilmiş mi?).

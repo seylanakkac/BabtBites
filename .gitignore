@@ -44,3 +44,6 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+# Cloud Functions bagimliliklari
+functions/node_modules/
+functions/package-lock.json

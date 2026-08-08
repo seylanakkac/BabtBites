@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/extras_store.dart';
 import '../services/social_sync.dart';
 import '../widgets/web_shell.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _primary = Color(0xFFFF7A45);
 const _text = Color(0xFF2D2D3A);
@@ -43,6 +44,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.rate_review_rounded;
       default:
         return Icons.notifications_rounded;
+    }
+  }
+
+  /// Duyurudaki bağlantıyı harici tarayıcıda açar.
+  ///
+  /// Şema yoksa https varsayılır — admin panele "babybites.com.tr/kampanya"
+  /// gibi yazdığında bağlantının sessizce çalışmaması yerine açılsın.
+  Future<void> _openLink(String raw) async {
+    final t = raw.trim();
+    if (t.isEmpty) return;
+    final uri = Uri.tryParse(t.contains('://') ? t : 'https://$t');
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Bağlantı açılamadı.")),
+      );
     }
   }
 
@@ -118,6 +138,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 if ((n["body"]?.toString() ?? "").isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(n["body"].toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text, height: 1.35)),
+                                ],
+                                if ((n["link"]?.toString() ?? "").trim().isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _openLink(n["link"].toString()),
+                                      icon: const Icon(Icons.open_in_new, size: 16),
+                                      label: Text(
+                                        type == 'discount' ? "İndirime Git" : "Bağlantıyı Aç",
+                                        style: const TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold),
+                                      ),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _primary,
+                                        side: BorderSide(color: _primary.withOpacity(0.6)),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                                 const SizedBox(height: 6),
                                 Text(_fmtDate(n["date"]?.toString() ?? ""), style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)),

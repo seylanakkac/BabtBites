@@ -147,6 +147,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await TrackingConsent.instance.requestIfNeeded(context);
+      // Bildirim konularını bebeğin güncel yaşıyla eşitle (bebek büyüdüyse
+      // eski yaş konusundan çıkılır). İzin yoksa sessizce döner.
+      PushNotifications.instance.syncTopics();
     });
     // Diğer (pushed) sayfalardaki üst nav'dan gelen sekme isteklerini dinle.
     homeTabRequest.addListener(_onTabRequest);
@@ -251,6 +254,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final id = _activeBabyId;
     // Bebek kimliği taşımayan ekranlar (tarif detayı vb.) buradan okur.
     globalActiveBabyId = id;
+    globalActiveBabyMonths = _ageMonths(_activeBaby?["dob"]?.toString());
     for (final food in globalFoodsDatabase) {
       final st = readFoodState(id, food.name);
       food.tried = st?["tried"] == true;
@@ -2611,23 +2615,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E2E6).withOpacity(0.8))),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: ["Tümü", ...recipeCategoryOptions].contains(_selectedRecipeCategory) ? _selectedRecipeCategory : "Tümü",
-                  isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down, color: _light),
-                  style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text),
-                  items: ["Tümü", ...recipeCategoryOptions].map((c) => DropdownMenuItem(value: c, child: Text(c == "Tümü" ? "Tüm kategoriler" : c))).toList(),
-                  onChanged: (v) => setState(() => _selectedRecipeCategory = v ?? "Tümü"),
-                ),
-              ),
-            ),
-          ),
+          _recipeCategoryGrid(),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -5302,6 +5290,115 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: const Text("Aç", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Bir kategorinin kapak görseli: o kategorideki, görseli olan İLK tarifin
+  /// fotoğrafı. Kategori başına ayrı görsel alanı açmak yerine böyle
+  /// yapılıyor — admin'e ek iş çıkmıyor ve kapak her zaman kategorinin
+  /// gerçek içeriğini gösteriyor. Hiç görselli tarif yoksa boş döner ve
+  /// kutucuk emoji yer tutucusuna düşer.
+  String _categoryCoverUrl(String category) {
+    for (final r in globalRecipesDatabase) {
+      if (r.category == category && r.imageUrl.trim().isNotEmpty) return r.imageUrl;
+    }
+    return "";
+  }
+
+  int _categoryRecipeCount(String category) =>
+      globalRecipesDatabase.where((r) => r.category == category).length;
+
+  /// Tarif kategorileri — açılır liste yerine kutucuk (kart) ızgarası.
+  ///
+  /// Kutucukta yalnızca görsel ve kategori adı var. Seçili kutucuğa tekrar
+  /// dokunmak seçimi kaldırır (tüm tarifler). Boş kategoriler gizleniyor;
+  /// tıklandığında hiçbir şey çıkmayan bir kutucuk göstermenin anlamı yok.
+  Widget _recipeCategoryGrid() {
+    final cats = recipeCategoryOptions.where((c) => _categoryRecipeCount(c) > 0).toList();
+    if (cats.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text("Kategoriler", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+              const Spacer(),
+              if (_selectedRecipeCategory != "Tümü")
+                TextButton(
+                  onPressed: () => setState(() => _selectedRecipeCategory = "Tümü"),
+                  style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 0), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                  child: const Text("Tümünü göster", style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, fontWeight: FontWeight.bold, color: _primary)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, c) {
+              // Geniş ekranda (web) daha çok sütun; telefonda 3.
+              final cols = c.maxWidth >= 900 ? 6 : (c.maxWidth >= 600 ? 4 : 3);
+              const gap = 10.0;
+              final w = (c.maxWidth - gap * (cols - 1)) / cols;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: cats.map((cat) => _categoryTile(cat, w)).toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _categoryTile(String cat, double w) {
+    final selected = _selectedRecipeCategory == cat;
+    final cover = _categoryCoverUrl(cat);
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRecipeCategory = selected ? "Tümü" : cat),
+      child: SizedBox(
+        width: w,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: w * 0.78,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F3F5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selected ? _primary : const Color(0xFFE2E2E6).withOpacity(0.8),
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: cover.isEmpty
+                  ? const Center(child: Text("🍽️", style: TextStyle(fontSize: 26)))
+                  : Image.network(
+                      cover,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      errorBuilder: (_, __, ___) => const Center(child: Text("🍽️", style: TextStyle(fontSize: 26))),
+                    ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              cat,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.bold : FontWeight.w600,
+                color: selected ? _primary : _text,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

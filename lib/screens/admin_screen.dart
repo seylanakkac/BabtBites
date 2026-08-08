@@ -58,6 +58,8 @@ class _AdminScreenState extends State<AdminScreen> {
   // Duyuru (tüm kullanıcılara bildirim)
   final _bcTitle = TextEditingController();
   final _bcBody = TextEditingController();
+  /// İndirim/kampanya duyurusunda bildirimin altında çıkan bağlantı.
+  final _bcLink = TextEditingController();
   String _bcType = 'announcement';
   bool _bcSending = false;
   // Örnek menü editörü
@@ -1260,6 +1262,10 @@ class _AdminScreenState extends State<AdminScreen> {
                   if (toUid.isNotEmpty) {
                     await SocialSync.instance.sendNotification(toUid, "Tarifin onaylandı! 🎉", "\"$n\" tarifin yayınlandı.", type: 'recipe');
                   }
+                  // Yaşı uygun tüm kullanıcılara "yeni tarif" duyurusu.
+                  await SocialSync.instance.broadcastNewRecipe(
+                      n, (data["startingMonth"] as num?)?.toInt() ?? 6,
+                      recipeId: data["id"]?.toString() ?? "");
                   if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
                   if (mounted) setState(() => _pendingRecipesList?.remove(pending));
                 }
@@ -2309,6 +2315,9 @@ class _AdminScreenState extends State<AdminScreen> {
                       if (toUid.isNotEmpty) {
                         await SocialSync.instance.sendNotification(toUid, "Tarifin onaylandı! 🎉", "\"$name\" tarifin yayınlandı.", type: 'recipe');
                       }
+                      // Yaşı uygun tüm kullanıcılara "yeni tarif" duyurusu.
+                      await SocialSync.instance
+                          .broadcastNewRecipe(name, recipe.startingMonth, recipeId: recipe.id);
                       if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
                       if (mounted) setState(() => _pendingRecipesList!.remove(p));
                       _toast("Tarif onaylandı ve yayınlandı");
@@ -3514,6 +3523,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Future<void> _sendBroadcast() async {
     final title = _bcTitle.text.trim();
     final body = _bcBody.text.trim();
+    final link = _bcLink.text.trim();
     if (title.isEmpty || body.isEmpty) {
       _toast("Başlık ve mesaj boş olamaz");
       return;
@@ -3544,7 +3554,7 @@ class _AdminScreenState extends State<AdminScreen> {
     );
     if (ok != true) return;
     setState(() => _bcSending = true);
-    final id = await SocialSync.instance.broadcastNotification(title, body, type: _bcType);
+    final id = await SocialSync.instance.broadcastNotification(title, body, type: _bcType, link: link);
     if (!mounted) return;
     setState(() => _bcSending = false);
     if (id == null) {
@@ -3553,6 +3563,7 @@ class _AdminScreenState extends State<AdminScreen> {
     }
     _bcTitle.clear();
     _bcBody.clear();
+    _bcLink.clear();
     setState(() {});
     _toast("Duyuru gönderildi 🔔");
   }
@@ -3572,6 +3583,8 @@ class _AdminScreenState extends State<AdminScreen> {
           children: [
             _field(_bcTitle, "Başlık", hint: "ör. Yaz indirimi başladı 🎉"),
             _field(_bcBody, "Mesaj", hint: "Kısa ve net yaz; bildirim listesinde tam görünür.", maxLines: 3),
+            _field(_bcLink, "Bağlantı (isteğe bağlı)",
+                hint: "ör. babybites.com.tr/kampanya — bildirimde düğme olarak çıkar"),
             const Text("Tür", style: TextStyle(fontFamily: 'Inter', fontSize: 12, color: _light)),
             const SizedBox(height: 8),
             Wrap(
@@ -3603,9 +3616,10 @@ class _AdminScreenState extends State<AdminScreen> {
         padding: EdgeInsets.only(top: 4),
         child: Text(
           "Not: Duyuru tek bir kayıt olarak yazılır ve herkes okur; kullanıcı başına "
-          "kayıt oluşturulmaz. Okundu bilgisi her cihazda ayrı tutulur. Bu bildirim "
-          "uygulama İÇİNDE görünür — telefon bildirimi olarak göndermek için "
-          "Firebase Console → Cloud Messaging kullanılır.",
+          "kayıt oluşturulmaz. Okundu bilgisi her cihazda ayrı tutulur.\n\n"
+          "Duyuru hem uygulama içinde görünür HEM DE bildirimi açmış kullanıcıların "
+          "telefonuna push olarak gider. Bağlantı yazarsan bildirim kartında "
+          "tıklanabilir bir düğme çıkar.",
           style: TextStyle(fontFamily: 'Inter', fontSize: 11.5, color: _light, height: 1.45),
         ),
       ),

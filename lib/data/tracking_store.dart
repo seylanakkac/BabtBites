@@ -31,6 +31,16 @@ final Map<String, Map<String, String>> globalBabyRecipeTastes = {};
 /// Boşken beğeni arayüzü hiç gösterilmez — sahipsiz kayıt oluşmaz.
 String globalActiveBabyId = "";
 
+/// Aktif bebeğin ay cinsinden yaşı. Bebek kimliği taşımayan servisler
+/// (ör. bildirim süzgeci) buradan okur.
+///
+/// NEDEN GLOBAL: "12+ ay" bir tarifin duyurusu 6 aylık bebeği olan anneye
+/// gitmemeli. Duyuru TEK doküman olarak yazıldığı için (herkes okur) süzgeç
+/// istemci tarafında yapılıyor ve bu değere ihtiyaç duyuyor.
+/// Doğum tarihi bilinmiyorsa 0 kalır — o durumda süzgeç uygulanmaz,
+/// kullanıcıyı bildirimsiz bırakmak yanlış olur.
+int globalActiveBabyMonths = 0;
+
 /// Beğeni seçenekleri: (anahtar, emoji, etiket).
 const List<(String, String, String)> kTasteOptions = [
   ("sevdi", "😍", "Sevdi"),
