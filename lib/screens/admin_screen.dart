@@ -6,7 +6,6 @@ import '../data/user_profile_store.dart';
 import '../data/recipe_social_store.dart';
 import '../services/file_storage.dart';
 import '../services/catalog_sync.dart';
-import '../config/instagram_config.dart';
 import '../services/instagram_import.dart';
 import '../services/social_sync.dart';
 import '../services/community_sync.dart';
@@ -2247,33 +2246,6 @@ class _AdminScreenState extends State<AdminScreen> {
   /// yanlış besin değeri üretmek bu uygulamada kabul edilebilir bir risk
   /// değil. Fotoğraf ve metin taşınıyor, yapıyı admin kuruyor.
   Widget _instagramManager() {
-    if (!instagramConfigured) {
-      return _pane([
-        _sectionHeader("Instagram'dan İçe Aktar", "Bağlantı yapılandırılmamış"),
-        _card(
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text("Kurulum için gerekenler:",
-                  style: TextStyle(fontFamily: 'Inter', fontSize: 13.5, fontWeight: FontWeight.bold, color: _text)),
-              SizedBox(height: 8),
-              Text(
-                "1. Instagram hesabı Business ya da Creator olmalı ve bir Facebook "
-                "sayfasına bağlı olmalı (kişisel hesapta API çalışmıyor).\n"
-                "2. developers.facebook.com'da uygulama oluşturup Instagram Graph "
-                "API ürününü ekleyin.\n"
-                "3. instagram_basic izniyle UZUN ÖMÜRLÜ bir erişim jetonu alın "
-                "(60 gün geçerli, süresi dolunca yenilenmeli).\n"
-                "4. Hesabın sayısal kimliğini ve jetonu "
-                "lib/config/instagram_config.dart içine yazın.",
-                style: TextStyle(fontFamily: 'Inter', fontSize: 12.5, color: _light, height: 1.5),
-              ),
-            ],
-          ),
-        ),
-      ]);
-    }
-
     if (_igPosts == null && !_igLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_igPosts == null && !_igLoading) _reloadInstagram();

@@ -15,6 +15,8 @@
  * Böylece token saklama, kullanıcı başına okuma ve fan-out maliyeti yok.
  */
 const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
 const {setGlobalOptions} = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
@@ -91,3 +93,82 @@ exports.sendBroadcastPush = onDocumentCreated("notifications/{id}", async (event
     pushTopicCount: topics.length,
   }, {merge: true});
 });
+
+
+// ---------------------------------------------------------------------------
+// Instagram gönderilerini çekme
+// ---------------------------------------------------------------------------
+
+/**
+ * Instagram uzun ömürlü erişim jetonu.
+ *
+ * NEDEN SUNUCUDA: ilk tasarımda jeton lib/config/instagram_config.dart
+ * içindeydi. İki ayrı sızıntı yolu vardı:
+ *   1. Depo GitHub'da HERKESE AÇIK — jeton doğrudan yayınlanmış olurdu.
+ *   2. Açık olmasa bile sabit, uygulama paketine gömülür; uygulamayı
+ *      indiren herkes ikili dosyadan çıkarabilir.
+ * Firebase gizli anahtarı olarak yalnızca fonksiyonun çalışma ortamında
+ * bulunuyor; istemciye hiç gitmiyor.
+ *
+ * Ayarlamak için:
+ *   firebase functions:secrets:set INSTAGRAM_TOKEN
+ *   firebase functions:secrets:set INSTAGRAM_USER_ID
+ */
+const INSTAGRAM_TOKEN = defineSecret("INSTAGRAM_TOKEN");
+const INSTAGRAM_USER_ID = defineSecret("INSTAGRAM_USER_ID");
+
+/** Yönetici e-postaları — firestore.rules'daki isAdmin() ile aynı liste. */
+const ADMIN_EMAILS = ["seylanakkac@gmail.com", "admin@babybites.com"];
+
+/**
+ * Admin panelinin çağırdığı uç: hesabın son gönderilerini döndürür.
+ *
+ * Yalnızca YÖNETİCİ çağırabilir. Kimlik doğrulaması sunucuda yapılıyor;
+ * istemcide gizlemek yeterli olmazdı — çağrı doğrudan da yapılabilir.
+ */
+exports.instagramMedia = onCall(
+    {secrets: [INSTAGRAM_TOKEN, INSTAGRAM_USER_ID], region: "europe-west1"},
+    async (request) => {
+      const email = request.auth && request.auth.token && request.auth.token.email;
+      if (!email || !ADMIN_EMAILS.includes(email)) {
+        throw new HttpsError("permission-denied", "Bu işlem yalnızca yöneticiye açık.");
+      }
+
+      const token = INSTAGRAM_TOKEN.value();
+      const userId = INSTAGRAM_USER_ID.value();
+      if (!token || !userId) {
+        throw new HttpsError("failed-precondition",
+            "Instagram bağlantısı kurulmamış (INSTAGRAM_TOKEN / INSTAGRAM_USER_ID).");
+      }
+
+      const limit = Math.min(Number(request.data && request.data.limit) || 25, 50);
+      const fields = "id,caption,media_type,media_url,thumbnail_url,permalink,timestamp";
+      const url = `https://graph.facebook.com/v21.0/${userId}/media` +
+          `?fields=${fields}&limit=${limit}&access_token=${encodeURIComponent(token)}`;
+
+      const res = await fetch(url);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = body && body.error;
+        // 190 = jetonun süresi doldu. Ayrı mesaj veriyoruz; yoksa "liste boş"
+        // gibi görünüp saatlerce yanlış yerde aranıyor.
+        const msg = err && err.code === 190
+          ? "Erişim jetonunun süresi dolmuş. Yeni bir uzun ömürlü jeton üretip " +
+            "firebase functions:secrets:set INSTAGRAM_TOKEN ile güncelleyin."
+          : `Instagram hatası: ${(err && err.message) || res.status}`;
+        throw new HttpsError("unavailable", msg);
+      }
+
+      const data = Array.isArray(body.data) ? body.data : [];
+      // VIDEO gönderilerinde media_url oynatma bağlantısıdır; kapak için
+      // thumbnail_url kullanılıyor.
+      return {
+        posts: data.map((e) => ({
+          id: String(e.id || ""),
+          caption: String(e.caption || ""),
+          mediaUrl: String((e.media_type === "VIDEO" ? e.thumbnail_url : e.media_url) || ""),
+          permalink: String(e.permalink || ""),
+          timestamp: String(e.timestamp || ""),
+        })).filter((e) => e.mediaUrl),
+      };
+    });

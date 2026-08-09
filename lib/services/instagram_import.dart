@@ -1,9 +1,5 @@
-import 'dart:convert';
-
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-
-import '../config/instagram_config.dart';
 
 /// Instagram gönderisi (içe aktarma listesinde gösterilen sade hâli).
 class InstagramPost {
@@ -21,6 +17,14 @@ class InstagramPost {
     required this.timestamp,
   });
 
+  factory InstagramPost.fromMap(Map m) => InstagramPost(
+        id: m['id']?.toString() ?? '',
+        caption: m['caption']?.toString() ?? '',
+        mediaUrl: m['mediaUrl']?.toString() ?? '',
+        permalink: m['permalink']?.toString() ?? '',
+        timestamp: m['timestamp']?.toString() ?? '',
+      );
+
   /// Açıklamanın ilk satırı — taslak tarife ad olarak önerilir.
   ///
   /// Instagram başlıkları genelde "Havuçlu Mücver 🥕\n\nMalzemeler:..."
@@ -34,10 +38,17 @@ class InstagramPost {
   }
 }
 
-/// Instagram Graph API'den kendi gönderilerini çeker.
+/// Instagram gönderilerini Cloud Function üzerinden çeker.
 ///
-/// Yalnızca OKUMA yapar. Gönderiyi tarife çevirme işi admin panelinde,
-/// insan eliyle yapılıyor (bkz. instagram_config.dart'taki gerekçe).
+/// ⚠️ ERİŞİM JETONU İSTEMCİDE TUTULMAZ. İlk tasarımda jeton
+/// `lib/config/instagram_config.dart` içindeydi; iki sızıntı yolu vardı:
+///   1. Depo GitHub'da HERKESE AÇIK — jeton doğrudan yayınlanmış olurdu.
+///   2. Açık olmasa bile sabit, uygulama paketine gömülür ve uygulamayı
+///      indiren herkes ikili dosyadan çıkarabilir.
+/// Jeton artık Firebase gizli anahtarı (INSTAGRAM_TOKEN) olarak yalnızca
+/// fonksiyonun çalışma ortamında duruyor. Yönetici kontrolü de sunucuda
+/// yapılıyor — istemcide gizlemek yeterli olmazdı, çağrı doğrudan da
+/// yapılabilir.
 class InstagramImport {
   InstagramImport._();
   static final InstagramImport instance = InstagramImport._();
@@ -47,56 +58,24 @@ class InstagramImport {
 
   /// Hesabın son [limit] gönderisi. Hata olursa boş liste döner ve
   /// [lastError] dolar.
-  ///
-  /// Jeton 60 günde bir yenilenmeli; süresi dolduğunda Graph API 190 kodlu
-  /// hata veriyor ve bunu kullanıcıya açıkça yazıyoruz — aksi hâlde
-  /// "liste boş geldi" gibi görünüp saatlerce yanlış yerde aranıyor.
   Future<List<InstagramPost>> fetchRecent({int limit = 25}) async {
     lastError = null;
-    if (!instagramConfigured) {
-      lastError = "Instagram bağlantısı yapılandırılmamış "
-          "(lib/config/instagram_config.dart).";
-      return const [];
-    }
-    final uri = Uri.https('graph.facebook.com', '/v21.0/$kInstagramUserId/media', {
-      'fields': 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp',
-      'limit': '$limit',
-      'access_token': kInstagramAccessToken,
-    });
     try {
-      final res = await http.get(uri).timeout(const Duration(seconds: 20));
-      final body = jsonDecode(res.body);
-      if (res.statusCode != 200) {
-        final err = (body is Map ? body['error'] : null) as Map?;
-        final code = err?['code'];
-        lastError = code == 190
-            ? "Erişim jetonunun süresi dolmuş. Yeni bir uzun ömürlü jeton alıp "
-                "instagram_config.dart içine yazın."
-            : "Instagram hatası: ${err?['message'] ?? res.statusCode}";
-        return const [];
-      }
-      final data = (body as Map)['data'];
-      if (data is! List) return const [];
-      final out = <InstagramPost>[];
-      for (final e in data) {
-        if (e is! Map) continue;
-        // VIDEO gönderilerinde media_url oynatma bağlantısı; kapak için
-        // thumbnail_url kullanılıyor.
-        final type = e['media_type']?.toString() ?? '';
-        final url = (type == 'VIDEO' ? e['thumbnail_url'] : e['media_url'])?.toString() ?? '';
-        if (url.isEmpty) continue;
-        out.add(InstagramPost(
-          id: e['id']?.toString() ?? '',
-          caption: e['caption']?.toString() ?? '',
-          mediaUrl: url,
-          permalink: e['permalink']?.toString() ?? '',
-          timestamp: e['timestamp']?.toString() ?? '',
-        ));
-      }
-      return out;
+      final fn = FirebaseFunctions.instanceFor(region: 'europe-west1')
+          .httpsCallable('instagramMedia');
+      final res = await fn.call<Map<String, dynamic>>({'limit': limit});
+      final posts = res.data['posts'];
+      if (posts is! List) return const [];
+      return posts.whereType<Map>().map(InstagramPost.fromMap).toList();
+    } on FirebaseFunctionsException catch (e) {
+      // Fonksiyon anlamlı mesajlar döndürüyor (jeton süresi doldu, kurulum
+      // yapılmadı, yetki yok); olduğu gibi göster.
+      lastError = e.message ?? 'Instagram verisi alınamadı (${e.code}).';
+      debugPrint('InstagramImport failed: ${e.code} ${e.message}');
+      return const [];
     } catch (e) {
-      debugPrint('InstagramImport.fetchRecent failed: $e');
-      lastError = "Bağlantı kurulamadı: $e";
+      lastError = 'Bağlantı kurulamadı: $e';
+      debugPrint('InstagramImport failed: $e');
       return const [];
     }
   }
