@@ -39,13 +39,16 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
   }
 
-  static const Map<String, IconData> _icons = {
-    "instagram": FontAwesomeIcons.instagram,
-    "tiktok": FontAwesomeIcons.tiktok,
-    "youtube": FontAwesomeIcons.youtube,
-    "facebook": FontAwesomeIcons.facebookF,
-    "x": FontAwesomeIcons.twitter,
-    "whatsapp": FontAwesomeIcons.whatsapp,
+  // font_awesome_flutter 11 ikonlari FaIconData sarmalayicisiyla veriyor;
+  // .data ile icindeki IconData aliniyor. const DEGIL final: sabit bir
+  // nesnenin alanina erismek const ifade sayilmiyor.
+  static final Map<String, IconData> _icons = {
+    "instagram": FontAwesomeIcons.instagram.data,
+    "tiktok": FontAwesomeIcons.tiktok.data,
+    "youtube": FontAwesomeIcons.youtube.data,
+    "facebook": FontAwesomeIcons.facebookF.data,
+    "x": FontAwesomeIcons.twitter.data,
+    "whatsapp": FontAwesomeIcons.whatsapp.data,
   };
   static const Map<String, Color> _colors = {
     "instagram": Color(0xFFE1306C),

@@ -14,14 +14,16 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.2'
+          flutter-version: '3.44.1'
           channel: stable
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build web (release)
-        run: flutter build web --web-renderer html --release
+        # --web-renderer bayragi Flutter 3.29da kaldirildi (HTML olusturucu
+        # tamamen dusuruldu). Web artik CanvasKit ile calisiyor.
+        run: flutter build web --release
 
       # GitHub runner varsayılan Node'u 24'e geçti; firebase-tools Node 24'te
       # OAuth token alamıyor ("Premature close"). Node 20'yi PATH'e koyarak

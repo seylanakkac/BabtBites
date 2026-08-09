@@ -1,9 +1,14 @@
-// ignore_for_file: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+// Web'e özgü paylaşım / indirme / gömme — package:web + dart:js_interop.
+//
+// NEDEN dart:html DEĞİL: Dart 3.12'de `dart:js_util` KALDIRILDI ve `dart:html`
+// kullanımdan kaldırıldı. Flutter 3.44'e yükseltirken bu dosya derlenmiyordu.
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
+
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 
 final Set<String> _registered = {};
 
@@ -11,23 +16,35 @@ final Set<String> _registered = {};
 /// iki tarafı da aynı adları sunmak zorunda.
 String? lastShareError;
 
+/// Bayt dizisinden PNG Blob'u üretir.
+web.Blob _pngBlob(Uint8List bytes) => web.Blob(
+      <JSUint8Array>[bytes.toJS].toJS,
+      web.BlobPropertyBag(type: 'image/png'),
+    );
+
 /// Web Share API ile bir GÖRSEL paylaşır (mobil tarayıcı → Instagram hikaye vb.).
 /// Tarayıcı dosya paylaşımını desteklemiyorsa / vazgeçilirse false döner.
-Future<bool> shareImageViaWebShareApi(Uint8List bytes, {String text = '', String filename = 'babybites.png'}) async {
+Future<bool> shareImageViaWebShareApi(Uint8List bytes,
+    {String text = '', String filename = 'babybites.png'}) async {
   try {
-    final nav = html.window.navigator;
-    if (!js_util.hasProperty(nav, 'share')) return false;
-    final blob = html.Blob(<Object>[bytes], 'image/png');
-    final file = html.File(<Object>[blob], filename, {'type': 'image/png'});
-    final data = js_util.newObject();
-    js_util.setProperty(data, 'files', js_util.jsify(<dynamic>[file]));
-    if (text.isNotEmpty) js_util.setProperty(data, 'text', text);
+    final nav = web.window.navigator as JSObject;
+    if (!nav.has('share')) return false;
+
+    final file = web.File(
+      <JSUint8Array>[bytes.toJS].toJS,
+      filename,
+      web.FilePropertyBag(type: 'image/png'),
+    );
+    final data = JSObject();
+    data.setProperty('files'.toJS, <web.File>[file].toJS);
+    if (text.isNotEmpty) data.setProperty('text'.toJS, text.toJS);
+
     // canShare({files}) desteklenmiyorsa (çoğu masaüstü) hiç deneme.
-    if (js_util.hasProperty(nav, 'canShare')) {
-      final ok = js_util.callMethod(nav, 'canShare', <dynamic>[data]);
-      if (ok != true) return false;
+    if (nav.has('canShare')) {
+      final ok = nav.callMethod<JSBoolean>('canShare'.toJS, data);
+      if (!ok.toDart) return false;
     }
-    await js_util.promiseToFuture(js_util.callMethod(nav, 'share', <dynamic>[data]));
+    await nav.callMethod<JSPromise<JSAny?>>('share'.toJS, data).toDart;
     return true;
   } catch (_) {
     return false;
@@ -42,15 +59,15 @@ Future<bool> saveImageToGallery(Uint8List bytes, {String filename = 'babybites.p
 /// desteklemediğinde kullanıcı görseli indirip Instagram hikayesine yükleyebilir).
 Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'}) async {
   try {
-    final blob = html.Blob(<Object>[bytes], 'image/png');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..download = filename
-      ..style.display = 'none';
-    html.document.body?.append(anchor);
+    final url = web.URL.createObjectURL(_pngBlob(bytes));
+    final anchor = web.document.createElement('a') as web.HTMLAnchorElement
+      ..href = url
+      ..download = filename;
+    anchor.style.display = 'none';
+    web.document.body?.append(anchor);
     anchor.click();
     anchor.remove();
-    html.Url.revokeObjectUrl(url);
+    web.URL.revokeObjectURL(url);
     return true;
   } catch (_) {
     return false;
@@ -61,14 +78,14 @@ Future<bool> downloadImage(Uint8List bytes, {String filename = 'babybites.png'})
 /// ya da kullanıcı vazgeçerse false döner (çağıran tarafta yedek davranış için).
 Future<bool> shareViaWebShareApi({String? title, String? text, String? url}) async {
   try {
-    final dynamic nav = html.window.navigator;
+    final nav = web.window.navigator as JSObject;
     // navigator.share yoksa (masaüstü tarayıcıların çoğu) doğrudan vazgeç.
-    if (nav.share == null) return false;
-    final data = <String, dynamic>{};
-    if (title != null && title.isNotEmpty) data['title'] = title;
-    if (text != null && text.isNotEmpty) data['text'] = text;
-    if (url != null && url.isNotEmpty) data['url'] = url;
-    await nav.share(data);
+    if (!nav.has('share')) return false;
+    final data = JSObject();
+    if (title != null && title.isNotEmpty) data.setProperty('title'.toJS, title.toJS);
+    if (text != null && text.isNotEmpty) data.setProperty('text'.toJS, text.toJS);
+    if (url != null && url.isNotEmpty) data.setProperty('url'.toJS, url.toJS);
+    await nav.callMethod<JSPromise<JSAny?>>('share'.toJS, data).toDart;
     return true;
   } catch (_) {
     return false;
@@ -88,25 +105,24 @@ Widget mediaEmbed({required bool youtube, required String url, double aspectRati
   final viewId = 'embed_${youtube ? 'yt' : 'v'}_${url.hashCode}';
   if (!_registered.contains(viewId)) {
     _registered.add(viewId);
-    // ignore: undefined_prefixed_name
     ui_web.platformViewRegistry.registerViewFactory(viewId, (int _) {
       if (youtube) {
-        final iframe = html.IFrameElement()
+        final iframe = web.document.createElement('iframe') as web.HTMLIFrameElement
           ..src = 'https://www.youtube.com/embed/${_ytId(url)}'
           ..allow = 'accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture'
-          ..allowFullscreen = true
-          ..style.border = 'none'
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..style.borderRadius = '12px';
+          ..allowFullscreen = true;
+        iframe.style.border = 'none';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
+        iframe.style.borderRadius = '12px';
         return iframe;
       } else {
-        final v = html.VideoElement()
+        final v = web.document.createElement('video') as web.HTMLVideoElement
           ..src = url
-          ..controls = true
-          ..style.width = '100%'
-          ..style.height = '100%'
-          ..style.borderRadius = '12px';
+          ..controls = true;
+        v.style.width = '100%';
+        v.style.height = '100%';
+        v.style.borderRadius = '12px';
         return v;
       }
     });

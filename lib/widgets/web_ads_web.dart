@@ -1,8 +1,15 @@
-// ignore_for_file: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+// AdSense (web) — package:web + dart:js_interop.
+//
+// NEDEN dart:html DEĞİL: Dart 3.12'de `dart:js_util` KALDIRILDI ve `dart:html`
+// kullanımdan kaldırıldı. Flutter 3.44'e yükseltirken bu dosya derlenmiyordu.
+// package:web tipleri doğrudan JSObject tabanlı olduğu için interop
+// çağrıları ek köprü gerektirmiyor.
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 import 'dart:ui_web' as ui_web;
+
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 
 bool _scriptInjected = false;
 final Set<String> _registered = {};
@@ -12,23 +19,24 @@ void _ensureScript(String client) {
   if (_scriptInjected || client.isEmpty) return;
   _scriptInjected = true;
   // index.html zaten yüklüyorsa tekrar ekleme (çift adsbygoogle.js hata verir).
-  final existing = html.document.querySelectorAll('script[src*="adsbygoogle.js"]');
-  if (existing.isNotEmpty) return;
-  final s = html.ScriptElement()
+  final existing = web.document.querySelectorAll('script[src*="adsbygoogle.js"]');
+  if (existing.length > 0) return;
+  final s = web.document.createElement('script') as web.HTMLScriptElement
     ..async = true
     ..src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=$client'
     ..crossOrigin = 'anonymous';
-  html.document.head?.append(s);
+  web.document.head?.append(s);
 }
 
 void _pushAd() {
   try {
-    var arr = js_util.getProperty(html.window, 'adsbygoogle');
-    if (arr == null) {
-      js_util.setProperty(html.window, 'adsbygoogle', js_util.jsify(<dynamic>[]));
-      arr = js_util.getProperty(html.window, 'adsbygoogle');
+    // window.adsbygoogle dizisi yoksa oluştur, sonra boş bir nesne push et —
+    // AdSense'in beklediği tetikleme biçimi bu.
+    if (!web.window.has('adsbygoogle')) {
+      web.window.setProperty('adsbygoogle'.toJS, JSArray<JSAny>());
     }
-    js_util.callMethod(arr, 'push', <dynamic>[js_util.newObject()]);
+    final arr = web.window.getProperty('adsbygoogle'.toJS) as JSObject?;
+    arr?.callMethod('push'.toJS, JSObject());
   } catch (_) {}
 }
 
@@ -43,22 +51,25 @@ Widget adsenseAd({
   final viewId = 'adsense_${slot}_${width.toInt()}x${height.toInt()}';
   if (!_registered.contains(viewId)) {
     _registered.add(viewId);
-    // ignore: undefined_prefixed_name
     ui_web.platformViewRegistry.registerViewFactory(viewId, (int _) {
-      final ins = html.Element.tag('ins')
-        ..className = 'adsbygoogle'
-        ..style.display = 'block'
-        ..style.width = '${width}px'
-        ..style.height = '${height}px'
-        ..setAttribute('data-ad-client', client)
-        ..setAttribute('data-ad-slot', slot);
-      final wrapper = html.DivElement()
-        ..style.width = '${width}px'
-        ..style.height = '${height}px'
-        ..style.overflow = 'hidden'
-        ..append(ins);
+      final ins = web.document.createElement('ins') as web.HTMLElement
+        ..className = 'adsbygoogle';
+      ins.style.display = 'block';
+      ins.style.width = '${width}px';
+      ins.style.height = '${height}px';
+      ins.setAttribute('data-ad-client', client);
+      ins.setAttribute('data-ad-slot', slot);
+
+      final wrapper = web.document.createElement('div') as web.HTMLDivElement;
+      wrapper.style.width = '${width}px';
+      wrapper.style.height = '${height}px';
+      wrapper.style.overflow = 'hidden';
+      wrapper.append(ins);
+
       // Element DOM'a girdikten sonra reklamı tetikle.
-      html.window.requestAnimationFrame((_) => _pushAd());
+      web.window.requestAnimationFrame(((JSNumber _) {
+        _pushAd();
+      }).toJS);
       return wrapper;
     });
   }

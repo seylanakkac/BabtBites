@@ -94,9 +94,9 @@ class ShareButtons extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _btn(FontAwesomeIcons.instagram, const Color(0xFFE1306C), () => _instagram(context), "Instagram'da paylaş (görsel kart)"),
+        _btn(FontAwesomeIcons.instagram.data, const Color(0xFFE1306C), () => _instagram(context), "Instagram'da paylaş (görsel kart)"),
         const SizedBox(width: 8),
-        _btn(FontAwesomeIcons.whatsapp, const Color(0xFF25D366), _whatsapp, "WhatsApp'ta paylaş"),
+        _btn(FontAwesomeIcons.whatsapp.data, const Color(0xFF25D366), _whatsapp, "WhatsApp'ta paylaş"),
         const SizedBox(width: 8),
         // Facebook dahil diğer her yer buradan: sistem paylaşım sayfası.
         _btn(Icons.ios_share, const Color(0xFF5A5A6A), () => _system(context), "Diğer (Facebook, Mesajlar, Mail…)"),

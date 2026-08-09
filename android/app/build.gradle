@@ -42,7 +42,10 @@ android {
     // Google Play yeni uygulamalarda API 35 (Android 15) hedefini zorunlu kılıyor.
     compileSdk = 35
     // Bazı eklentiler daha yüksek NDK ister (build uyarısı).
-    ndkVersion = "25.1.8937393"
+    // NDK r28: 16 KB bellek sayfasi hizalamasi icin gerekli. Play,
+    // 1 Kasim 2025ten beri API 35 hedefleyen guncellemelerde bunu
+    // ZORUNLU tutuyor ve "yine de devam et" secenegi kaldirildi.
+    ndkVersion = "28.0.13004108"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
