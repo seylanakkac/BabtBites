@@ -68,9 +68,17 @@ class InstagramImport {
       if (posts is! List) return const [];
       return posts.whereType<Map>().map(InstagramPost.fromMap).toList();
     } on FirebaseFunctionsException catch (e) {
-      // Fonksiyon anlamlı mesajlar döndürüyor (jeton süresi doldu, kurulum
-      // yapılmadı, yetki yok); olduğu gibi göster.
-      lastError = e.message ?? 'Instagram verisi alınamadı (${e.code}).';
+      // 'not-found' = instagramMedia fonksiyonu henüz yayınlanmadı.
+      // Fonksiyon INSTAGRAM_TOKEN gizli anahtarına bağlı; anahtar
+      // tanımlanmadan deploy edilemiyor, o yüzden özellik kurulana kadar
+      // sunucuda hiç yok. Ham hata kodu yerine ne yapılacağını yazıyoruz.
+      lastError = e.code == 'not-found'
+          ? 'Instagram içe aktarma henüz kurulmadı.\n\n'
+              'Gerekenler: Instagram hesabına bağlı bir Facebook sayfası, '
+              'developers.facebook.com üzerinde bir uygulama ve uzun ömürlü '
+              'erişim jetonu. Jeton sunucuda gizli anahtar olarak saklanır, '
+              'uygulamaya girmez.'
+          : (e.message ?? 'Instagram verisi alınamadı (${e.code}).');
       debugPrint('InstagramImport failed: ${e.code} ${e.message}');
       return const [];
     } catch (e) {
