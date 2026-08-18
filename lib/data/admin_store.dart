@@ -10,7 +10,7 @@ import '../screens/articles_screen.dart';
 
 // ---- Built-in defaults (fallbacks) ----
 const List<String> kDefaultFoodCategories = ["Sebze", "Meyve", "Tahıl", "Et", "Balık", "Diğer"];
-const List<String> kDefaultArticleCategories = ["Başlangıç", "Alerji", "BLW Yöntemi", "Besinler", "Rutinler"];
+const List<String> kDefaultArticleCategories = ["Başlangıç", "Alerji", "BLW Yöntemi", "Besinler", "Rutinler", "Aşı", "Diş Sağlığı"];
 const List<String> kDefaultAvatars = [
   "👶", "👧", "👦", "👶🏻", "👶🏼", "👶🏽", "👶🏾", "👶🏿", "🦁", "🐯", "🐼", "🐨", "🐰", "🦊"
 ];

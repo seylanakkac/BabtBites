@@ -19,6 +19,18 @@ final Map<String, Set<String>> globalMilestonesDone = {};
 Set<String> milestonesDoneFor(String babyId) =>
     globalMilestonesDone.putIfAbsent(babyId, () => <String>{});
 
+/// babyId -> set of DONE vaccine ids (aşı takvimi: yapıldı işaretlenenler).
+final Map<String, Set<String>> globalVaccinesDone = {};
+
+Set<String> vaccinesDoneFor(String babyId) =>
+    globalVaccinesDone.putIfAbsent(babyId, () => <String>{});
+
+/// babyId -> set of ERUPTED tooth ids (diş çıkarma takibi).
+final Map<String, Set<String>> globalTeethErupted = {};
+
+Set<String> teethEruptedFor(String babyId) =>
+    globalTeethErupted.putIfAbsent(babyId, () => <String>{});
+
 /// BabyBites+ premium flag (demo). When store IAP / Firebase is added, this is
 /// driven by the real subscription state.
 bool globalIsPremium = false;

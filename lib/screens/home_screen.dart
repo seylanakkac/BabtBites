@@ -6,6 +6,7 @@ import '../data/admin_store.dart';
 import '../services/cloud_sync.dart';
 import '../services/rewarded_ad.dart';
 import '../services/social_sync.dart';
+import '../services/catalog_sync.dart';
 import '../services/analytics.dart';
 import '../services/auth_gate.dart';
 import '../services/account_service.dart';
@@ -38,6 +39,9 @@ import 'food_detail_screen.dart';
 import 'growth_screen.dart';
 import 'legal_screen.dart';
 import 'milestones_screen.dart';
+import 'vaccines_screen.dart';
+import 'teeth_screen.dart';
+import 'feeding_steps_screen.dart';
 import 'premium_screen.dart';
 import 'sample_menu_screen.dart';
 import 'sources_screen.dart';
@@ -223,7 +227,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
       _persist();
+    } else if (state == AppLifecycleState.resumed) {
+      // Arka plandan dönünce paylaşılan kataloğu tazele: web'de onaylanan
+      // tarif/gıda/makale, "yeni tarif" push'una dokunup uygulamayı açınca
+      // burada görünür (aksi halde ancak uygulama tamamen kapatılıp açılınca
+      // gelirdi — canlıdaki "onaylı tarif mobilde görünmüyor" hatası).
+      _refreshCatalog();
+      // Bildirim rozetini de tazele.
+      SocialSync.instance.loadNotifications().then((_) {
+        if (mounted) setState(() {});
+      });
     }
+  }
+
+  /// Paylaşılan kataloğu Firestore'dan çekip belleğe uygular; değişiklik olduysa
+  /// ekranı yeniler (yeni onaylanan tarifler soğuk açılış olmadan görünsün).
+  void _refreshCatalog() {
+    CatalogSync.instance.pullAndApply().then((pulled) {
+      if (pulled && mounted) setState(() {});
+    });
   }
 
   void _persist() => StorageService.instance.saveAll(_babies);
@@ -420,6 +442,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           {"label": "BabyBites+", "icon": Icons.workspace_premium, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => PremiumScreen(onChanged: _extrasChanged)))},
         {"label": "Büyüme Grafiği", "icon": Icons.show_chart, "premium": !premiumUnlocked(), "onTap": () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
         {"label": "Gelişim & Diş Takvimi", "icon": Icons.event_note_outlined, "premium": !premiumUnlocked(), "onTap": () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }},
+        {"label": "Aşı Takvimi", "icon": Icons.vaccines, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VaccinesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))},
+        {"label": "Diş Çıkarma Takibi", "icon": Icons.sentiment_very_satisfied_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TeethScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))},
+        {"label": "Ek Gıda Basamakları", "icon": Icons.restaurant_menu_outlined, "premium": false, "onTap": () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FeedingStepsScreen(babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()))))},
         {"label": "Gelişim Raporu", "icon": Icons.description_outlined, "premium": !premiumUnlocked(), "onTap": () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? ""))))},
         {"label": "Başarımlar", "icon": Icons.emoji_events_outlined, "premium": false, "onTap": _showAchievements},
         {"label": "Tüm Profil", "icon": Icons.person_outline, "premium": false, "onTap": () => setState(() => _currentIndex = 4)},
@@ -5840,6 +5865,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               _navTile("Büyüme Grafiği", Icons.show_chart, () { if (_requirePremium("Büyüme Grafiği")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => GrowthScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", sex: _activeBaby?["gender"]?.toString() ?? "Kız", dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Gelişim & Diş Takvimi", Icons.event_note_outlined, () { if (_requirePremium("Gelişim & Diş Takvimi")) Navigator.of(context).push(MaterialPageRoute(builder: (_) => MilestonesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged))); }, trailing: _premiumLock()),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Aşı Takvimi", Icons.vaccines, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => VaccinesScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), dob: _parseDob(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Diş Çıkarma Takibi", Icons.sentiment_very_satisfied_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TeethScreen(babyId: _activeBabyId, babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()), onChanged: _extrasChanged)))),
+              const Divider(height: 1, color: Color(0xFFEDEDED)),
+              _navTile("Ek Gıda Basamakları", Icons.restaurant_menu_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => FeedingStepsScreen(babyName: _activeBaby?["name"]?.toString() ?? "Bebek", ageMonths: _ageMonths(_activeBaby?["dob"]?.toString()))))),
               const Divider(height: 1, color: Color(0xFFEDEDED)),
               _navTile("Gelişim Raporu", Icons.description_outlined, () => _gatedFeature("Gelişim Raporu", rewardKey: "report", action: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportScreen(baby: _activeBaby ?? {}, parentName: _parent?["name"] ?? "")))), trailing: _premiumLock("report")),
               const Divider(height: 1, color: Color(0xFFEDEDED)),

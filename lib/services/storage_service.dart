@@ -61,6 +61,8 @@ class StorageService {
   static const String _kRecipeTried = 'recipe_tried';
   static const String _kGrowth = 'growth_records';
   static const String _kMilestones = 'milestones_done';
+  static const String _kVaccinesDone = 'vaccines_done';
+  static const String _kTeethErupted = 'teeth_erupted';
   static const String _kPremium = 'is_premium';
   static const String _kTrialStart = 'trial_start';
   static const String _kTried = 'tried_foods';
@@ -105,7 +107,7 @@ class StorageService {
   // shared /catalog in Faz 3.)
   static const List<String> _userStringKeys = [
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
-    _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kTrialStart, _kParent,
+    _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kVaccinesDone, _kTeethErupted, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kMyFollowing, _kBlockedUsers, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
     _kReportFiles, _kPremiumUntil, _kRecipeTastes, _kMealPortions,
   ];
@@ -348,6 +350,20 @@ class StorageService {
           globalMilestonesDone[k] = (v as List).map((e) => e.toString()).toSet();
         });
       }
+      final vaccinesRaw = prefs.getString(_kVaccinesDone);
+      if (vaccinesRaw != null) {
+        globalVaccinesDone.clear();
+        (jsonDecode(vaccinesRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalVaccinesDone[k] = (v as List).map((e) => e.toString()).toSet();
+        });
+      }
+      final teethRaw = prefs.getString(_kTeethErupted);
+      if (teethRaw != null) {
+        globalTeethErupted.clear();
+        (jsonDecode(teethRaw) as Map<String, dynamic>).forEach((k, v) {
+          globalTeethErupted[k] = (v as List).map((e) => e.toString()).toSet();
+        });
+      }
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
       globalPremiumUntil = prefs.getString(_kPremiumUntil);
@@ -467,48 +483,77 @@ class StorageService {
       }
 
       // Admin-added custom content → merge into the global databases.
-      final cf = prefs.getString(_kCustomFoods);
-      if (cf != null) {
-        final list = (jsonDecode(cf) as List<dynamic>)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        globalCustomFoods
-          ..clear()
-          ..addAll(list);
-        for (final j in list) {
-          if (!globalFoodsDatabase.any((f) => f.name == j["name"])) {
-            globalFoodsDatabase.add(Food.fromJson(j));
-          }
-        }
-      }
-      final cr = prefs.getString(_kCustomRecipes);
-      if (cr != null) {
-        final list = (jsonDecode(cr) as List<dynamic>)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        globalCustomRecipes
-          ..clear()
-          ..addAll(list);
-        for (final j in list) {
-          if (!globalRecipesDatabase.any((r) => r.id == j["id"] || r.name == j["name"])) {
-            globalRecipesDatabase.add(Recipe.fromJson(j));
-          }
-        }
-      }
-      final ca = prefs.getString(_kCustomArticles);
-      if (ca != null) {
-        final list = (jsonDecode(ca) as List<dynamic>)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        globalCustomArticles
-          ..clear()
-          ..addAll(list.map(Article.fromJson));
-      }
+      _mergeCustomContent(prefs);
 
       // Admin CMS layer: config + built-in overrides/deletions (after custom merge).
       _applyAdminLayer(prefs);
     } catch (e) {
       debugPrint('StorageService.loadInto failed: $e');
+    }
+  }
+
+  /// Merges admin-added custom foods/recipes/articles (prefs) into the in-memory
+  /// databases. Extracted from [loadInto] so it can also run at RUNTIME after a
+  /// CatalogSync.pull() — see [applyCatalogFromPrefs].
+  void _mergeCustomContent(SharedPreferences prefs) {
+    final cf = prefs.getString(_kCustomFoods);
+    if (cf != null) {
+      final list = (jsonDecode(cf) as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      globalCustomFoods
+        ..clear()
+        ..addAll(list);
+      for (final j in list) {
+        final idx = globalFoodsDatabase.indexWhere((f) => f.name == j["name"]);
+        if (idx >= 0) {
+          globalFoodsDatabase[idx] = Food.fromJson(j);
+        } else {
+          globalFoodsDatabase.add(Food.fromJson(j));
+        }
+      }
+    }
+    final cr = prefs.getString(_kCustomRecipes);
+    if (cr != null) {
+      final list = (jsonDecode(cr) as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      globalCustomRecipes
+        ..clear()
+        ..addAll(list);
+      for (final j in list) {
+        final idx = globalRecipesDatabase.indexWhere((r) => r.id == j["id"]);
+        if (idx >= 0) {
+          // Aynı id zaten var → onaylı/düzenlenmiş sürümle güncelle.
+          globalRecipesDatabase[idx] = Recipe.fromJson(j);
+        } else if (!globalRecipesDatabase.any((r) => r.name == j["name"])) {
+          globalRecipesDatabase.add(Recipe.fromJson(j));
+        }
+      }
+    }
+    final ca = prefs.getString(_kCustomArticles);
+    if (ca != null) {
+      final list = (jsonDecode(ca) as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      globalCustomArticles
+        ..clear()
+        ..addAll(list.map(Article.fromJson));
+    }
+  }
+
+  /// Re-applies the shared catalog (custom content + admin overrides/deletions)
+  /// from prefs into the in-memory databases. Safe to call at RUNTIME after a
+  /// [CatalogSync.pull] so a newly approved recipe/food/article appears without a
+  /// cold restart. Unlike [loadInto] it does NOT touch the user's own data.
+  void applyCatalogFromPrefs() {
+    final prefs = _prefs;
+    if (prefs == null) return;
+    try {
+      _mergeCustomContent(prefs);
+      _applyAdminLayer(prefs);
+    } catch (e) {
+      debugPrint('StorageService.applyCatalogFromPrefs failed: $e');
     }
   }
 
@@ -845,6 +890,8 @@ class StorageService {
       await prefs.setStringList(_kUserFormulaNames, globalUserFormulaNames);
       await prefs.setString(_kGrowth, jsonEncode(globalGrowthRecords));
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
+      await prefs.setString(_kVaccinesDone, jsonEncode(globalVaccinesDone.map((k, v) => MapEntry(k, v.toList()))));
+      await prefs.setString(_kTeethErupted, jsonEncode(globalTeethErupted.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setBool(_kPremium, globalIsPremium);
       if (globalTrialStart != null) await prefs.setString(_kTrialStart, globalTrialStart!);
       if (globalPremiumUntil != null) {
@@ -929,6 +976,8 @@ class StorageService {
     globalRecipeMyRating.clear();
     globalGrowthRecords.clear();
     globalMilestonesDone.clear();
+    globalVaccinesDone.clear();
+    globalTeethErupted.clear();
     globalIsPremium = false;
     globalTrialStart = null;
     globalPremiumUntil = null;

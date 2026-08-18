@@ -113,20 +113,21 @@ class LocalReminders {
     required Duration after,
     required String title,
     required String body,
+    int? id,
   }) async {
     if (!await _ensureReady()) return null;
     final when = tz.TZDateTime.now(tz.local).add(after);
-    final id = _nextId();
+    final nid = id ?? _nextId();
     try {
       await _plugin.zonedSchedule(
-        id,
+        nid,
         title,
         body,
         when,
         _details,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       );
-      return id;
+      return nid;
     } on Exception catch (e) {
       // Tam alarm izni yoksa exact mod hata verir; şaşmaz olmayan modla
       // yeniden dene — hatırlatma hiç kurulmamasındansa birkaç dakika
@@ -134,14 +135,14 @@ class LocalReminders {
       debugPrint('LocalReminders exact schedule failed, retrying inexact: $e');
       try {
         await _plugin.zonedSchedule(
-          id,
+          nid,
           title,
           body,
           when,
           _details,
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
-        return id;
+        return nid;
       } catch (e2) {
         debugPrint('LocalReminders.scheduleIn failed: $e2');
         return null;

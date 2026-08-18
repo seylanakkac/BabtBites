@@ -181,6 +181,71 @@ class _ArticlesScreenState extends State<ArticlesScreen> {
   // 50 ek gıda / baby feeding articles database
   static const List<Article> _articles = [
     Article(
+      id: "asi1",
+      title: "Çocukluk Çağı Aşıları: Neden Bu Kadar Önemli?",
+      category: "Aşı",
+      readTime: "4 dk",
+      summary: "Aşılar bebeğinizi ağır hastalıklardan korur. Takvim, yan etkiler ve sık sorulanlar.",
+      emoji: "💉",
+      author: "BabyBites",
+      updatedDate: "08.2026",
+      content: "Aşılar, bebeğinizin bağışıklık sistemini bir hastalıkla gerçekten karşılaşmadan önce o hastalığı tanımaya ve savunma geliştirmeye hazırlar. Böylece kızamık, boğmaca, difteri, çocuk felci gibi ağır ve bazen ölümcül hastalıklardan korunur.\n\n"
+          "Aşı Takvimi\n"
+          "Türkiye'de aşılar T.C. Sağlık Bakanlığı Genişletilmiş Bağışıklama Programı kapsamında ücretsiz uygulanır. İlk aşı doğumda (Hepatit B) başlar; 2, 4 ve 6. aylarda karma aşılar sürer; 12. ayda KKK ve suçiçeği yapılır. Uygulamadaki 'Aşı Takvimi' bölümünden bebeğinizin yaşına göre aşıları takip edebilir, yaklaşanlar için hatırlatma kurabilirsiniz.\n\n"
+          "Yan Etkiler\n"
+          "Aşı sonrası hafif ateş, aşı yerinde kızarıklık veya huzursuzluk görülebilir; bunlar genelde 1-2 günde geçer. Yüksek ateş veya alışılmadık belirtilerde doktorunuza başvurun.\n\n"
+          "Sık Sorulanlar\n"
+          "- Takvim aksadıysa aile sağlığı merkezi 'yakalama' takvimiyle tamamlar; baştan başlanmaz.\n"
+          "- Hafif nezlede aşı genelde ertelenmez; yine de hekiminize danışın.\n\n"
+          "Bu yazı genel bilgilendirme amaçlıdır. Aşı kararları için mutlaka çocuk doktorunuza / aile sağlığı merkezinize danışın.",
+    ),
+    Article(
+      id: "dis1",
+      title: "Bebeklerde Diş Çıkarma: Belirtiler ve Bakım",
+      category: "Diş Sağlığı",
+      readTime: "3 dk",
+      summary: "İlk dişler ne zaman çıkar, belirtileri nasıl rahatlatılır ve diş bakımı nasıl yapılır?",
+      emoji: "🦷",
+      author: "BabyBites",
+      updatedDate: "08.2026",
+      content: "Bebeklerde ilk süt dişleri genellikle 6. ay civarı, alt orta kesicilerle çıkmaya başlar ve yaklaşık 3 yaşına kadar 20 süt dişi tamamlanır. Her bebek farklıdır; birkaç ay erken ya da geç olması normaldir.\n\n"
+          "Diş Çıkarma Belirtileri\n"
+          "- Diş etinde şişlik ve kızarıklık\n"
+          "- Artan salya\n"
+          "- Bir şeyleri ısırma/çiğneme isteği\n"
+          "- Huzursuzluk, uyku düzensizliği\n"
+          "Not: Yüksek ateş, ishal ve kusma diş çıkarmanın tipik belirtileri DEĞİLDİR; bunlar varsa başka bir neden için doktora danışın.\n\n"
+          "Rahatlatmak İçin\n"
+          "- Temiz, serin (buzlu değil) diş kaşıyıcı verin.\n"
+          "- Temiz parmağınızla diş etine hafif masaj yapın.\n"
+          "- Salya nedeniyle çene çevresini kuru tutun (pişik önlemi).\n\n"
+          "Diş Bakımı\n"
+          "İlk diş çıktığı andan itibaren yumuşak bir bezle veya bebek diş fırçasıyla günde iki kez temizleyin. Çürüğü önlemek için biberonla (özellikle şekerli içecekle) uykuya bırakmaktan kaçının.\n\n"
+          "Bu yazı genel bilgilendirme amaçlıdır; sorularınız için diş hekimine/çocuk doktoruna danışın.",
+    ),
+    Article(
+      id: "ekgida_gelisim1",
+      title: "Ek Gıdaya Geçiş: Aşama Aşama Rehber",
+      category: "Başlangıç",
+      readTime: "4 dk",
+      summary: "Püreden aile sofrasına: yaşa göre ek gıda gelişim basamakları ve dikkat edilecekler.",
+      emoji: "🍼",
+      author: "BabyBites",
+      updatedDate: "08.2026",
+      content: "Ek gıdaya geçiş bir anda değil, aşama aşama olur. Dünya Sağlık Örgütü ilk 6 ay yalnızca anne sütü, sonrasında anne sütüyle birlikte ek gıdayı önerir.\n\n"
+          "Aşamalar\n"
+          "- ~6 ay: Hazır oluş işaretleri (baş kontrolü, destekli oturma, yemeğe ilgi) bir arada görülünce tek besinli püreler.\n"
+          "- 6-8 ay: Kıvamı kalınlaştırın, yeni besinleri 3 gün arayla deneyin.\n"
+          "- 8-10 ay: Yumuşak parmak besinleriyle kendi kendine yeme.\n"
+          "- 10-12 ay: Küçük yumuşak parçalar, kaşık denemeleri.\n"
+          "- 12+ ay: Aile sofrası; 12 aydan sonra inek sütü.\n\n"
+          "Dikkat\n"
+          "- Tuz ve şeker eklemeyin.\n"
+          "- Bal 12 aydan önce KESİNLİKLE verilmez (botulizm riski).\n"
+          "- Boğulma riskli besinlerden kaçının (bütün üzüm, fındık, sert/yuvarlak parçalar).\n\n"
+          "Detaylı aşamalar için uygulamadaki 'Ek Gıda Basamakları' bölümüne bakabilirsiniz. Başlama zamanı ve besin seçimi için çocuk doktorunuza danışın.",
+    ),
+    Article(
       id: "a1",
       title: "3 Gün Kuralı Nedir ve Nasıl Uygulanır?",
       category: "Alerji",

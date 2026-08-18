@@ -35,6 +35,25 @@ class CatalogSync {
     'customArticles': ['custom_articles'],
   };
 
+  DateTime? _lastPull;
+
+  /// Runtime pull + in-memory re-merge (app resume / push tap) so a newly
+  /// approved recipe/food/article shows WITHOUT a cold restart. Throttled so
+  /// rapid resume toggles don't spam Firestore. Returns true when a pull ran
+  /// (caller should setState to repaint), false when throttled/skipped.
+  Future<bool> pullAndApply({bool force = false}) async {
+    final now = DateTime.now();
+    if (!force &&
+        _lastPull != null &&
+        now.difference(_lastPull!) < const Duration(seconds: 15)) {
+      return false;
+    }
+    _lastPull = now;
+    await pull();
+    StorageService.instance.applyCatalogFromPrefs();
+    return true;
+  }
+
   /// Everyone: pulls the shared catalog into prefs. Call BEFORE loadInto().
   Future<void> pull() async {
     try {
