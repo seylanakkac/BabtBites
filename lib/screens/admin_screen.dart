@@ -1185,7 +1185,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   _field(steps, "Adımlar (her satır)", maxLines: 5),
                   _field(warn, "Alerji uyarısı"),
                   _field(storage, "Saklama koşulları", hint: "ör. Buzdolabında 3 gün, buzlukta 1 ay"),
-                  _field(video, "Video linki (YouTube/Shorts, opsiyonel)", hint: "https://youtube.com/... veya youtu.be/..."),
+                  _field(video, "Video linki (YouTube, Instagram, TikTok — opsiyonel)", hint: "YouTube gömülür; Instagram/TikTok linki dokununca açılır"),
                   const Padding(padding: EdgeInsets.only(top: 10, bottom: 2), child: Align(alignment: Alignment.centerLeft, child: Text("Ürün / İşbirliği Linkleri", style: TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: _light)))),
                   const Padding(padding: EdgeInsets.only(bottom: 6), child: Align(alignment: Alignment.centerLeft, child: Text("Tarif detayında 'Bu Tarifte Kullandıklarım' altında tıklanabilir çıkar (affiliate).", style: TextStyle(fontFamily: 'Inter', fontSize: 11, color: _light)))),
                   ...productLinks.asMap().entries.map((e) {

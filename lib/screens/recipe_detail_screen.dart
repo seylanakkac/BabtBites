@@ -19,6 +19,7 @@ import '../widgets/expert_badge.dart';
 import '../widgets/web_embed.dart';
 import '../widgets/youtube_util.dart';
 import '../widgets/youtube_embed.dart';
+import '../widgets/video_link_card.dart';
 import '../widgets/recipe_story_share.dart';
 import 'user_profile_screen.dart';
 import 'premium_screen.dart';
@@ -430,15 +431,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           ),
                         ),
                         const SizedBox(height: 14),
-                        // Video tarif (YouTube / Shorts) — varsa göm.
-                        if (isYoutubeUrl(recipe.videoUrl)) ...[
+                        // Video tarif — YouTube/Shorts gömülür; Instagram, TikTok
+                        // ve diğer linkler dokununca uygulamada/tarayıcıda açılır.
+                        if (recipe.videoUrl.trim().isNotEmpty) ...[
                           const Row(children: [
                             Icon(Icons.play_circle_outline, size: 18, color: Color(0xFFFF7A45)),
                             SizedBox(width: 6),
                             Text("Video Tarif", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D2D3A))),
                           ]),
                           const SizedBox(height: 10),
-                          youtubeEmbed(recipe.videoUrl),
+                          if (isYoutubeUrl(recipe.videoUrl))
+                            youtubeEmbed(recipe.videoUrl)
+                          else
+                            videoLinkCard(recipe.videoUrl),
                           const SizedBox(height: 16),
                         ],
                         // Like + I-tried buttons
