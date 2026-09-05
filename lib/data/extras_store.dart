@@ -31,6 +31,26 @@ final Map<String, Set<String>> globalTeethErupted = {};
 Set<String> teethEruptedFor(String babyId) =>
     globalTeethErupted.putIfAbsent(babyId, () => <String>{});
 
+/// babyId -> { vaccineId: "yyyy-MM-dd" } — aşının YAPILDIĞI tarih.
+/// Sadece "yapıldı" işaretli aşılar için tutulur; işaret kalkınca silinir.
+final Map<String, Map<String, String>> globalVaccineDates = {};
+
+Map<String, String> vaccineDatesFor(String babyId) =>
+    globalVaccineDates.putIfAbsent(babyId, () => <String, String>{});
+
+/// babyId -> { vaccineId: not } — aşıya dair serbest not (yan etki, marka…).
+final Map<String, Map<String, String>> globalVaccineNotes = {};
+
+Map<String, String> vaccineNotesFor(String babyId) =>
+    globalVaccineNotes.putIfAbsent(babyId, () => <String, String>{});
+
+/// babyId -> { toothId: "yyyy-MM-dd" } — dişin ÇIKTIĞI tarih.
+/// Sadece "çıktı" işaretli dişler için tutulur; işaret kalkınca silinir.
+final Map<String, Map<String, String>> globalTeethDates = {};
+
+Map<String, String> teethDatesFor(String babyId) =>
+    globalTeethDates.putIfAbsent(babyId, () => <String, String>{});
+
 /// BabyBites+ premium flag (demo). When store IAP / Firebase is added, this is
 /// driven by the real subscription state.
 bool globalIsPremium = false;

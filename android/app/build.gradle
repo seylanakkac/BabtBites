@@ -39,8 +39,10 @@ if (hasKeystore) {
 
 android {
     namespace = "tr.com.babybites"
-    // Google Play yeni uygulamalarda API 35 (Android 15) hedefini zorunlu kılıyor.
-    compileSdk = 35
+    // Google Play politika: uygulama Android 16 (API 36) veya sonrasını
+    // hedeflemeli (2026 zorunluluğu). Eski API 35 hedefi, yeni Android
+    // sürümlü cihazlarda uygulamanın kullanıma sunulmasını engelliyordu.
+    compileSdk = 36
     // Bazı eklentiler daha yüksek NDK ister (build uyarısı).
     // NDK r28: 16 KB bellek sayfasi hizalamasi icin gerekli. Play,
     // 1 Kasim 2025ten beri API 35 hedefleyen guncellemelerde bunu
@@ -66,7 +68,7 @@ android {
         applicationId = "tr.com.babybites"
         // Firebase Android SDK (firebase_core 3.x) minSdk 23 ister.
         minSdk = 23
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }

@@ -63,6 +63,9 @@ class StorageService {
   static const String _kMilestones = 'milestones_done';
   static const String _kVaccinesDone = 'vaccines_done';
   static const String _kTeethErupted = 'teeth_erupted';
+  static const String _kVaccineDates = 'vaccine_dates';
+  static const String _kVaccineNotes = 'vaccine_notes';
+  static const String _kTeethDates = 'teeth_dates';
   static const String _kPremium = 'is_premium';
   static const String _kTrialStart = 'trial_start';
   static const String _kTried = 'tried_foods';
@@ -107,7 +110,8 @@ class StorageService {
   // shared /catalog in Faz 3.)
   static const List<String> _userStringKeys = [
     _kBabies, _kWeeklyPlan, _kCartList, _kCartQty, _kCartUnits, _kBabyFoodStates, _kReminders,
-    _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kVaccinesDone, _kTeethErupted, _kTrialStart, _kParent,
+    _kBabyMeds, _kDailyLogs, _kGrowth, _kMilestones, _kVaccinesDone, _kTeethErupted,
+    _kVaccineDates, _kVaccineNotes, _kTeethDates, _kTrialStart, _kParent,
     _kSupplements, _kMyProfile, _kMyFollowing, _kBlockedUsers, _kRecipeRatings, _kAdFreeUntil, _kFeatureUnlocks,
     _kReportFiles, _kPremiumUntil, _kRecipeTastes, _kMealPortions,
   ];
@@ -364,6 +368,9 @@ class StorageService {
           globalTeethErupted[k] = (v as List).map((e) => e.toString()).toSet();
         });
       }
+      _loadNestedStringMap(prefs.getString(_kVaccineDates), globalVaccineDates);
+      _loadNestedStringMap(prefs.getString(_kVaccineNotes), globalVaccineNotes);
+      _loadNestedStringMap(prefs.getString(_kTeethDates), globalTeethDates);
       globalIsPremium = prefs.getBool(_kPremium) ?? false;
       globalTrialStart = prefs.getString(_kTrialStart);
       globalPremiumUntil = prefs.getString(_kPremiumUntil);
@@ -851,6 +858,22 @@ class StorageService {
     _triggerCloud();
   }
 
+  /// { babyId: { itemId: value } } biçimindeki JSON'u [target] haritasına yükler
+  /// (aşı/diş tarihleri ve notları). Boş/bozuk kayıtta sessizce atlar.
+  static void _loadNestedStringMap(
+      String? raw, Map<String, Map<String, String>> target) {
+    if (raw == null) return;
+    try {
+      target.clear();
+      (jsonDecode(raw) as Map<String, dynamic>).forEach((k, v) {
+        target[k] = (v as Map<String, dynamic>)
+            .map((kk, vv) => MapEntry(kk, vv.toString()));
+      });
+    } catch (_) {
+      // bozuk kayıt: yoksay (eski/yarım veri)
+    }
+  }
+
   /// Persists the entire user state. Cheap enough to call on every meaningful
   /// change and whenever the app is backgrounded.
   Future<void> saveAll(List<Map<String, dynamic>> babies) async {
@@ -892,6 +915,9 @@ class StorageService {
       await prefs.setString(_kMilestones, jsonEncode(globalMilestonesDone.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setString(_kVaccinesDone, jsonEncode(globalVaccinesDone.map((k, v) => MapEntry(k, v.toList()))));
       await prefs.setString(_kTeethErupted, jsonEncode(globalTeethErupted.map((k, v) => MapEntry(k, v.toList()))));
+      await prefs.setString(_kVaccineDates, jsonEncode(globalVaccineDates));
+      await prefs.setString(_kVaccineNotes, jsonEncode(globalVaccineNotes));
+      await prefs.setString(_kTeethDates, jsonEncode(globalTeethDates));
       await prefs.setBool(_kPremium, globalIsPremium);
       if (globalTrialStart != null) await prefs.setString(_kTrialStart, globalTrialStart!);
       if (globalPremiumUntil != null) {
@@ -978,6 +1004,9 @@ class StorageService {
     globalMilestonesDone.clear();
     globalVaccinesDone.clear();
     globalTeethErupted.clear();
+    globalVaccineDates.clear();
+    globalVaccineNotes.clear();
+    globalTeethDates.clear();
     globalIsPremium = false;
     globalTrialStart = null;
     globalPremiumUntil = null;
