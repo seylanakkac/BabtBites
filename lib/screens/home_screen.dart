@@ -156,6 +156,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Bildirim konularını bebeğin güncel yaşıyla eşitle (bebek büyüdüyse
       // eski yaş konusundan çıkılır). İzin yoksa sessizce döner.
       PushNotifications.instance.syncTopics();
+      // Bildirime dokununca yönlendirmeyi kur (ör. yeni tarif → tarif detayı).
+      // Ana ekran hazır olduğu için Navigator'a güvenle yönlendirilebilir.
+      PushNotifications.instance.setupTapHandlers();
     });
     // Diğer (pushed) sayfalardaki üst nav'dan gelen sekme isteklerini dinle.
     homeTabRequest.addListener(_onTabRequest);

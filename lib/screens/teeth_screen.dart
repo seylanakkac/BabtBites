@@ -11,10 +11,8 @@ const _bg = Color(0xFFFAF9F6);
 const _green = Color(0xFF10B981);
 
 // Ağız görselinin renkleri.
-const _lip = Color(0xFFE58B92); // dudak
-const _cavity = Color(0xFF6E2B39); // ağız boşluğu (koyu)
-const _tongue = Color(0xFFD98A97); // dil
-const _gum = Color(0xFFF2C4CB); // diş eti bandı
+const _lip = Color(0xFFE58B92); // üst dudak
+const _cavity = Color(0xFF6E2B39); // ağız açıklığı (koyu)
 
 /// Diş çıkarma takibi: ağız içindeki 20 süt dişini gerçekçi biçimde gösteren
 /// görsel harita. Dişe dokununca "çıktı" işaretlenir ve çıkış tarihi kaydedilir;
@@ -316,9 +314,9 @@ class _TeethScreenState extends State<TeethScreen> {
   }
 }
 
-/// Ağız içindeki iki diş kavsini (üst/alt) gerçekçi biçimde çizen ve
-/// dokunulabilir dişler yerleştiren görsel. Dişler bir elips profili boyunca
-/// dizilir; üst kavis aşağı (gülümseme), alt kavis yukarı (kaş) doğru kavislenir.
+/// Bebeğin gülümsemesine DIŞARIDAN bakan görünüm (annesi bakıyormuş gibi):
+/// üst ve alt dudak arasında iki sıra süt dişi. Dişe dokununca "çıktı"
+/// işaretlenir; yaşa göre beklenen dişler vurgulanır.
 class _MouthDiagram extends StatelessWidget {
   final Set<String> erupted;
   final int ageMonths;
@@ -341,50 +339,27 @@ class _MouthDiagram extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, c) {
       final w = c.maxWidth;
-      final h = w * 0.82; // dental kavis için hafif yatay oval
+      final h = w * 0.60; // gülümseme: enli, alçak
       final cx = w / 2;
-      final archWidth = w * 0.70;
-      final archHeight = h * 0.21;
+      final half = w * 0.44; // ağzın yarı genişliği
 
-      // Tam elips (yuvarlatılmış dörtgeni elipse çeviren yarıçap).
-      BorderRadius ellipse(double bw, double bh) =>
-          BorderRadius.all(Radius.elliptical(bw / 2, bh / 2));
+      // Dişler açıklık içinde kalsın diye köşelere gitmeden hafifçe kavislenir.
+      double upperY(double u) => h * 0.40 + h * 0.05 * u * u;
+      double lowerY(double u) => h * 0.60 - h * 0.06 * u * u;
 
       final children = <Widget>[
-        // Dudaklar (dış elips).
-        Positioned.fill(
-          child: Container(decoration: BoxDecoration(color: _lip, borderRadius: ellipse(w, h))),
-        ),
-        // Ağız boşluğu (iç elips, koyu).
-        Positioned(
-          left: w * 0.06, top: h * 0.06, right: w * 0.06, bottom: h * 0.06,
-          child: Container(decoration: BoxDecoration(color: _cavity, borderRadius: ellipse(w * 0.88, h * 0.88))),
-        ),
-        // Dil (alt-orta, dişlerin arkasında).
-        Positioned(
-          left: w * 0.30, right: w * 0.30, top: h * 0.60, bottom: h * 0.12,
-          child: Container(decoration: BoxDecoration(color: _tongue, borderRadius: BorderRadius.vertical(top: Radius.circular(w * 0.18), bottom: Radius.circular(w * 0.1)))),
-        ),
-        // Diş eti bandı (dişlerin arkasında hafif pembe kavis).
-        ..._gumBand(cx, h * 0.45, archWidth, archHeight, true, w),
-        ..._gumBand(cx, h * 0.55, archWidth, archHeight, false, w),
+        Positioned.fill(child: CustomPaint(painter: _SmilePainter(w: w, h: h, cx: cx, half: half))),
       ];
-
-      // Üst dişler: aşağı kavisli (orta kesiciler altta/önde, azılar yukarıda).
       for (final t in _arch("upper")) {
-        final u = (t.order - 4.5) / 4.5; // -1..1
-        final x = cx + u * (archWidth / 2);
-        final y = h * 0.45 - archHeight * (1 - math.sqrt((1 - u * u).clamp(0.0, 1.0)));
-        children.add(_toothWidget(t, x, y, u * 0.45, w));
+        final u = (t.order - 4.5) / 4.5;
+        final x = cx + u * half * 0.76;
+        children.add(_toothWidget(t, x, upperY(u), true, w));
       }
-      // Alt dişler: yukarı kavisli.
       for (final t in _arch("lower")) {
         final u = (t.order - 4.5) / 4.5;
-        final x = cx + u * (archWidth / 2);
-        final y = h * 0.55 + archHeight * (1 - math.sqrt((1 - u * u).clamp(0.0, 1.0)));
-        children.add(_toothWidget(t, x, y, -u * 0.45, w));
+        final x = cx + u * half * 0.76;
+        children.add(_toothWidget(t, x, lowerY(u), false, w));
       }
-
       return SizedBox(
         width: w,
         height: h,
@@ -393,44 +368,28 @@ class _MouthDiagram extends StatelessWidget {
     });
   }
 
-  /// Diş etini kavis boyunca dişlerin biraz arkasında (dudağa doğru) ima eden
-  /// hafif pembe bant. Diş kavsiyle AYNI formülü kullanır, dışa doğru kaydırır.
-  List<Widget> _gumBand(double cx, double baseY, double archWidth, double archHeight, bool upper, double w) {
-    final out = <Widget>[];
-    const n = 20;
-    final dot = w * 0.11;
-    for (var i = 0; i <= n; i++) {
-      final u = (i / n) * 2 - 1; // -1..1
-      final x = cx + u * (archWidth / 2);
-      final dy = archHeight * (1 - math.sqrt((1 - u * u).clamp(0.0, 1.0)));
-      // Dişler baseY ± dy'de; diş eti biraz DAHA dışarıda (dudağa doğru).
-      final y = upper ? baseY - dy - w * 0.02 : baseY + dy + w * 0.02;
-      out.add(Positioned(
-        left: x - dot / 2, top: y - dot / 2,
-        child: Container(width: dot, height: dot, decoration: const BoxDecoration(color: _gum, shape: BoxShape.circle)),
-      ));
-    }
-    return out;
-  }
-
-  Widget _toothWidget(Tooth t, double x, double y, double rot, double w) {
+  Widget _toothWidget(Tooth t, double x, double y, bool upper, double w) {
     final isErupted = erupted.contains(t.id);
     final expectedNow = !isErupted && ageMonths >= t.minMonth && ageMonths <= t.maxMonth;
     final isSel = t.id == selected;
 
     // Diş tipine göre boyut (azılar geniş, kesiciler dar).
     final isMolar = t.type == "m1" || t.type == "m2";
-    final tw = (isMolar ? w * 0.078 : (t.type == "canine" ? w * 0.056 : w * 0.05)).clamp(16.0, 60.0);
-    final th = (isMolar ? w * 0.072 : w * 0.092).clamp(22.0, 60.0);
+    final tw = (isMolar ? w * 0.068 : (t.type == "canine" ? w * 0.054 : w * 0.05)).clamp(15.0, 60.0);
+    final th = (isMolar ? w * 0.066 : w * 0.084).clamp(19.0, 60.0);
 
-    final border = isErupted ? _green : (expectedNow ? _primary : const Color(0xFFC9A9AF));
+    final border = isErupted ? _green : (expectedNow ? _primary : const Color(0xFFCBB8BD));
     final fill = isErupted
         ? Colors.white
-        : (expectedNow ? _primary.withOpacity(0.20) : Colors.white.withOpacity(0.78));
+        : (expectedNow ? _primary.withOpacity(0.20) : Colors.white.withOpacity(0.88));
 
-    // Dokunma alanını en az 40px tut.
-    final hitW = math.max(tw + 6, 34.0);
-    final hitH = math.max(th + 6, 38.0);
+    // Üst dişler altta yuvarlak (aşağı sarkar), alt dişler üstte yuvarlak.
+    final radius = upper
+        ? BorderRadius.vertical(top: Radius.circular(tw * 0.28), bottom: Radius.circular(tw * 0.5))
+        : BorderRadius.vertical(top: Radius.circular(tw * 0.5), bottom: Radius.circular(tw * 0.28));
+
+    final hitW = math.max(tw + 6, 30.0);
+    final hitH = math.max(th + 6, 34.0);
 
     return Positioned(
       left: x - hitW / 2,
@@ -442,25 +401,66 @@ class _MouthDiagram extends StatelessWidget {
           width: hitW,
           height: hitH,
           child: Center(
-            child: Transform.rotate(
-              angle: rot,
-              child: Container(
-                width: tw,
-                height: th,
-                decoration: BoxDecoration(
-                  color: fill,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(tw * 0.35), bottom: Radius.circular(tw * 0.5)),
-                  border: Border.all(color: border, width: isSel ? 3 : (isErupted || expectedNow ? 2 : 1)),
-                  boxShadow: isErupted ? [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 3, offset: const Offset(0, 1))] : null,
-                ),
-                child: isErupted
-                    ? const Icon(Icons.check, size: 12, color: _green)
-                    : (isSel ? const Icon(Icons.touch_app, size: 11, color: _primary) : null),
+            child: Container(
+              width: tw,
+              height: th,
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: radius,
+                border: Border.all(color: border, width: isSel ? 3 : (isErupted || expectedNow ? 2 : 1)),
+                boxShadow: isErupted ? [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 2, offset: const Offset(0, 1))] : null,
               ),
+              child: isErupted
+                  ? const Icon(Icons.check, size: 11, color: _green)
+                  : (isSel ? const Icon(Icons.touch_app, size: 10, color: _primary) : null),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+/// Gülümseme dudaklarını ve ağız açıklığını çizer (dişler bunun üstüne konur).
+class _SmilePainter extends CustomPainter {
+  final double w, h, cx, half;
+  _SmilePainter({required this.w, required this.h, required this.cx, required this.half});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final xL = cx - half, xR = cx + half;
+    final yC = h * 0.48; // ağız köşesi y (uçlar biraz yukarıda = gülümseme)
+
+    // Ağız açıklığı (koyu) — üst iç kenar merkezde 0.30h, alt iç kenar 0.72h,
+    // uçlarda köşede birleşir (mercek).
+    final dark = Paint()..color = _cavity;
+    final opening = Path()
+      ..moveTo(xL, yC)
+      ..quadraticBezierTo(cx, h * 0.12, xR, yC) // üst iç kenar (yukarı bombeli)
+      ..quadraticBezierTo(cx, h * 0.96, xL, yC) // alt iç kenar (aşağı bombeli)
+      ..close();
+    canvas.drawPath(opening, dark);
+
+    // Üst dudak: iç (alt) kenar = açıklığın üst kenarı; dış (üst) kenar tepede.
+    final upperLip = Paint()..color = _lip;
+    final upperPath = Path()
+      ..moveTo(xL, yC)
+      ..quadraticBezierTo(cx, h * 0.12, xR, yC) // iç/alt kenar
+      ..quadraticBezierTo(cx, h * -0.26, xL, yC) // dış/üst kenar (tepeye bombeli)
+      ..close();
+    canvas.drawPath(upperPath, upperLip);
+
+    // Alt dudak: biraz daha dolgun ve koyu.
+    final lowerLip = Paint()..color = const Color(0xFFD97882);
+    final lowerPath = Path()
+      ..moveTo(xL, yC)
+      ..quadraticBezierTo(cx, h * 0.96, xR, yC) // iç/üst kenar
+      ..quadraticBezierTo(cx, h * 1.28, xL, yC) // dış/alt kenar
+      ..close();
+    canvas.drawPath(lowerPath, lowerLip);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SmilePainter old) =>
+      old.w != w || old.h != h || old.cx != cx || old.half != half;
 }

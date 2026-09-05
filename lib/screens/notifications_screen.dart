@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/extras_store.dart';
+import '../data/food_database.dart';
 import '../services/social_sync.dart';
 import '../widgets/web_shell.dart';
+import 'recipe_detail_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _primary = Color(0xFFFF7A45);
@@ -45,6 +47,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       default:
         return Icons.notifications_rounded;
     }
+  }
+
+  /// Tarif bildiriminden ilgili tarif detayına gider.
+  void _openRecipe(String recipeId) {
+    final id = recipeId.trim();
+    if (id.isEmpty) return;
+    final idx = globalRecipesDatabase.indexWhere((r) => r.id == id);
+    if (idx < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tarif bulunamadı (henüz eşitlenmemiş olabilir).")),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => RecipeDetailScreen(recipe: globalRecipesDatabase[idx])),
+    );
   }
 
   /// Duyurudaki bağlantıyı harici tarayıcıda açar.
@@ -138,6 +156,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 if ((n["body"]?.toString() ?? "").isNotEmpty) ...[
                                   const SizedBox(height: 4),
                                   Text(n["body"].toString(), style: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: _text, height: 1.35)),
+                                ],
+                                if (type == 'recipe' && (n["recipeId"]?.toString() ?? "").trim().isNotEmpty) ...[
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      onPressed: () => _openRecipe(n["recipeId"].toString()),
+                                      icon: const Icon(Icons.menu_book_rounded, size: 16),
+                                      label: const Text("Tarifi Aç", style: TextStyle(fontFamily: 'Inter', fontSize: 13, fontWeight: FontWeight.bold)),
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: _green,
+                                        side: BorderSide(color: _green.withOpacity(0.6)),
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                    ),
+                                  ),
                                 ],
                                 if ((n["link"]?.toString() ?? "").trim().isNotEmpty) ...[
                                   const SizedBox(height: 10),

@@ -14,6 +14,7 @@ import 'services/social_sync.dart';
 import 'services/analytics.dart';
 import 'services/ad_free.dart';
 import 'services/local_reminders.dart';
+import 'services/push_notifications.dart';
 import 'data/tracking_store.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -135,6 +136,8 @@ class BabyBitesApp extends StatelessWidget {
     return MaterialApp(
       title: 'BabyBites',
       debugShowCheckedModeBanner: false,
+      // Bildirime dokununca (ör. yeni tarif) tarif detayına yönlendirmek için.
+      navigatorKey: PushNotifications.navigatorKey,
       scrollBehavior: AppScrollBehavior(),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

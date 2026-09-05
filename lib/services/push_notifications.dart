@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,6 +23,12 @@ import '../data/tracking_store.dart';
 class PushNotifications {
   PushNotifications._();
   static final PushNotifications instance = PushNotifications._();
+
+  /// Bildirime dokununca yönlendirme yapabilmek için ana Navigator anahtarı.
+  /// main.dart'ta MaterialApp.navigatorKey'e verilir; bildirimden gelen
+  /// yönlendirme (ör. tarife git) bu anahtarla yapılır.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
 
   String? token;
 
@@ -177,6 +184,42 @@ class PushNotifications {
       debugPrint('Push konuları: $kTopicAll + $next');
     } catch (e) {
       debugPrint('Push.syncTopics failed: $e');
+    }
+  }
+
+  /// Bildirime dokununca yönlendirmeyi kurar. Ana ekran hazır olunca (home
+  /// initState) çağrılır: hem uygulama arka plandayken açılan bildirimi
+  /// (onMessageOpenedApp) hem de uygulamayı SIFIRDAN açan bildirimi
+  /// (getInitialMessage) işler.
+  Future<void> setupTapHandlers() async {
+    if (kIsWeb) return; // web'de derin link zaten adres çubuğundan çalışır
+    try {
+      FirebaseMessaging.onMessageOpenedApp.listen(_routeFromMessage);
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) {
+        // Soğuk açılışta Navigator birkaç kare sonra hazır olur.
+        Future.delayed(const Duration(milliseconds: 700),
+            () => _routeFromMessage(initial));
+      }
+    } catch (e) {
+      debugPrint('Push.setupTapHandlers failed: $e');
+    }
+  }
+
+  /// Bildirim verisine göre uygulama içinde yönlendirir. Tarif bildirimi
+  /// `recipeId` taşır → var olan `/r/<id>` derin link route'u ile tarif detayı
+  /// açılır (bkz. main.dart onGenerateRoute).
+  void _routeFromMessage(RemoteMessage msg) {
+    try {
+      final data = msg.data;
+      final recipeId = (data['recipeId'] ?? '').toString().trim();
+      final nav = navigatorKey.currentState;
+      if (nav == null) return;
+      if (recipeId.isNotEmpty) {
+        nav.pushNamed('/r/$recipeId');
+      }
+    } catch (e) {
+      debugPrint('Push._routeFromMessage failed: $e');
     }
   }
 

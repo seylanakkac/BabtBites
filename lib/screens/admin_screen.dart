@@ -1291,16 +1291,21 @@ class _AdminScreenState extends State<AdminScreen> {
                 }
                 _persistAll();
                 final err = await _runSaving(() => CatalogSync.instance.push());
+                // YENİ tarif (admin doğrudan ekleme VEYA kullanıcı tarifi onayı)
+                // → yaşı uygun tüm kullanıcılara "yeni tarif" duyurusu + telefon
+                // bildirimi (Cloud Function age_m{startingMonth}+ konularına yollar).
+                // Mevcut tarifin DÜZENLENMESİNDE (existing != null) gönderilmez.
+                if (existing == null) {
+                  await SocialSync.instance.broadcastNewRecipe(
+                      n, (data["startingMonth"] as num?)?.toInt() ?? 6,
+                      recipeId: data["id"]?.toString() ?? "");
+                }
                 if (pending != null) {
                   final docId = pending["_docId"]?.toString() ?? "";
                   final toUid = pending["uid"]?.toString() ?? "";
                   if (toUid.isNotEmpty) {
                     await SocialSync.instance.sendNotification(toUid, "Tarifin onaylandı! 🎉", "\"$n\" tarifin yayınlandı.", type: 'recipe');
                   }
-                  // Yaşı uygun tüm kullanıcılara "yeni tarif" duyurusu.
-                  await SocialSync.instance.broadcastNewRecipe(
-                      n, (data["startingMonth"] as num?)?.toInt() ?? 6,
-                      recipeId: data["id"]?.toString() ?? "");
                   if (docId.isNotEmpty) await SocialSync.instance.deletePendingRecipe(docId);
                   if (mounted) setState(() => _pendingRecipesList?.remove(pending));
                 }
