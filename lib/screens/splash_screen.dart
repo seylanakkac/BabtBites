@@ -7,7 +7,6 @@ import '../services/ad_free.dart';
 import '../services/storage_service.dart';
 import 'home_screen.dart';
 import 'onboarding_screen.dart';
-import 'admin_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -82,10 +81,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       // Misafir gezinme: oturum yoksa login'e zorlamadan ana sayfayı aç.
       // Hesap gerektiren alanlarda login ekranı ayrıca tetiklenir.
       if (user == null) return const HomeScreen();
+      // Admin de NORMAL kullanıcı gibi açılır; admin paneline geçiş Profil
+      // sayfasındaki "Admin Paneli" alanından yapılır. setAdminMode yine
+      // çağrılır ki o alan görünsün.
       final isAdmin = isAdminEmail(user.email);
       setAdminMode(isAdmin);
       StorageService.instance.saveIsAdmin(isAdmin);
-      if (isAdmin) return const AdminScreen();
       // Pull this user's cloud data before deciding onboarding vs home — but
       // never let it hang the splash (time-box it; fall back to local).
       await CloudSync.instance.pull().timeout(const Duration(seconds: 8), onTimeout: () {});

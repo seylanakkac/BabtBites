@@ -202,6 +202,22 @@ List<Map<String, dynamic>> marketLinksFor(String page) => marketLinks.where((l) 
       return pages.isEmpty || pages.contains(page);
     }).toList();
 
+/// Admin'in eklediği "kendi reklamımız" banner'ları (affiliate linki veya marka
+/// anlaşması görseli). AdMob/AdSense kapalıyken uygulamadaki reklam alanlarını
+/// bunlar doldurur. Buluta senkron (globalAdminConfig["houseBanners"]) → yeni
+/// sürüm gerektirmez; admin ekler eklemez tüm kullanıcılar görür.
+///
+/// Şekil: { id, imageUrl, link, title, subtitle, active(bool) }
+/// Yalnızca aktif olanlar döner.
+List<Map<String, dynamic>> get houseBanners =>
+    ((globalAdminConfig["houseBanners"] as List?) ?? const [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .where((b) => b["active"] != false)
+        .toList();
+
+/// Aktif en az bir banner var mı? (reklam alanlarını house banner'a düşürmek için)
+bool get hasHouseBanners => houseBanners.isNotEmpty;
+
 /// A single nutrition-target constant (config override or built-in default).
 double ntv(String key) {
   final cfg = globalAdminConfig["nutritionTargets"];

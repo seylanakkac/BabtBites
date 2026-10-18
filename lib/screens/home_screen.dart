@@ -27,6 +27,7 @@ import '../data/tracking_store.dart';
 import '../data/user_profile_store.dart';
 import '../services/storage_service.dart';
 import '../widgets/ad_banner.dart';
+import '../widgets/house_ad.dart';
 import '../widgets/mobile_ads.dart' show lastBannerError;
 import '../widgets/web_shell.dart';
 import '../widgets/disclaimer.dart';
@@ -43,6 +44,7 @@ import 'vaccines_screen.dart';
 import 'teeth_screen.dart';
 import 'feeding_steps_screen.dart';
 import 'premium_screen.dart';
+import 'admin_screen.dart';
 import 'sample_menu_screen.dart';
 import 'sources_screen.dart';
 import 'recipe_detail_screen.dart';
@@ -2292,6 +2294,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         const SizedBox(height: 12),
         Expanded(child: _explorerSubTab == 0 ? _buildFoodsExplorer() : _buildRecipesExplorer()),
+        // Tarifler alanında ALTTA SABİT reklam banner'ı (admin'in eklediği house
+        // banner varsa görünür; yoksa hiç yer kaplamaz).
+        if (_explorerSubTab == 1)
+          const HouseAdBanner(height: 64, margin: EdgeInsets.fromLTRB(16, 4, 16, 10)),
       ],
     );
   }
@@ -2476,6 +2482,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  /// Bir tarifin (başlangıç ayına göre) ait olduğu yaş filtresi kovası.
+  /// Filtre çipleriyle ("6+/8+/9+/12+ Ay") BİREBİR eşleşir; her tarif tek
+  /// kovaya girer, böylece seçilen çip yalnızca o aşamadaki tarifleri gösterir.
+  String _recipeAgeBucket(int startingMonth) {
+    if (startingMonth >= 12) return "12+ Ay";
+    if (startingMonth >= 9) return "9+ Ay";
+    if (startingMonth >= 8) return "8+ Ay";
+    return "6+ Ay";
+  }
+
   Widget _buildRecipesExplorer() {
     final triedNames = triedFoodNames(_activeBabyId);
     final likedIds = likedRecipeIds(_activeBabyId);
@@ -2490,15 +2506,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (_selectedRecipeSubCategory != "Tümü" && recipe.subCategory != _selectedRecipeSubCategory) return false;
       if (_pantry.isNotEmpty && !recipe.ingredients.any((ing) => _pantry.contains(ing))) return false;
       if (_selectedRecipeAge == "Tümü") return matchesSearch;
-      int maxAge = 6;
-      if (_selectedRecipeAge == "8+ Ay") {
-        maxAge = 8;
-      } else if (_selectedRecipeAge == "9+ Ay") {
-        maxAge = 9;
-      } else if (_selectedRecipeAge == "12+ Ay") {
-        maxAge = 12;
-      }
-      return matchesSearch && recipe.startingMonth <= maxAge;
+      // Her tarif TEK bir yaş kovasına girer; "12+ Ay" seçilince YALNIZCA 12+ ay
+      // tarifleri gelir. (Önceden `startingMonth <= maxAge` idi; "12+ Ay" 6/8/9
+      // ay tariflerini de getiriyordu.)
+      return matchesSearch && _recipeAgeBucket(recipe.startingMonth) == _selectedRecipeAge;
     }).toList();
     // "Kullanıcıların eklediği tarifler" filtresi açıkken en yeniden eskiye
     // sırala. Liste veritabanına ekleme sırasıyla geliyordu; ana sayfadaki
@@ -5881,6 +5892,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
         ),
+        // Admin olarak tanımlı kişilere Admin Paneli geçişi (normal kullanıcı
+        // gibi açılır; panele buradan girilir).
+        if (globalIsAdmin) ...[
+          const SizedBox(height: 24),
+          const Text("Yönetim", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
+          const SizedBox(height: 10),
+          Container(
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: _primary.withOpacity(0.35))),
+            child: _navTile("Admin Paneli", Icons.admin_panel_settings_outlined, () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AdminScreen()))),
+          ),
+        ],
         const SizedBox(height: 24),
         const Text("Yasal", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: _text)),
         const SizedBox(height: 10),

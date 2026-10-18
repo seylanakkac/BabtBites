@@ -292,10 +292,11 @@ class _LoginScreenState extends State<LoginScreen> {
     // Tüm önceki rotaları (giriş öncesi misafir Home dahil) temizle; hedef ekran
     // TEK kök rota olsun. Aksi halde üst nav'daki popUntil(isFirst) altta kalan
     // eski misafir Home'u açığa çıkarıp "çıkış yapılmış" gibi görünmesine yol açar.
-    if (globalIsAdmin) {
-      Navigator.of(context).pushNamedAndRemoveUntil('/admin', (route) => false);
-      return;
-    }
+    //
+    // NOT: Admin'ler de NORMAL kullanıcı gibi girer (ana sayfa/onboarding).
+    // Admin paneline geçiş artık Profil sayfasındaki "Admin Paneli" alanından
+    // yapılır (bkz. home_screen profil menüsü). Böylece admin, uygulamayı
+    // kullanıcı gözünden görebilir.
     final babies = StorageService.instance.loadBabies();
     if (isNewUser || babies == null || babies.isEmpty) {
       Navigator.of(context).pushNamedAndRemoveUntil('/onboarding', (route) => false);

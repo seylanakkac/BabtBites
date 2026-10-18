@@ -166,6 +166,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
         : placeholder;
   }
 
+  /// Hero'da (fotoğraf alanı) video oynatılabilir mi? Yalnızca YATAY (16:9)
+  /// YouTube videoları: web'de iframe, mobilde küçük-resim+oynat. Dikey (9:16)
+  /// YouTube Shorts ile Instagram/TikTok hero'ya UYMAZ — onlar aşağıdaki
+  /// "Video Tarif" bölümünde gösterilir.
+  bool _isHeroVideo(Recipe recipe) =>
+      isYoutubeUrl(recipe.videoUrl) && !isShorts(recipe.videoUrl);
+
+  /// Tarif başlığındaki (hero) medya: yatay YouTube videosu varsa oynatıcı,
+  /// yoksa yüklenen fotoğraf.
+  Widget _heroMedia(Recipe recipe) {
+    if (_isHeroVideo(recipe)) {
+      return Container(
+        color: Colors.black,
+        alignment: Alignment.center,
+        child: youtubeEmbed(recipe.videoUrl),
+      );
+    }
+    return _getRecipeImage(recipe);
+  }
+
   void _toggleCartIngredient(String ingredient) {
     setState(() {
       if (globalCartList.contains(ingredient)) {
@@ -299,44 +319,49 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                   background: Stack(
                     fit: StackFit.expand,
                     children: [
-                      _getRecipeImage(recipe),
-                      // Gradient overlay for text legibility
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Colors.black.withOpacity(0.4), Colors.transparent],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
+                      _heroMedia(recipe),
+                      // Degrade + saat etiketi YALNIZCA fotoğraf hero'sunda:
+                      // video hero'da üste bir şey koymak oynatma dokunuşunu
+                      // engeller ve videoyu karartır.
+                      if (!_isHeroVideo(recipe)) ...[
+                        // Gradient overlay for text legibility
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Colors.black.withOpacity(0.4), Colors.transparent],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
                           ),
                         ),
-                      ),
-                      // Text overlay
-                      Positioned(
-                        bottom: 24,
-                        left: 24,
-                        right: 24,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                recipeTimeLabel(recipe),
-                                style: const TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                        // Text overlay
+                        Positioned(
+                          bottom: 24,
+                          left: 24,
+                          right: 24,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  recipeTimeLabel(recipe),
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -431,17 +456,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                           ),
                         ),
                         const SizedBox(height: 14),
-                        // Video tarif — YouTube/Shorts gömülür; Instagram, TikTok
-                        // ve diğer linkler dokununca uygulamada/tarayıcıda açılır.
-                        if (recipe.videoUrl.trim().isNotEmpty) ...[
+                        // Video tarif: YATAY YouTube başlıkta (hero) oynuyor.
+                        // Burada DİKEY videolar durur: YouTube Shorts dikey gömülü
+                        // oynar; Instagram/TikTok gömülemediği için dokununca
+                        // uygulamada/tarayıcıda açılan kart olur.
+                        if (recipe.videoUrl.trim().isNotEmpty && !_isHeroVideo(recipe)) ...[
                           const Row(children: [
                             Icon(Icons.play_circle_outline, size: 18, color: Color(0xFFFF7A45)),
                             SizedBox(width: 6),
                             Text("Video Tarif", style: TextStyle(fontFamily: 'Inter', fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF2D2D3A))),
                           ]),
                           const SizedBox(height: 10),
-                          if (isYoutubeUrl(recipe.videoUrl))
-                            youtubeEmbed(recipe.videoUrl)
+                          if (isShorts(recipe.videoUrl))
+                            Center(child: SizedBox(width: 240, child: youtubeEmbed(recipe.videoUrl, vertical: true)))
                           else
                             videoLinkCard(recipe.videoUrl),
                           const SizedBox(height: 16),
@@ -1652,6 +1679,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> with SingleTick
                     if (isPhotoUrl(c["photo"])) ...[
                       const SizedBox(height: 8),
                       ClipRRect(borderRadius: BorderRadius.circular(10), child: SizedBox(height: 140, width: double.infinity, child: photoOrFallback(c["photo"], fallback: const SizedBox(), fit: BoxFit.cover))),
+                    ],
+                    // Admin'in yoruma resmi yanıtı (varsa).
+                    if ((c["adminReply"]?.toString() ?? "").trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF7A45).withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFF7A45).withOpacity(0.25)),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: const [
+                            Icon(Icons.verified, size: 14, color: Color(0xFFFF7A45)),
+                            SizedBox(width: 5),
+                            Text("BabyBites yanıtı", style: TextStyle(fontFamily: 'Inter', fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFFF7A45))),
+                          ]),
+                          const SizedBox(height: 4),
+                          Text(c["adminReply"].toString(), style: TextStyle(fontFamily: 'Inter', fontSize: 13, color: textColor, height: 1.4)),
+                        ]),
+                      ),
                     ],
                   ],
                 ),

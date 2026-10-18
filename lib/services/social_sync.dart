@@ -179,6 +179,47 @@ class SocialSync {
     }
   }
 
+  /// Admin bir yoruma resmi cevap yazar/günceller. Boş metin cevabı siler.
+  /// Cevap, tarifte yorumun altında "BabyBites (yanıt)" olarak gösterilir.
+  Future<void> replyToComment(String id, String reply) async {
+    try {
+      final t = reply.trim();
+      await _comments.doc(id).update({
+        'adminReply': t,
+        'adminReplyDate': t.isEmpty ? '' : _today(),
+      });
+    } catch (e) {
+      debugPrint('SocialSync.replyToComment failed: $e');
+    }
+  }
+
+  /// Admin moderasyon ekranı için TÜM yorumlar (onaylı + bekleyen). En yeni
+  /// tarih önce. Tek koleksiyon okuması — ek index gerekmez.
+  Future<List<Map<String, dynamic>>> loadAllComments() async {
+    try {
+      final snap = await _comments.get();
+      final list = snap.docs.map((d) {
+        final m = Map<String, dynamic>.from(d.data());
+        m['id'] = d.id;
+        return m;
+      }).toList();
+      list.sort((a, b) => (b['date']?.toString() ?? '').compareTo(a['date']?.toString() ?? ''));
+      return list;
+    } catch (e) {
+      debugPrint('SocialSync.loadAllComments failed: $e');
+      return [];
+    }
+  }
+
+  /// Admin bir yorumu tamamen siler.
+  Future<void> deleteComment(String id) async {
+    try {
+      await _comments.doc(id).delete();
+    } catch (e) {
+      debugPrint('SocialSync.deleteComment failed: $e');
+    }
+  }
+
   /// Kullanıcı bir yorumu şikayet eder → admin moderasyonuna işaretlenir.
   Future<void> reportComment(String id) async {
     try {

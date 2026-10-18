@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../config/ads_config.dart';
+import '../data/admin_store.dart';
+import 'house_ad.dart';
 import 'web_ads.dart';
 import 'mobile_ads.dart';
 
@@ -87,6 +89,13 @@ class AdBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Kendi reklamımız (house banner) varsa reklam ağları yerine onu göster.
+    // AdMob/AdSense kapalı; bu sayede tüm reklam alanları admin'in eklediği
+    // affiliate/marka banner'larıyla dolar.
+    if (hasHouseBanners) {
+      return HouseAdBanner(height: 80, margin: margin);
+    }
+
     // Mobil uygulama: AdMob banner (web'de stub → boş; aşağıdaki AdSense devreye girer).
     if (!kIsWeb && admobConfigured) {
       return Container(margin: margin, alignment: Alignment.center, child: mobileBannerAd());
