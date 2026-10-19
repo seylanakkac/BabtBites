@@ -27,7 +27,14 @@ workflows:
 
     scripts:
       - name: Flutter paketleri
-        script: flutter pub get
+        script: |
+          # Swift Package Manager'ı KAPAT: Flutter 3.44 SPM'yi açınca
+          # webview_flutter_wkwebview (SPM) ile google_mobile_ads (CocoaPods)
+          # çakışıyor ve `pod install` patlıyordu ("dependency conflict ...
+          # uses Swift Package Manager"). SPM kapaliyken her iki eklenti de
+          # CocoaPods'tan çözülür ve IPA derlenir.
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
 
       - name: GoogleService-Info.plist yaz (gizli değişkenden)
         script: |
